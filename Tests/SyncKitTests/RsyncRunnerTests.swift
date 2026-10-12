@@ -225,7 +225,8 @@ final class RsyncRunnerTests: IntegrationTestCase {
         options.bandwidthLimitKBps = 4_000
         let runner = try makeRunner(rsync: true)
         let updates = UpdateCollector()
-        let run = Task { try await runner.run(task(src, dst, options: options)) { updates.add($0) } }
+        let frozenOptions = options          // Swift 5.10 refuse de capturer une variable modifiable dans une tâche concurrente
+        let run = Task { try await runner.run(task(src, dst, options: frozenOptions)) { updates.add($0) } }
 
         try await waitUntil { (updates.latest?.filesDone ?? 0) >= 1 }
         try FileManager.default.removeItem(atPath: dst)
@@ -264,7 +265,8 @@ final class RsyncRunnerTests: IntegrationTestCase {
         options.bandwidthLimitKBps = 6_000                        // ~3 secondes pour 16 Mo
         let runner = try makeRunner(rsync: true)
         let updates = UpdateCollector()
-        let run = Task { try await runner.run(task(src, dst, options: options)) { updates.add($0) } }
+        let frozenOptions = options          // Swift 5.10 refuse de capturer une variable modifiable dans une tâche concurrente
+        let run = Task { try await runner.run(task(src, dst, options: frozenOptions)) { updates.add($0) } }
 
         try await waitUntil { (updates.latest?.currentBytes ?? 0) > 500_000 }
         runner.pause()
@@ -288,7 +290,8 @@ final class RsyncRunnerTests: IntegrationTestCase {
         options.bandwidthLimitKBps = 6_000
         let runner = try makeRunner(rsync: true)
         let updates = UpdateCollector()
-        let run = Task { try await runner.run(task(src, dst, options: options)) { updates.add($0) } }
+        let frozenOptions = options          // Swift 5.10 refuse de capturer une variable modifiable dans une tâche concurrente
+        let run = Task { try await runner.run(task(src, dst, options: frozenOptions)) { updates.add($0) } }
 
         try await waitUntil { (updates.latest?.currentBytes ?? 0) > 500_000 }
         runner.stop()
