@@ -1,0 +1,12 @@
+sending incremental file list
+./
+a.txt
+              6 100%    0.00kB/s    0:00:00                6 100%    0.00kB/s    0:00:00 (xfr#1, to-chk=3/5)
+big.bin
+         32,768   0%   31.25MB/s    0:00:00       13,139,968  43%   11.39MB/s    0:00:01       25,296,896  84%   11.35MB/s    0:00:00       30,000,000 100%   11.62MB/s    0:00:02 (xfr#2, to-chk=2/5)
+sub/
+sub/mid.bin
+         32,768   1%   94.96kB/s    0:00:20        2,000,000 100%    3.46MB/s    0:00:00 (xfr#3, to-chk=0/5)
+
+sent 32,008,086 bytes  received 92 bytes  12,803,271.20 bytes/sec
+total size is 32,000,006  speedup is 1.00

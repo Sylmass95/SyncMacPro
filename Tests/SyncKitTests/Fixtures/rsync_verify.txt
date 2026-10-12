@@ -1,0 +1,2 @@
+>fc.T......|changed.txt
+>f+++++++++|fresh.txt
