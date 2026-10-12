@@ -4890,3 +4890,19 @@ Ouvrir https://github.com/Sylmass95/SyncMacPro/actions et vérifier que le premi
 **Cohérence des types :** les noms utilisés dans les tâches ultérieures (`RunOptions`, `EngineCommand`, `RsyncEvent.fileStarted(name:isNew:)`, `TransferSnapshot`, `RunStatus`…) sont ceux définis dans les tâches qui les produisent ; le code de chaque tâche est celui qui a été compilé et testé ensemble (137 tests verts, trois exécutions consécutives).
 
 **Limites connues :** les liens symboliques et fichiers spéciaux ne sont pas suivis (rsync ne leur applique pas de progression) ; la vérification après copie compare les fichiers réguliers ; une instance de `TaskRunner` ne gère qu'une exécution à la fois.
+
+---
+
+## Corrections après la relecture finale
+
+Le plan a été exécuté tâche par tâche (137 tests), puis une relecture indépendante de la branche entière a relevé 1 défaut critique et 6 importants, corrigés dans un commit à part avec un test écrit d'abord (149 tests). Le code des tâches ci-dessus est donc celui d'**avant** ces corrections :
+
+- **C1** : `--timeout=60` retiré de rsync (une pause plus longue qu'une minute faisait échouer la copie à la reprise).
+- **I1** : une source absente fait échouer la vérification et la simulation rsync (au lieu de « rien à signaler »).
+- **I2** : le garde-fou rclone ne compte plus le dossier d'archive parmi les fichiers vivants (`sizeCommand(for:task:run:)`).
+- **I3** : `verifyAfterCopy` avec rclone ignore l'archive et les fichiers qui n'existent qu'à la destination, et respecte la sélection.
+- **I4** : `TaskRunner.collect` sépare la sortie standard de la sortie d'erreur (un avertissement de rclone ne fausse plus `rclone size --json`).
+- **I5** : les processus lancés n'héritent plus des descripteurs de l'appelant (`POSIX_SPAWN_CLOEXEC_DEFAULT`) et reçoivent une entrée standard vide.
+- **I6** : `terminate(killAfter:)` escalade en SIGKILL après un délai de grâce (8 s par défaut).
+
+Les mineurs non traités sont listés dans le message de la pull request.

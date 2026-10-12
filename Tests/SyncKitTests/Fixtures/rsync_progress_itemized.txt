@@ -1,0 +1,14 @@
+sending incremental file list
+*deleting  |gone.txt
+>f+++++++++|new.bin
+         32,768   1%    0.00kB/s    0:00:00        1,703,936  56%    1.47MB/s    0:00:00        3,000,000 100%    1.46MB/s    0:00:01 (xfr#1, to-chk=5/7)
+>f..t......|timeonly.txt
+              3 100%    0.00kB/s    0:00:00                3 100%    0.00kB/s    0:00:00 (xfr#2, to-chk=3/7)
+>f.st......|upd.txt
+              4 100%    0.00kB/s    0:00:00                4 100%    0.00kB/s    0:00:00 (xfr#3, to-chk=2/7)
+cd+++++++++|sub/
+>f+++++++++|sub/deep.txt
+              5 100%    0.01kB/s    0:00:00                5 100%    0.01kB/s    0:00:00 (xfr#4, to-chk=0/7)
+
+sent 3,001,092 bytes  received 119 bytes  1,200,484.40 bytes/sec
+total size is 3,000,017  speedup is 1.00
