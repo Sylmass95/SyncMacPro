@@ -102,6 +102,21 @@ final class RsyncRunnerTests: IntegrationTestCase {
         XCTAssertTrue(result.summary.message?.contains("Simulation") ?? false)
     }
 
+    func testVerifyOfAMissingSourceFailsInsteadOfReportingNoDifference() async throws {
+        let dst = try folder("dst")
+        let missing = sandbox.appendingPathComponent("missing").path
+        let result = try await makeRunner(rsync: true).run(task(missing, dst, mode: .verify))
+        XCTAssertEqual(result.status, .failed, result.summary.message ?? "")
+        XCTAssertNotEqual(result.summary.message, "Aucune différence.")
+    }
+
+    func testDryRunOfAMissingSourceFailsInsteadOfReportingNothingToDo() async throws {
+        let dst = try folder("dst")
+        let missing = sandbox.appendingPathComponent("missing").path
+        let result = try await makeRunner(rsync: true).run(task(missing, dst), dryRun: true)
+        XCTAssertEqual(result.status, .failed, result.summary.message ?? "")
+    }
+
     func testMoveRemovesTheSourceFiles() async throws {
         let src = try folder("src"), dst = try folder("dst")
         try write("\(src)/a.txt", "alpha")

@@ -127,6 +127,12 @@ final class VerifyParserTests: XCTestCase {
         let names = VerifyParser.rcloneDifferences(in: try Fixture.text("rclone_check"))
         XCTAssertEqual(Set(names), ["b.txt", "c.txt", "d.txt"])
     }
+
+    /// Après une copie, des fichiers « en plus » à la destination (lignes « - ») sont normaux.
+    func testRcloneDifferencesCanIgnoreFilesThatOnlyExistOnTheDestination() throws {
+        let names = VerifyParser.rcloneDifferences(in: try Fixture.text("rclone_check"), includeMissingOnSource: false)
+        XCTAssertEqual(Set(names), ["b.txt", "c.txt"])
+    }
 }
 
 final class RcloneOutputParserTests: XCTestCase {

@@ -3,8 +3,11 @@ import Foundation
 /// Transforme une tâche en arguments rsync.
 public enum RsyncCommandBuilder {
     /// `--out-format=%i|%n` : rsync indique lui-même si un fichier est nouveau (`>f+++++++++`) ou mis à jour.
+    /// Pas de `--timeout` : rsync compare l'horloge murale à sa dernière entrée/sortie, donc une pause
+    /// (SIGSTOP) plus longue que le délai ferait échouer la copie à la reprise. La détection d'un moteur
+    /// bloqué revient à l'agent (« pas de progression pendant N minutes »).
     private static let transferFlags = [
-        "-rtv", "--inplace", "--partial", "--progress", "--timeout=60", "--out-format=%i|%n",
+        "-rtv", "--inplace", "--partial", "--progress", "--out-format=%i|%n",
     ]
 
     /// Commande d'exécution (ou de simulation si `run.dryRun`).
@@ -45,7 +48,7 @@ public enum RsyncCommandBuilder {
         if task.mode.requiresRclone || task.mode == .verify {
             throw CommandError.unsupportedMode(mode: task.mode, engine: .rsync)
         }
-        var args = ["-rtn", "--stats", "--out-format=%l|%n", "--timeout=60"]
+        var args = ["-rtn", "--stats", "--out-format=%l|%n"]
         if task.mode == .mirror {
             args += ["--delete", "--exclude=/\(task.options.archiveFolder)/"]
         }

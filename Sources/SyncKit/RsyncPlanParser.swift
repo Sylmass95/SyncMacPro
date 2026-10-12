@@ -64,9 +64,12 @@ public enum VerifyParser {
 
     /// Fichiers qui diffèrent d'après rclone : « * » différent, « + » absent de la destination,
     /// « - » absent de la source, « ! » erreur. « = » signifie identique.
-    public static func rcloneDifferences(in text: String) -> [String] {
+    /// `includeMissingOnSource: false` ignore les lignes « - » (fichiers qui n'existent qu'à la destination) :
+    /// après une copie, c'est normal.
+    public static func rcloneDifferences(in text: String, includeMissingOnSource: Bool = true) -> [String] {
         LineSplitter.lines(in: text).compactMap { line in
             guard let first = line.first, "*+-!".contains(first) else { return nil }
+            if first == "-", !includeMissingOnSource { return nil }
             return String(line.dropFirst(2))
         }
     }

@@ -19,9 +19,12 @@ extension TaskRunner {
         // Simulation : le plan répond à « qu'est-ce qui serait fait ? ».
         if dryRun {
             onUpdate(.phase(.planning))
-            guard let plan = try await rsyncPlan(task, runOptions) else {
+            guard let plan = try await rsyncPlan(task, runOptions, strict: true) else {
+                if control.stopRequested {
+                    return result(status: .stopped, engine: .rsync, snapshot: TransferSnapshot(), started: started)
+                }
                 return result(status: .failed, engine: .rsync, snapshot: TransferSnapshot(), started: started,
-                              message: "La simulation a échoué.")
+                              message: "La simulation a échoué (source introuvable ou illisible ?).")
             }
             var snapshot = TransferSnapshot()
             snapshot.totalFiles = plan.files.count
@@ -142,9 +145,12 @@ extension TaskRunner {
     }
 
     /// Simulation (`-n --stats`) ; `nil` si rsync a échoué ou a été arrêté.
-    func rsyncPlan(_ task: SyncTask, _ options: RunOptions) async throws -> RsyncPlan? {
+    /// `strict` : seuls les codes 0 et 24 comptent. Le garde-fou d'un miroir tolère aussi 23 (erreurs d'entrée/sortie :
+    /// rsync saute alors les suppressions, c'est le sens sûr) ; une simulation demandée par l'utilisateur, non :
+    /// elle dirait « rien à copier » pour une source introuvable.
+    func rsyncPlan(_ task: SyncTask, _ options: RunOptions, strict: Bool = false) async throws -> RsyncPlan? {
         let outcome = try await collect(try RsyncCommandBuilder.planCommand(for: task, run: options))
-        guard outcome.code == 0 || outcome.code == 23 || outcome.code == 24 else { return nil }
+        guard outcome.code == 0 || outcome.code == 24 || (!strict && outcome.code == 23) else { return nil }
         return RsyncPlanParser.parse(outcome.output)
     }
 
@@ -154,9 +160,9 @@ extension TaskRunner {
         onUpdate(.phase(.verifying))
         let outcome = try await collect(try RsyncCommandBuilder.command(for: task, run: options))
         if control.stopRequested { return result(status: .stopped, engine: .rsync, snapshot: TransferSnapshot(), started: started) }
-        guard outcome.code == 0 || outcome.code == 23 || outcome.code == 24 else {
+        guard outcome.code == 0 || outcome.code == 24 else {
             return result(status: .failed, engine: .rsync, snapshot: TransferSnapshot(), started: started,
-                          message: "La vérification a échoué (code \(outcome.code)).")
+                          message: "La vérification a échoué (code \(outcome.code)) : source introuvable ou illisible ?")
         }
         let differences = VerifyParser.rsyncDifferences(in: outcome.output)
         return result(

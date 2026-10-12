@@ -54,8 +54,11 @@ public enum RcloneCommandBuilder {
     }
 
     /// Compte les fichiers d'un côté (`rclone size --json`) : sert à calculer le pourcentage de suppressions.
-    public static func sizeCommand(for endpoint: Endpoint, run: RunOptions) -> EngineCommand {
-        var args = ["size", "--json", endpoint.rcloneSpec]
+    /// Le dossier d'archive et les exclusions de l'utilisateur ne comptent pas : l'archive grossit avec le temps et
+    /// ferait baisser artificiellement le pourcentage de suppressions.
+    public static func sizeCommand(for endpoint: Endpoint, task: SyncTask, run: RunOptions) -> EngineCommand {
+        var args = ["size", "--json", endpoint.rcloneSpec, "--exclude", "/\(task.options.archiveFolder)/**"]
+        args += task.options.excludes.flatMap { ["--exclude", $0] }
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
     }
@@ -71,10 +74,9 @@ public enum RcloneCommandBuilder {
 
     /// Exclusions, puis (si une sélection d'éléments est définie) uniquement ces éléments.
     private static func filterArguments(for task: SyncTask) -> [String] {
-        guard task.mode != .verify else {
-            return task.options.excludes.flatMap { ["--exclude", $0] }
-        }
-        var args = task.options.excludes.flatMap { ["--filter", "- \($0)"] }
+        // La vérification ignore l'archive (elle n'existe que d'un côté) et respecte la même sélection que la copie.
+        var args = task.mode == .verify ? ["--filter", "- /\(task.options.archiveFolder)/**"] : []
+        args += task.options.excludes.flatMap { ["--filter", "- \($0)"] }
         if !task.sourceItems.isEmpty {
             for item in task.sourceItems {
                 let name = PathText.withoutTrailingSlash(item)

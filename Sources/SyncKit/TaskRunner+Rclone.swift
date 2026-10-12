@@ -94,7 +94,7 @@ extension TaskRunner {
                 var checked = task
                 checked.mode = .verify
                 let verification = try await collect(try RcloneCommandBuilder.command(for: checked, run: options))
-                let differences = VerifyParser.rcloneDifferences(in: verification.output)
+                let differences = VerifyParser.rcloneDifferences(in: verification.output, includeMissingOnSource: false)
                 if !differences.isEmpty {
                     status = .failed
                     message = "\(differences.count) fichier(s) diffèrent après la copie (par exemple « \(differences[0]) »)."
@@ -132,14 +132,14 @@ extension TaskRunner {
 
     /// Compte les fichiers de la destination (`rclone size`) et les suppressions prévues (simulation).
     private func mirrorGuard(_ task: SyncTask, options: RunOptions) async throws -> MirrorGuardResult {
-        let size = try await collect(RcloneCommandBuilder.sizeCommand(for: task.destination, run: options))
+        let size = try await collect(RcloneCommandBuilder.sizeCommand(for: task.destination, task: task, run: options))
         let existing = size.code == 0 ? (RcloneSizeParser.count(from: size.output) ?? 0) : 0   // destination absente = vide
 
         var simulated = options
         simulated.dryRun = true
         let dry = try await collect(try RcloneCommandBuilder.command(for: task, run: simulated))
         if control.stopRequested { return MirrorGuardResult(failure: "Arrêté.") }
-        let events = dry.output.split(separator: "\n").compactMap { RcloneOutputParser.parse(line: String($0)) }
+        let events = (dry.errors + "\n" + dry.output).split(separator: "\n").compactMap { RcloneOutputParser.parse(line: String($0)) }
         guard dry.code == 0 else {
             let reason = events.compactMap { event -> String? in
                 if case .error(let text) = event { return text }

@@ -49,14 +49,19 @@ public final class TaskRunner: @unchecked Sendable {
     }
 
     /// Lance une commande annexe (simulation, taille, vérification) et attend sa fin.
-    func collect(_ command: EngineCommand) async throws -> (code: Int32, output: String) {
-        let box = LineBox()
+    /// `output` est la sortie standard seule (les résultats : JSON de `rclone size`, plan rsync, `check`) ;
+    /// `errors` est la sortie d'erreur (journal JSON de rclone, avertissements). Les mélanger ferait échouer la lecture
+    /// du JSON dès qu'un simple avertissement apparaît.
+    func collect(_ command: EngineCommand) async throws -> (code: Int32, output: String, errors: String) {
+        let out = LineBox(), err = LineBox()
         let process = try ProcessRunner.spawn(
             executable: try executable(for: command.engine), arguments: command.arguments
-        ) { box.add($0.text) }
+        ) { line in
+            if line.stream == .stderr { err.add(line.text) } else { out.add(line.text) }
+        }
         control.registerAuxiliary(process)
         let code = await process.waitForExit()
-        return (code, box.joined)
+        return (code, out.joined, err.joined)
     }
 
     func result(

@@ -175,6 +175,72 @@ final class RcloneRunnerTests: IntegrationTestCase {
         XCTAssertFalse(TaskRunner.hasBisyncState(at: sandbox.appendingPathComponent("work/bisync/\(UUID().uuidString)")))
     }
 
+    // MARK: relecture finale (I2, I3, I4)
+
+    /// I2 : l'archive grossit avec le temps ; elle ne doit pas diluer le pourcentage de suppressions.
+    func testMirrorGuardDoesNotCountTheArchiveFolderAsLiveFiles() async throws {
+        let src = try folder("src"), dst = try folder("dst")                 // source vidée
+        for index in 1...4 { try write("\(dst)/live\(index).txt", "x") }
+        for index in 1...60 { try write("\(dst)/_ARCHIVE/2026-01-01_00-00-00/old\(index).txt", "x") }
+
+        let result = try await makeRunner(rclone: true).run(rcloneTask(src, dst, mode: .mirror, options: forced))
+
+        XCTAssertEqual(result.status, .blocked, result.summary.message ?? "")
+        XCTAssertEqual(names(in: dst).filter { $0 != "_ARCHIVE" }.count, 4, "les fichiers vivants ne doivent pas être touchés")
+    }
+
+    /// I3 (a) : après un miroir, l'archive existe côté destination : ce n'est pas une différence.
+    func testVerifyAfterCopyIgnoresTheArchiveAfterAMirror() async throws {
+        let src = try folder("src"), dst = try folder("dst")
+        try write("\(src)/a.txt", "new content, longer")
+        try write("\(dst)/a.txt", "old")
+        try write("\(dst)/gone.txt", "gone")
+        var options = forced
+        options.deleteThresholdPercent = 100
+        options.verifyAfterCopy = true
+        let result = try await makeRunner(rclone: true).run(rcloneTask(src, dst, mode: .mirror, options: options))
+        XCTAssertEqual(result.status, .succeeded, result.summary.message ?? "")
+    }
+
+    /// I3 (b) : copier vers un dossier qui contient déjà d'autres fichiers est normal.
+    func testVerifyAfterCopyAcceptsForeignFilesOnTheDestination() async throws {
+        let src = try folder("src"), dst = try folder("dst")
+        try write("\(src)/a.txt", "alpha")
+        try write("\(dst)/foreign.txt", "not ours")
+        var options = forced
+        options.verifyAfterCopy = true
+        let result = try await makeRunner(rclone: true).run(rcloneTask(src, dst, options: options))
+        XCTAssertEqual(result.status, .succeeded, result.summary.message ?? "")
+    }
+
+    /// I3 (c) : avec une sélection, seuls les éléments choisis sont vérifiés.
+    func testVerifyAfterCopyOnASelectionOnlyChecksTheSelection() async throws {
+        let src = try folder("src"), dst = try folder("dst")
+        try write("\(src)/keep/one.txt", "1")
+        try write("\(src)/other.txt", "not selected")
+        var options = forced
+        options.verifyAfterCopy = true
+        let result = try await makeRunner(rclone: true).run(task(src, dst, options: options, items: ["keep"]))
+        XCTAssertEqual(result.status, .succeeded, result.summary.message ?? "")
+        XCTAssertEqual(names(in: dst), ["keep"])
+    }
+
+    /// I4 : un avertissement de rclone sur stderr (ici : fichier de configuration absent) ne doit pas
+    /// fausser le décompte des fichiers et bloquer une sauvegarde sans danger.
+    func testGuardIsNotFooledByNoticesOnStderr() async throws {
+        let src = try folder("src"), dst = try folder("dst")
+        for index in 1...9 { try write("\(src)/f\(index).txt", "x") }
+        for index in 1...10 { try write("\(dst)/f\(index).txt", "x") }      // 1 suppression sur 10 : 10 %, sous le seuil
+        let runner = TaskRunner(configuration: RunnerConfiguration(
+            rclonePath: try rclonePath(),
+            rcloneConfigPath: sandbox.appendingPathComponent("no-such-file.conf").path,
+            workDirectory: sandbox.appendingPathComponent("work")
+        ))
+        let result = try await runner.run(rcloneTask(src, dst, mode: .mirror, options: forced))
+        XCTAssertEqual(result.status, .succeeded, result.summary.message ?? "")
+        XCTAssertFalse(exists("\(dst)/f10.txt"))
+    }
+
     // MARK: pause et arrêt
 
     func testPauseAndResumeWithRclone() async throws {

@@ -21,7 +21,7 @@ final class RsyncCommandBuilderTests: XCTestCase {
         let cmd = try RsyncCommandBuilder.command(for: task(), run: run)
         XCTAssertEqual(cmd.engine, .rsync)
         XCTAssertEqual(cmd.arguments, [
-            "-rtv", "--inplace", "--partial", "--progress", "--timeout=60", "--out-format=%i|%n",
+            "-rtv", "--inplace", "--partial", "--progress", "--out-format=%i|%n",
             "/src/", "/Volumes/s/",
         ])
     }
@@ -66,6 +66,17 @@ final class RsyncCommandBuilderTests: XCTestCase {
         XCTAssertEqual(Array(cmd.arguments.suffix(3)), ["--checksum", "/src/", "/Volumes/s/"])
     }
 
+    /// rsync compare l'horloge murale à sa dernière entrée/sortie : un `--timeout` ferait échouer la copie
+    /// dès qu'une pause (SIGSTOP) dépasse sa valeur.
+    func testNoIOTimeoutIsPassedBecauseAPauseLongerThanItWouldKillTheCopy() throws {
+        for mode in [SyncMode.copy, .mirror, .move] {
+            let cmd = try RsyncCommandBuilder.command(for: task(mode: mode), run: run)
+            XCTAssertFalse(cmd.arguments.contains { $0.hasPrefix("--timeout") }, "\(mode)")
+        }
+        let plan = try RsyncCommandBuilder.planCommand(for: task(), run: run)
+        XCTAssertFalse(plan.arguments.contains { $0.hasPrefix("--timeout") })
+    }
+
     func testSelectedItemsAreCopiedAsFolders() throws {
         let cmd = try RsyncCommandBuilder.command(for: task(items: ["clip.mov", "Dossier/"]), run: run)
         XCTAssertEqual(Array(cmd.arguments.suffix(3)), ["/src/clip.mov", "/src/Dossier", "/Volumes/s/"])
@@ -86,7 +97,7 @@ final class RsyncCommandBuilderTests: XCTestCase {
 
     func testPlanListsDeletionsOnlyForMirror() throws {
         let plan = try RsyncCommandBuilder.planCommand(for: task(mode: .mirror), run: run)
-        XCTAssertEqual(Array(plan.arguments.prefix(4)), ["-rtn", "--stats", "--out-format=%l|%n", "--timeout=60"])
+        XCTAssertEqual(Array(plan.arguments.prefix(3)), ["-rtn", "--stats", "--out-format=%l|%n"])
         XCTAssertTrue(plan.arguments.contains("--delete"))
         let copyPlan = try RsyncCommandBuilder.planCommand(for: task(), run: run)
         XCTAssertFalse(copyPlan.arguments.contains("--delete"))

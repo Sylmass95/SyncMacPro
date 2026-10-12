@@ -74,6 +74,37 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertEqual(errno, ESRCH)
     }
 
+    /// I5 : un enfant ne doit pas hériter des descripteurs ouverts par l'appelant (sinon le lecteur d'un autre
+    /// lancement ne voit jamais la fin de son flux tant que cet enfant vit).
+    func testChildrenDoNotInheritTheCallersOtherDescriptors() async throws {
+        var fds: [Int32] = [0, 0]
+        XCTAssertEqual(pipe(&fds), 0)
+        let process = try run("sleep 3", collector: Collector())
+        close(fds[1])                       // la seule extrémité d'écriture restante serait celle héritée par l'enfant
+        var watched = pollfd(fd: fds[0], events: Int16(POLLIN), revents: 0)
+        let ready = poll(&watched, 1, 1_500)
+        close(fds[0])
+        process.terminate()
+        _ = await process.waitForExit()
+        XCTAssertEqual(ready, 1, "fin de flux attendue immédiatement : l'enfant ne doit détenir aucun descripteur de l'appelant")
+    }
+
+    /// I6 : un moteur qui ignore SIGTERM (montage bloqué, nettoyage trop long) ne doit pas geler l'exécution.
+    func testTerminateEscalatesToKillWhenTheProgramIgnoresSigterm() async throws {
+        let process = try run(#"trap '' TERM; while true; do sleep 1; done"#, collector: Collector())
+        try await Task.sleep(nanoseconds: 300_000_000)
+        // filet de sécurité du test seul : sans l'escalade, il tuerait le processus après 6 s (et le test échoue sur la durée)
+        let pid = process.pid
+        DispatchQueue.global().asyncAfter(deadline: .now() + 6) { killpg(pid, SIGKILL) }
+
+        let started = Date()
+        process.terminate(killAfter: 0.5)
+        let code = await process.waitForExit()
+
+        XCTAssertEqual(code, 128 + SIGKILL)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 3, "l'escalade doit tuer le processus peu après le délai de grâce")
+    }
+
     func testSpawnFailureIsReported() {
         XCTAssertThrowsError(try ProcessRunner.spawn(executable: "/nonexistent/program", arguments: []) { _ in }) {
             guard case ProcessError.spawnFailed = $0 else { return XCTFail("mauvaise erreur : \($0)") }

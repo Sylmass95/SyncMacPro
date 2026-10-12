@@ -26,9 +26,21 @@ public final class RunningProcess: @unchecked Sendable {
     public func resume() { killpg(pid, SIGCONT) }
 
     /// Arrête proprement (SIGTERM). Un processus figé ne reçoit pas SIGTERM : on le reprend d'abord.
-    public func terminate() {
+    /// Si le groupe n'est pas terminé après `grace` secondes (programme qui ignore SIGTERM, nettoyage bloqué),
+    /// il est tué (SIGKILL) : sans cela, l'exécution et son verrou resteraient bloqués.
+    public func terminate(killAfter grace: TimeInterval = 8) {
         killpg(pid, SIGCONT)
         killpg(pid, SIGTERM)
+        DispatchQueue.global().asyncAfter(deadline: .now() + grace) { [weak self] in
+            guard let self, !self.hasExited else { return }
+            killpg(self.pid, SIGKILL)
+        }
+    }
+
+    private var hasExited: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return exitCode != nil
     }
 
     /// Code de sortie ; 128 + n si le processus a été tué par le signal n.
@@ -73,12 +85,16 @@ public enum ProcessRunner {
         posix_spawn_file_actions_adddup2(&actions, outPipe[1], 1)
         posix_spawn_file_actions_adddup2(&actions, errPipe[1], 2)
         for descriptor in outPipe + errPipe { posix_spawn_file_actions_addclose(&actions, descriptor) }
+        posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)   // entrée standard vide
 
         var attributes: posix_spawnattr_t?
         posix_spawnattr_init(&attributes)
         defer { posix_spawnattr_destroy(&attributes) }
         posix_spawnattr_setflags(
-            &attributes, Int16(POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF)
+            &attributes,
+            // CLOEXEC_DEFAULT : l'enfant n'hérite d'aucun descripteur de l'appelant (en particulier pas les tubes d'un
+            // autre lancement simultané, ce qui retarderait la fin de leur flux jusqu'à la fin de cet enfant).
+            Int16(POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_CLOEXEC_DEFAULT)
         )
         posix_spawnattr_setpgroup(&attributes, 0)   // nouveau groupe dont l'identifiant est le pid
         // Le programme lancé hérite sinon du masque de signaux de ce thread, et pourrait ignorer SIGTERM.
