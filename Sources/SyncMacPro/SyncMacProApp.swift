@@ -14,6 +14,7 @@ struct SyncMacProApp: App {
     @State private var model: AgentModel
     @State private var installer = AgentInstaller()
     @State private var loginItem = LoginItemModel()
+    @State private var updates = UpdateModel(checker: UpdateChecker(current: AppInfo.version()))
     @AppStorage("appearance") private var appearance = Appearance.auto.rawValue
 
     private let localizer = Localizer.system
@@ -28,8 +29,9 @@ struct SyncMacProApp: App {
 
     var body: some Scene {
         Window(localizer.text("app.name"), id: "main") {
-            RootView(model: model, installer: installer, loginItem: loginItem, localizer: localizer)
+            RootView(model: model, installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
+                .task { await updates.checkIfDue() }
         }
         .defaultSize(width: 1180, height: 720)
 

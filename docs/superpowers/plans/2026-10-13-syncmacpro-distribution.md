@@ -479,7 +479,7 @@ final class UpdateModelTests: XCTestCase {
         return defaults
     }
 
-    let release = Data(#"{"tag_name":"v1.2.0","html_url":"https://github.com/Sylmass95/SyncMacPro/releases/tag/v1.2.0","draft":false,"prerelease":false}"#.utf8)
+    let releaseJSON = Data(#"{"tag_name":"v1.2.0","html_url":"https://github.com/Sylmass95/SyncMacPro/releases/tag/v1.2.0","draft":false,"prerelease":false}"#.utf8)
 
     func testAutomaticCheckOncePerDay() async {
         let calls = Counter()

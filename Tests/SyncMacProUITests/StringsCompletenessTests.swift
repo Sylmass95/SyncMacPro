@@ -48,7 +48,7 @@ final class StringsCompletenessTests: XCTestCase {
             .appendingPathComponent("Sources/SyncMacProUI")
         // Toute chaîne qui ressemble à une clé (préfixe connu + point), y compris celles passées à une fonction d'aide.
         let regex = try NSRegularExpression(
-            pattern: #""((?:app|sidebar|state|status|mode|schedule|weekday|relative|next|last|summary|unit|progress|connection|banner|dashboard|card|menubar|history|settings|agent|onboarding|alert|editor|notify|warning|simulation|problem|template|tasks|log|copy|confirm|oneoff|connections|wizard|service|remote)\.[A-Za-z0-9._]+)""#
+            pattern: #""((?:app|sidebar|state|status|mode|schedule|weekday|relative|next|last|summary|unit|progress|connection|banner|dashboard|card|menubar|history|settings|agent|onboarding|alert|editor|notify|warning|simulation|problem|template|tasks|log|copy|confirm|oneoff|connections|wizard|service|remote|update)\.[A-Za-z0-9._]+)""#
         )
         var used = Set<String>()
         let files = FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)!
