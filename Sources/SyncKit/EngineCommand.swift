@@ -45,19 +45,10 @@ public struct RunOptions: Equatable, Sendable {
 public struct EngineCommand: Equatable, Sendable {
     public let engine: EngineKind
     public let arguments: [String]
-    /// Variables ajoutées à l'environnement du moteur (connexions rclone « alias » de bisync).
-    public let environment: [String: String]
 
-    public init(engine: EngineKind, arguments: [String], environment: [String: String] = [:]) {
+    public init(engine: EngineKind, arguments: [String]) {
         self.engine = engine
         self.arguments = arguments
-        self.environment = environment
-    }
-
-    /// L'environnement complet du processus, ou `nil` (celui de l'agent) s'il n'y a rien à ajouter.
-    var processEnvironment: [String: String]? {
-        guard !environment.isEmpty else { return nil }
-        return ProcessInfo.processInfo.environment.merging(environment) { _, new in new }
     }
 }
 

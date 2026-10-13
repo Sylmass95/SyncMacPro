@@ -58,6 +58,7 @@ final class RcloneCommandBuilderTests: XCTestCase {
         XCTAssertEqual(value(after: "--backup-dir1"), "/Volumes/s/_ARCHIVE/2026-10-12_14-30")
         XCTAssertEqual(value(after: "--backup-dir2"), "gdrive:BACKUP/_ARCHIVE/2026-10-12_14-30")
         XCTAssertEqual(value(after: "--workdir"), "/tmp/bisync/abc")
+        XCTAssertEqual(value(after: "--resync-mode"), "newer", "une resynchronisation garde la version la plus récente")
     }
 
     func testBidirectionalWithoutResyncOmitsTheFlag() throws {

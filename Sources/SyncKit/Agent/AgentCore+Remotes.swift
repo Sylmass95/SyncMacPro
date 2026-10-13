@@ -24,6 +24,7 @@ extension AgentCore {
         guard !configuringRemotes.contains(name) else { throw AgentError.remoteBusy }
         // Réservé avant tout `await` : l'acteur est réentrant, une seconde demande du même nom serait sinon acceptée.
         configuringRemotes.insert(name)
+        rclone.forgetCancellation(name)   // aucune annulation d'une étape précédente ne vaut pour celle-ci
         defer {
             configuringRemotes.remove(name)
             cancelledRemotes.remove(name)
@@ -55,8 +56,11 @@ extension AgentCore {
     }
 
     public func cancelRemoteConfiguration(_ name: String) async {
-        if configuringRemotes.contains(name) { cancelledRemotes.insert(name) }
-        remotes?.cancelConfiguration(name)
+        // Seulement si une étape est en cours : sinon une annulation attendrait et tuerait la prochaine étape de ce nom.
+        if configuringRemotes.contains(name) {
+            cancelledRemotes.insert(name)
+            remotes?.cancelConfiguration(name)
+        }
         if creatingRemotes.remove(name) != nil { try? await remotes?.delete(name) }
     }
 

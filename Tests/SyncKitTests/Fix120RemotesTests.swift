@@ -63,4 +63,29 @@ final class Fix120RemotesTests: XCTestCase {
         XCTAssertEqual(TaskReference.latestRun(named: "copie de f4", in: [a, b, c])?.id, b.id)
         XCTAssertNil(TaskReference.latestRun(named: "inconnue", in: [a, b, c]))
     }
+
+    // Relecture 1.2.0 : une annulation sans étape en cours ne doit pas tuer la prochaine configuration du même nom.
+    func testCancelWithoutARunningStepLeavesNoPendingCancel() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let remotes = FakeRemotes()
+        let core = h.makeCore(remotes: remotes)
+        await core.cancelRemoteConfiguration("Dropbox")
+        XCTAssertTrue(remotes.cancelled.get().isEmpty, "rien ne tourne : rien à annuler côté rclone")
+    }
+
+    // Une simulation d'un bidirectionnel en cours est refusée (elle déplacerait ses liens ; bisync la bloquerait).
+    func testBisyncSimulationIsRefusedWhileItRuns() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0), gated: true)
+        let task = makeTask("Bidir", schedule: .manual, mode: .bidirectional)
+        try h.save([task])
+        let core = h.makeCore()
+        await core.start()
+        try await core.runNow(task.id)
+        _ = await eventually { h.factory.runners.get().count == 1 }
+        do { _ = try await core.simulate(task); XCTFail() } catch {
+            XCTAssertEqual(error as? AgentError, .alreadyRunning)
+        }
+        h.factory.runners.get().forEach { $0.release() }
+        await core.waitForIdle()
+    }
 }

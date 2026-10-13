@@ -10,6 +10,8 @@ extension AgentCore {
         if let problem = TaskValidator.problems(in: task).first(where: { $0 != .emptyName }) {
             throw AgentError.invalidTask(problem.message)
         }
+        // Un bidirectionnel en cours : bisync refuserait (verrou) et ses liens courts seraient repointés en pleine copie.
+        if task.mode == .bidirectional && jobs[task.id] != nil { throw AgentError.alreadyRunning }
         if simulations[task.id] == nil && simulations.count >= Self.maxSimulations {
             throw AgentError.tooManySimulations
         }

@@ -28,7 +28,7 @@ final class Fix120AgentTests: XCTestCase {
         let task = makeTask("Bidir", schedule: .manual, mode: .bidirectional)
         try h.save([task])
         let state = work.appendingPathComponent("bisync/\(task.id.uuidString)")
-        let links = work.appendingPathComponent("bl/\(task.id.uuidString.prefix(8))")
+        let links = work.appendingPathComponent("bl/\(task.id.uuidString.prefix(12))")
         for folder in [state, links] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
         let core = h.makeCore()
         await core.start()

@@ -55,8 +55,7 @@ public final class TaskRunner: @unchecked Sendable {
     func collect(_ command: EngineCommand) async throws -> (code: Int32, output: String, errors: String) {
         let out = LineBox(), err = LineBox()
         let process = try ProcessRunner.spawn(
-            executable: try executable(for: command.engine), arguments: command.arguments,
-            environment: command.processEnvironment
+            executable: try executable(for: command.engine), arguments: command.arguments
         ) { line in
             if line.stream == .stderr { err.add(line.text) } else { out.add(line.text) }
         }

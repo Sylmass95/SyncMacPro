@@ -40,7 +40,8 @@ public enum RcloneCommandBuilder {
                 "--exclude", archiveFilter,
             ]
             if let workdir = run.bisyncWorkdir { args += ["--workdir", workdir] }
-            if run.resync { args.append("--resync") }
+            // Une resynchronisation garde la version la plus récente de chaque fichier (comme --conflict-resolve).
+            if run.resync { args += ["--resync", "--resync-mode", "newer"] }
         case .verify:
             args = ["check", source, destination, "--combined", "-"]
         }

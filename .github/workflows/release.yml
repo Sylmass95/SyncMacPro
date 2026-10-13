@@ -31,9 +31,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SyncMacPro-dmg
+          # Hors des dossiers cachés : upload-artifact les ignore (la source de rsync manquerait à la publication).
           path: |
             build/*.dmg
-            .build/vendor/src/rsync-*.tar.gz
+            build/rsync-*.tar.gz
 
   publish:
     needs: dmg

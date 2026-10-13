@@ -48,6 +48,7 @@ public final class PaneModel {
         folder = url
         selection = []
         anchor = nil
+        items = []   // pas d'éléments de l'ancien dossier sous le titre du nouveau pendant la lecture
         reload()
     }
 
