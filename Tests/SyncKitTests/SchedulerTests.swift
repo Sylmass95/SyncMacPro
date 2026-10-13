@@ -71,4 +71,20 @@ final class SchedulerTests: XCTestCase {
         let second = try XCTUnwrap(due(schedule, after: first))
         XCTAssertEqual(paris.component(.day, from: second), 26)
     }
+
+    func testFallBackDoesNotRepeatWhenTheLastStartIsBetweenBothOccurrences() throws {
+        // En production l'agent démarre quelques secondes APRÈS l'échéance : la base tombe entre les deux 02:30.
+        let schedule = Schedule.daily(hour: 2, minute: 30)
+        let first = try XCTUnwrap(due(schedule, after: at(2026, 10, 24, 12)))
+        let second = try XCTUnwrap(due(schedule, after: first.addingTimeInterval(17)))
+        XCTAssertEqual(paris.component(.day, from: second), 26)
+    }
+
+    func testWeekdaysFallBackDoesNotRepeatEither() throws {
+        let schedule = Schedule.weekdays(days: [1, 2, 3, 4, 5, 6, 7], hour: 2, minute: 30)
+        let first = try XCTUnwrap(due(schedule, after: at(2026, 10, 24, 12)))
+        XCTAssertEqual(paris.component(.day, from: first), 25)
+        let second = try XCTUnwrap(due(schedule, after: first.addingTimeInterval(17)))
+        XCTAssertEqual(paris.component(.day, from: second), 26)
+    }
 }

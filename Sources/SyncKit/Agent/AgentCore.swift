@@ -7,6 +7,8 @@ public actor AgentCore {
         var id: UUID
         var dueDate: Date
         var overrideGuard = false
+        /// Demandée par l'utilisateur (lancer, valider) : les conditions et l'horaire ne la concernent pas.
+        var manual = false
     }
 
     struct Job {
@@ -41,6 +43,8 @@ public actor AgentCore {
     var holdUntil: Date?
     var lastTick: Date?
     var shuttingDown = false
+    /// Vrai tant que l'assertion anti-veille est tenue.
+    var activityHeld = false
     var observers: [UUID: @Sendable (AgentEvent) -> Void] = [:]
 
     public init(
@@ -190,7 +194,27 @@ public actor AgentCore {
         while jobs.count < configuration.maxParallel, !queue.isEmpty {
             let next = queue.removeFirst()
             guard let task = tasks.first(where: { $0.id == next.id }), jobs[task.id] == nil else { continue }
+            // Une exécution planifiée peut attendre des heures derrière deux longues copies : on revérifie.
+            if !next.manual {
+                guard task.isEnabled else { continue }
+                if let reason = unmetCondition(task, now: clock.now()) {
+                    waiting[task.id] = reason
+                    continue
+                }
+            }
             startJob(task, overrideGuard: next.overrideGuard)
+        }
+    }
+
+    /// Tient l'assertion anti-veille tant qu'une copie avance ; une copie figée (pause) ne l'exige pas.
+    func refreshActivity() {
+        let needed = jobs.values.contains { !$0.paused }
+        if needed && !activityHeld {
+            activityHeld = true
+            activity.begin()
+        } else if !needed && activityHeld {
+            activityHeld = false
+            activity.end()
         }
     }
 
@@ -214,7 +238,7 @@ public actor AgentCore {
         let runner = makeRunner()
         jobs[task.id] = Job(task: task, runner: runner, record: record)
         waiting[task.id] = nil
-        if jobs.count == 1 { activity.begin() }
+        refreshActivity()
         emit(.taskStarted(task.id))
 
         let id = task.id
@@ -301,7 +325,7 @@ public actor AgentCore {
         persist()
 
         notify(job.task, status, summary)
-        if jobs.isEmpty { activity.end() }
+        refreshActivity()
         emit(.taskFinished(id, status, summary.message))
         startQueued()
     }

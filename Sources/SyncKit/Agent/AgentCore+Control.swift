@@ -17,7 +17,7 @@ extension AgentCore {
         guard !state.paused else { throw AgentError.globallyPaused }
         guard tasks.contains(where: { $0.id == id }) else { throw AgentError.unknownTask }
         guard jobs[id] == nil, !queue.contains(where: { $0.id == id }) else { throw AgentError.alreadyRunning }
-        queue.insert(QueuedRun(id: id, dueDate: .distantPast, overrideGuard: overrideGuard), at: 0)
+        queue.insert(QueuedRun(id: id, dueDate: .distantPast, overrideGuard: overrideGuard, manual: true), at: 0)
         startQueued()
         emit(.stateChanged)
     }
@@ -28,6 +28,7 @@ extension AgentCore {
         job.runner.pause()
         job.paused = true
         jobs[id] = job
+        refreshActivity()
         emit(.stateChanged)
     }
 
@@ -39,6 +40,7 @@ extension AgentCore {
         job.paused = false
         job.pausedByGlobal = false
         jobs[id] = job
+        refreshActivity()
         emit(.stateChanged)
     }
 
@@ -75,8 +77,10 @@ extension AgentCore {
                 jobs[id] = job
             }
             holdUntil = nil
+            refreshActivity()
             tick()
         }
+        refreshActivity()
         emit(.stateChanged)
     }
 

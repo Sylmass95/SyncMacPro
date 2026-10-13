@@ -40,6 +40,8 @@ cat > "$APP/Contents/Library/LaunchAgents/$LABEL.plist" <<PLIST
   <key>BundleProgram</key><string>Contents/MacOS/syncmacpro-agent</string>
   <key>MachServices</key><dict><key>$LABEL</key><true/></dict>
   <key>RunAtLoad</key><true/>
+  <!-- Relance l'agent après un plantage ou un SIGKILL ; une sortie réussie (SIGTERM, désinstallation) ne le relance pas. -->
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
 </dict></plist>
 PLIST
 

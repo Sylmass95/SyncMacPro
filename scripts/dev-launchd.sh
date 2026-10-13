@@ -28,6 +28,7 @@ case "${1:-}" in
   </array>
   <key>MachServices</key><dict><key>$LABEL</key><true/></dict>
   <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>StandardErrorPath</key><string>$DATA/agent.log</string>
 </dict></plist>
 XML

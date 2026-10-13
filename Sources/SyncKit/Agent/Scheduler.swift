@@ -41,9 +41,20 @@ public enum Scheduler {
         components.minute = minute
         components.second = 0
         components.weekday = weekday
-        return calendar.nextDate(
-            after: date, matching: components, matchingPolicy: .nextTime,
-            repeatedTimePolicy: .first, direction: .forward
-        )
+        func next(after reference: Date) -> Date? {
+            calendar.nextDate(
+                after: reference, matching: components, matchingPolicy: .nextTime,
+                repeatedTimePolicy: .first, direction: .forward
+            )
+        }
+        guard let candidate = next(after: date) else { return nil }
+        // `.first` ne suffit que si la recherche part avant les deux occurrences. Quand `date` tombe entre elles
+        // (l'agent démarre toujours quelques secondes après l'échéance), Foundation renvoie la seconde : on la reconnaît
+        // à la première occurrence du même jour, qui est plus tôt, et on passe au jour suivant.
+        let dayStart = calendar.startOfDay(for: candidate)
+        if let firstOfDay = next(after: dayStart.addingTimeInterval(-1)), firstOfDay < candidate {
+            return occurrence(after: candidate, hour: hour, minute: minute, weekday: weekday, calendar: calendar)
+        }
+        return candidate
     }
 }
