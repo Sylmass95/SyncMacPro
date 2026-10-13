@@ -325,7 +325,8 @@ public actor AgentCore {
         case .failure(let error):
             status = .failed
             summary = RunSummary(
-                errors: 1, durationSeconds: now.timeIntervalSince(job.record.startedAt), message: "\(error)"
+                errors: 1, durationSeconds: now.timeIntervalSince(job.record.startedAt),
+                message: (error as? LocalizedError)?.errorDescription ?? "\(error)"
             )
         }
         if shuttingDown && status == .stopped { status = .interrupted }
