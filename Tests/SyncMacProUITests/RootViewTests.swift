@@ -16,7 +16,7 @@ final class RootViewTests: XCTestCase {
     }
 
     func testSidebarEntries() {
-        XCTAssertEqual(SidebarItem.allCases, [.dashboard, .tasks, .copy, .history, .settings])
+        XCTAssertEqual(SidebarItem.allCases, [.dashboard, .tasks, .copy, .history, .connections, .settings])
     }
 
     func testOnboardingRendersForEveryInstallState() throws {

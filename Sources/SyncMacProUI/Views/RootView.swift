@@ -1,7 +1,7 @@
 import SwiftUI
 
 public enum SidebarItem: String, CaseIterable, Identifiable, Sendable {
-    case dashboard, tasks, copy, history, settings
+    case dashboard, tasks, copy, history, connections, settings
     public var id: String { rawValue }
 }
 
@@ -11,7 +11,7 @@ struct EditorSession: Identifiable {
     let isNew: Bool
 }
 
-/// Fenêtre principale : barre latérale (tableau de bord, tâches, copie, historique, réglages) et accueil au premier lancement.
+/// Fenêtre principale : barre latérale (tableau de bord, tâches, copie, historique, connexions, réglages) et accueil au premier lancement.
 @MainActor
 public struct RootView: View {
     let model: AgentModel
@@ -79,6 +79,7 @@ public struct RootView: View {
             case .copy:
                 CopyView(model: model, localizer: localizer) { open($0, isNew: true) }
             case .history: HistoryView(model: model, localizer: localizer)
+            case .connections: ConnectionsView(model: model, localizer: localizer)
             case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer)
             }
         }
@@ -94,6 +95,7 @@ public struct RootView: View {
         case .tasks: return localizer.text("sidebar.tasks")
         case .copy: return localizer.text("sidebar.copy")
         case .history: return localizer.text("sidebar.history")
+        case .connections: return localizer.text("sidebar.connections")
         case .settings: return localizer.text("sidebar.settings")
         }
     }
@@ -104,6 +106,7 @@ public struct RootView: View {
         case .tasks: return "list.bullet.rectangle"
         case .copy: return "doc.on.doc"
         case .history: return "clock.arrow.circlepath"
+        case .connections: return "link"
         case .settings: return "gearshape"
         }
     }

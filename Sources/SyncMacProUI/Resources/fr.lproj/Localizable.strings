@@ -328,3 +328,16 @@
 "service.dropbox" = "Dropbox";
 "service.onedrive" = "OneDrive";
 "service.s3" = "Amazon S3";
+"sidebar.connections" = "Connexions";
+"connections.empty.title" = "Aucune connexion";
+"connections.empty.body" = "Ajoutez Google Drive, Dropbox, OneDrive ou un stockage S3 pour vous en servir dans vos tâches.";
+"connections.unused" = "Utilisée par aucune tâche";
+"connections.usedBy" = "Utilisée par : %@";
+"connections.test" = "Tester";
+"connections.testing" = "Test en cours…";
+"connections.ok" = "La connexion répond.";
+"connections.failed" = "La connexion ne répond pas : %@";
+"connections.reconnect" = "Reconnecter";
+"connections.delete" = "Supprimer";
+"connections.delete.confirm" = "Supprimer la connexion « %@ » ?";
+"connections.add" = "Ajouter une connexion";
