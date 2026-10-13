@@ -33,8 +33,9 @@ public enum BinaryLocator {
         }
     }
 
-    /// Première ligne de sortie d'un programme ; `nil` s'il ne se lance pas.
-    public static func firstLine(of path: String, arguments: [String]) -> String? {
+    /// Première ligne de sortie d'un programme ; `nil` s'il ne se lance pas ou ne rend pas la main à temps
+    /// (un binaire bloqué ne doit pas bloquer le démarrage de l'agent).
+    public static func firstLine(of path: String, arguments: [String], timeout: TimeInterval = 10) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
@@ -42,10 +43,23 @@ public enum BinaryLocator {
         process.standardOutput = output
         process.standardError = output
         process.standardInput = FileHandle.nullDevice
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
         do { try process.run() } catch { return nil }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return String(decoding: data, as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
+        // La sortie est lue en parallèle : un programme bavard ne reste pas bloqué sur un tube plein.
+        let collected = Locked(Data())
+        let reader = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            collected.set(output.fileHandleForReading.readDataToEndOfFile())
+            reader.signal()
+        }
+        guard finished.wait(timeout: .now() + timeout) == .success else {
+            process.terminate()
+            kill(process.processIdentifier, SIGKILL)
+            return nil
+        }
+        _ = reader.wait(timeout: .now() + 2)
+        return String(decoding: collected.get(), as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
     }
 
     /// `…/X.app/Contents/MacOS/programme` → `…/X.app/Contents/Resources/bin`, s'il existe.

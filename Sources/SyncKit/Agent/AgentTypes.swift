@@ -12,6 +12,8 @@ public struct AgentConfiguration: Sendable {
     /// Même attente au démarrage de l'agent.
     public var startupHold: TimeInterval = 60
     public var historyRetentionDays = 90
+    /// Dossier de travail des moteurs (état de bisync, liens courts) : nettoyé quand une tâche est supprimée.
+    public var workDirectory: URL?
 
     public init() {}
 }

@@ -356,6 +356,10 @@ public actor AgentCore {
             entry.lastSuccess = now
             entry.attempts = 0
             entry.retryAt = nil
+        case .failed where job.task.mode == .verify:
+            // Des différences trouvées ne sont pas une panne passagère : relancer ne changerait rien.
+            entry.attempts = 0
+            entry.retryAt = nil
         case .failed, .quotaReached:
             entry.attempts += 1
             if entry.attempts < configuration.maxAttempts {
