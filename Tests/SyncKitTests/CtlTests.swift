@@ -69,6 +69,14 @@ final class CtlParserTests: XCTestCase {
         XCTAssertThrowsError(try parse("add", "--name", "n", "--source", "/a", "--dest", "/b", "--mode", "inconnu"))
     }
 
+    func testSimulateAndLogCommands() throws {
+        XCTAssertEqual(try parse("simulate", "nuit").command, .simulate("nuit"))
+        XCTAssertEqual(try parse("simuler", "nuit").command, .simulate("nuit"))
+        XCTAssertEqual(try parse("log", "nuit").command, .log("nuit"))
+        XCTAssertEqual(try parse("journal", "nuit").command, .log("nuit"))
+        XCTAssertThrowsError(try parse("log"))
+    }
+
     func testUnknownCommandAndOption() {
         XCTAssertThrowsError(try parse("danser")) { XCTAssertEqual($0 as? CtlParseError, .unknownCommand("danser")) }
         XCTAssertThrowsError(try parse("status", "--bizarre"))

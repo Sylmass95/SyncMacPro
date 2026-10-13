@@ -1,8 +1,14 @@
 import SwiftUI
 
 public enum SidebarItem: String, CaseIterable, Identifiable, Sendable {
-    case dashboard, history, settings
+    case dashboard, tasks, history, settings
     public var id: String { rawValue }
+}
+
+struct EditorSession: Identifiable {
+    let id = UUID()
+    let draft: TaskDraft
+    let isNew: Bool
 }
 
 /// Fenêtre principale : barre latérale (tableau de bord, historique, réglages) et accueil au premier lancement.
@@ -13,6 +19,7 @@ public struct RootView: View {
     let loginItem: LoginItemModel
     let localizer: Localizer
     @State private var selection: SidebarItem? = .dashboard
+    @State private var editor: EditorSession?
 
     public init(model: AgentModel, installer: AgentInstaller, loginItem: LoginItemModel, localizer: Localizer = .system) {
         self.model = model
@@ -50,6 +57,11 @@ public struct RootView: View {
             actions: { Button(localizer.text("alert.ok")) {} },
             message: { Text(model.alertMessage ?? "") }
         )
+        .sheet(item: $editor) { session in
+            TaskEditorView(model: model, draft: session.draft, isNew: session.isNew, localizer: localizer) {
+                editor = nil
+            }
+        }
     }
 
     @ViewBuilder private var detail: some View {
@@ -60,16 +72,24 @@ public struct RootView: View {
             }
         } else {
             switch selection ?? .dashboard {
-            case .dashboard: DashboardView(model: model, installer: installer, localizer: localizer)
+            case .dashboard:
+                DashboardView(model: model, installer: installer, localizer: localizer, onCreate: { open($0, isNew: true) })
+            case .tasks:
+                TasksView(model: model, localizer: localizer) { open($0, isNew: $1) }
             case .history: HistoryView(model: model, localizer: localizer)
             case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer)
             }
         }
     }
 
+    private func open(_ draft: TaskDraft, isNew: Bool) {
+        editor = EditorSession(draft: draft, isNew: isNew)
+    }
+
     private func title(_ item: SidebarItem) -> String {
         switch item {
         case .dashboard: return localizer.text("sidebar.dashboard")
+        case .tasks: return localizer.text("sidebar.tasks")
         case .history: return localizer.text("sidebar.history")
         case .settings: return localizer.text("sidebar.settings")
         }
@@ -78,6 +98,7 @@ public struct RootView: View {
     private func icon(_ item: SidebarItem) -> String {
         switch item {
         case .dashboard: return "square.grid.2x2"
+        case .tasks: return "list.bullet.rectangle"
         case .history: return "clock.arrow.circlepath"
         case .settings: return "gearshape"
         }

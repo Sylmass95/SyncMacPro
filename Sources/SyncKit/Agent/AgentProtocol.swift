@@ -1,7 +1,7 @@
 import Foundation
 
 /// Numéro du contrat XPC. À incrémenter quand un message change de forme.
-public let agentProtocolVersion = 1
+public let agentProtocolVersion = 2
 
 public enum AgentIdentifiers {
     /// Nom du service Mach déclaré dans le plist de l'agent.
@@ -21,6 +21,11 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case setGlobalPause(Bool)
     case approveDeletion(UUID)
     case reloadTasks
+    case saveTask(SyncTask)
+    case removeTask(UUID)
+    case simulate(SyncTask)
+    case cancelSimulation(UUID)
+    case runLog(runID: UUID, maxBytes: Int)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {
@@ -29,6 +34,8 @@ public enum AgentResponse: Codable, Equatable, Sendable {
     case tasks([SyncTask])
     case history([RunRecord])
     case error(AgentError)
+    case simulation(SimulationResult)
+    case log(RunLogText)
 }
 
 public struct AgentRequestEnvelope: Codable, Sendable {

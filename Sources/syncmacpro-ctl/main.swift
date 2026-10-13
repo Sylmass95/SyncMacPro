@@ -94,17 +94,44 @@ do {
             name: new.name, source: new.source, destination: new.destination, mode: new.mode, schedule: new.schedule
         )
         task.conditions.requiresACPower = new.requiresACPower
-        try TaskStore(url: paths.tasks).upsert(task)
-        print("Tâche « \(task.name) » ajoutée (\(CtlFormatter.scheduleDescription(task.schedule))).")
-        // L'agent surveille tasks.json ; on le prévient pour qu'il relise tout de suite (s'il tourne).
-        try? await client.perform(.reloadTasks)
+        do {
+            try await client.perform(.saveTask(task))
+            print("Tâche « \(task.name) » ajoutée (\(CtlFormatter.scheduleDescription(task.schedule))).")
+        } catch AgentClientError.unreachable {
+            // Sans agent (pas encore installé) : on écrit le fichier, l'agent le lira au démarrage.
+            if let problem = TaskValidator.problems(in: task).first { fail(problem.message) }
+            try TaskStore(url: paths.tasks).upsert(task)
+            print("Tâche « \(task.name) » ajoutée dans tasks.json (agent injoignable : il la lira au démarrage).")
+        }
 
     case .remove(let text):
-        let store = TaskStore(url: paths.tasks)
-        let task = try TaskReference.resolve(text, in: try store.load())
-        try store.remove(id: task.id)
-        print("Tâche « \(task.name) » supprimée.")
-        try? await client.perform(.reloadTasks)
+        do {
+            let task = try await resolve(text)
+            try await client.perform(.removeTask(task.id))
+            print("Tâche « \(task.name) » supprimée.")
+        } catch AgentClientError.unreachable {
+            let store = TaskStore(url: paths.tasks)
+            let task = try TaskReference.resolve(text, in: try store.load())
+            try store.remove(id: task.id)
+            print("Tâche « \(task.name) » supprimée de tasks.json (agent injoignable).")
+        }
+
+    case .simulate(let text):
+        let task = try await resolve(text)
+        print("Simulation de « \(task.name) »…")
+        let result = try await client.simulate(task)
+        print("\(CtlFormatter.statusLabel(result.status)) : \(result.filesToTransfer) fichier(s) à transférer "
+            + "(\(Formatting.bytes(result.bytesToTransfer))), \(result.deletions) suppression(s)."
+            + (result.message.map { "\n\($0)" } ?? ""))
+
+    case .log(let text):
+        let task = try await resolve(text)
+        guard let last = try await client.history(taskID: task.id, limit: 1).first else {
+            fail("« \(task.name) » n'a encore jamais tourné.")
+        }
+        let log = try await client.runLog(runID: last.id)
+        if log.truncated { print("(début du journal non affiché)") }
+        print(log.text, terminator: "")
 
     case .agentInstall: print("Agent : \(try AgentRegistration.install())")
     case .agentUninstall: print("Agent : \(try AgentRegistration.uninstall())")

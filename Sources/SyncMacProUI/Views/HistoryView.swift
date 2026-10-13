@@ -8,6 +8,7 @@ public struct HistoryView: View {
     let now: Date?
     @State private var filter: HistoryFilter
     @State private var selection: UUID?
+    @State private var logRecord: RunRecord?
 
     public init(
         model: AgentModel, localizer: Localizer = .system, filter: HistoryFilter = HistoryFilter(),
@@ -46,6 +47,9 @@ public struct HistoryView: View {
             }
             Divider()
             detail(rows, text)
+        }
+        .sheet(item: $logRecord) { record in
+            RunLogSheet(model: model, record: record, localizer: localizer) { logRecord = nil }
         }
     }
 
@@ -140,34 +144,39 @@ public struct HistoryView: View {
     private func detail(_ rows: [RunRecord], _ text: CardText) -> some View {
         Group {
             if let record = rows.first(where: { $0.id == selection }) {
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
-                    GridRow {
-                        Text(localizer.text("history.column.task")).foregroundStyle(.secondary)
-                        Text("\(record.taskName) — \(text.status(record.status))").bold()
-                    }
-                    GridRow {
-                        Text(localizer.text("history.detail.engine")).foregroundStyle(.secondary)
-                        Text("\(record.engine.rawValue) · \(text.mode(record.mode))")
-                    }
-                    GridRow {
-                        Text(localizer.text("history.detail.started")).foregroundStyle(.secondary)
-                        Text(text.dateTime(record.startedAt))
-                    }
-                    if let end = record.finishedAt {
+                VStack(alignment: .leading, spacing: 10) {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
                         GridRow {
-                            Text(localizer.text("history.detail.finished")).foregroundStyle(.secondary)
-                            Text(text.dateTime(end))
+                            Text(localizer.text("history.column.task")).foregroundStyle(.secondary)
+                            Text("\(record.taskName) — \(text.status(record.status))").bold()
+                        }
+                        GridRow {
+                            Text(localizer.text("history.detail.engine")).foregroundStyle(.secondary)
+                            Text("\(record.engine.rawValue) · \(text.mode(record.mode))")
+                        }
+                        GridRow {
+                            Text(localizer.text("history.detail.started")).foregroundStyle(.secondary)
+                            Text(text.dateTime(record.startedAt))
+                        }
+                        if let end = record.finishedAt {
+                            GridRow {
+                                Text(localizer.text("history.detail.finished")).foregroundStyle(.secondary)
+                                Text(text.dateTime(end))
+                            }
+                        }
+                        GridRow {
+                            Text(localizer.text("history.column.files")).foregroundStyle(.secondary)
+                            Text(text.summaryLine(record.summary))
+                        }
+                        if let message = record.summary?.message, !message.isEmpty {
+                            GridRow(alignment: .top) {
+                                Text(localizer.text("history.detail.message")).foregroundStyle(.secondary)
+                                Text(message).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                     }
-                    GridRow {
-                        Text(localizer.text("history.column.files")).foregroundStyle(.secondary)
-                        Text(text.summaryLine(record.summary))
-                    }
-                    if let message = record.summary?.message, !message.isEmpty {
-                        GridRow(alignment: .top) {
-                            Text(localizer.text("history.detail.message")).foregroundStyle(.secondary)
-                            Text(message).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                        }
+                    if record.logPath != nil {
+                        Button(localizer.text("history.log.show")) { logRecord = record }
                     }
                 }
                 .font(.callout)

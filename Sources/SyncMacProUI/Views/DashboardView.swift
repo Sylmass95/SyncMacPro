@@ -8,10 +8,11 @@ struct DashboardContent: View {
     let installState: AgentInstallState
     let text: CardText
     let onInstall: () -> Void
+    var onCreate: (TaskDraft) -> Void = { _ in }
 
     var body: some View {
         ScrollView {
-            DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall)
+            DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate)
         }
     }
 }
@@ -22,6 +23,7 @@ struct DashboardBody: View {
     let installState: AgentInstallState
     let text: CardText
     let onInstall: () -> Void
+    var onCreate: (TaskDraft) -> Void = { _ in }
 
     private var l: Localizer { text.localizer }
 
@@ -86,6 +88,15 @@ struct DashboardBody: View {
                     Image(systemName: "tray").font(.system(size: 40)).foregroundStyle(.secondary)
                     Text(l.text("dashboard.empty.title")).font(.title3.bold())
                     Text(l.text("dashboard.empty.body")).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    HStack {
+                        Button { onCreate(TaskDraft()) } label: {
+                            Label(l.text("dashboard.create"), systemImage: "plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.connection != .connected)
+                        TemplatesMenu(localizer: l) { onCreate(.template($0)) }
+                    }
+                    .padding(.top, 8)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
@@ -118,11 +129,16 @@ public struct DashboardView: View {
     let model: AgentModel
     let installer: AgentInstaller
     let localizer: Localizer
+    let onCreate: (TaskDraft) -> Void
 
-    public init(model: AgentModel, installer: AgentInstaller, localizer: Localizer = .system) {
+    public init(
+        model: AgentModel, installer: AgentInstaller, localizer: Localizer = .system,
+        onCreate: @escaping (TaskDraft) -> Void = { _ in }
+    ) {
         self.model = model
         self.installer = installer
         self.localizer = localizer
+        self.onCreate = onCreate
     }
 
     public var body: some View {
@@ -131,7 +147,8 @@ public struct DashboardView: View {
             DashboardContent(
                 model: model, installState: installer.state,
                 text: CardText(localizer: localizer, now: context.date),
-                onInstall: { installer.install(); model.restart() }
+                onInstall: { installer.install(); model.restart() },
+                onCreate: onCreate
             )
         }
     }

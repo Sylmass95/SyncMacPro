@@ -41,6 +41,9 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case notAwaitingApproval
     case versionMismatch(agent: Int, client: Int)
     case internalFailure(String)
+    case invalidTask(String)
+    case unknownRun
+    case tooManySimulations
 
     public var errorDescription: String? {
         switch self {
@@ -52,6 +55,9 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .versionMismatch(let agent, let client):
             return "Versions incompatibles (agent \(agent), outil \(client)) : mettez à jour l'agent ou l'application."
         case .internalFailure(let message): return "Erreur interne de l'agent : \(message)"
+        case .invalidTask(let reason): return reason
+        case .unknownRun: return "Exécution inconnue."
+        case .tooManySimulations: return "Deux simulations sont déjà en cours : attendez qu'elles se terminent."
         }
     }
 }
@@ -137,4 +143,40 @@ public enum AgentEvent: Codable, Equatable, Sendable {
     case taskFinished(UUID, RunStatus, String?)
     /// Pause globale, file d'attente ou liste de tâches modifiée : relire `status`.
     case stateChanged
+}
+
+/// Ce que ferait une exécution, sans rien modifier.
+public struct SimulationResult: Codable, Equatable, Sendable {
+    public var status: RunStatus
+    public var filesToTransfer: Int
+    public var bytesToTransfer: Int64
+    public var deletions: Int
+    public var message: String?
+
+    public init(status: RunStatus, filesToTransfer: Int, bytesToTransfer: Int64, deletions: Int, message: String?) {
+        self.status = status
+        self.filesToTransfer = filesToTransfer
+        self.bytesToTransfer = bytesToTransfer
+        self.deletions = deletions
+        self.message = message
+    }
+
+    public init(_ result: RunResult) {
+        self.init(
+            status: result.status, filesToTransfer: result.summary.filesTransferred,
+            bytesToTransfer: result.summary.bytesTransferred, deletions: result.summary.deletions,
+            message: result.summary.message
+        )
+    }
+}
+
+public struct RunLogText: Codable, Equatable, Sendable {
+    public var text: String
+    /// Vrai si le début du journal n'est pas inclus.
+    public var truncated: Bool
+
+    public init(text: String, truncated: Bool) {
+        self.text = text
+        self.truncated = truncated
+    }
 }

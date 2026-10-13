@@ -12,6 +12,7 @@ final class AgentHarness {
     let taskStore: TaskStore
     let stateStore: SchedulerStateStore
     let history: HistoryStore
+    let logs: URL
     var configuration = AgentConfiguration()
 
     init(start: Date, gated: Bool = false) throws {
@@ -22,6 +23,7 @@ final class AgentHarness {
         taskStore = TaskStore(url: directory.appendingPathComponent("tasks.json"))
         stateStore = SchedulerStateStore(url: directory.appendingPathComponent("scheduler-state.json"))
         history = try HistoryStore(path: directory.appendingPathComponent("history.sqlite").path)
+        logs = directory.appendingPathComponent("logs")
         configuration.startupHold = 0
     }
 
@@ -40,7 +42,7 @@ final class AgentHarness {
         return AgentCore(
             configuration: configuration, taskStore: taskStore, stateStore: stateStore, history: history,
             clock: clock, conditions: conditions, notifier: notifier, activity: activity,
-            makeRunner: runner ?? { factory.make() }
+            logDirectory: logs, makeRunner: runner ?? { factory.make() }
         )
     }
 

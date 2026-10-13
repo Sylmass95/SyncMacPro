@@ -43,6 +43,7 @@ let core = AgentCore(
     notifier: UserNotifier(),
     activity: SleepActivity(),
     log: { log($0) },
+    logDirectory: paths.logs,
     makeRunner: { TaskRunner(configuration: runnerConfiguration) }
 )
 await core.start()

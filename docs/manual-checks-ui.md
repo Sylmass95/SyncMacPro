@@ -46,3 +46,14 @@ Nettoyage à la fin : `syncmacpro-ctl agent uninstall`, supprimer `~/Application
 
 ## Accessibilité
 - [ ] VoiceOver annonce le nom, l'état et le pourcentage d'une carte ; ⌘, ouvre les Réglages.
+
+## Tâches et éditeur (3b)
+- [ ] Nouvelle tâche : choisir la source et la destination avec « Choisir… » ; un dossier d'un volume réseau monté est reconnu.
+- [ ] Une destination dans la source est refusée dès l'étape 1, avec le message.
+- [ ] Les cartes de mode montrent l'avertissement des modes qui suppriment.
+- [ ] Planification : « Prochaine exécution » change en direct.
+- [ ] Résumé : la phrase est juste ; Simuler annonce les fichiers et les suppressions ; Annuler la simulation fonctionne.
+- [ ] Enregistrer : la tâche apparaît au tableau de bord et dans Tâches ; un refus de l'agent reste affiché dans l'éditeur.
+- [ ] Activer / désactiver, modifier, dupliquer, supprimer (confirmation) depuis l'écran Tâches.
+- [ ] Modèles depuis le tableau de bord vide et depuis Tâches.
+- [ ] Historique : « Voir le journal » montre les lignes du moteur ; Copier fonctionne ; une exécution antérieure à 3b affiche « Aucun journal ».
