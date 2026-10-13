@@ -13,7 +13,7 @@ public enum StandardLocations {
         let home = URL(fileURLWithPath: NSHomeDirectory())
         let candidates: [(URL, String)] = [
             (home, "house"),
-            (home.appendingPathComponent("Desktop"), "menubar.dock.rectangle"),
+            (home.appendingPathComponent("Desktop"), "desktopcomputer"),
             (home.appendingPathComponent("Documents"), "doc"),
             (home.appendingPathComponent("Downloads"), "arrow.down.circle"),
         ]
