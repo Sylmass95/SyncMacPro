@@ -33,7 +33,7 @@ struct SyncMacProApp: App {
         }
         // App mise à jour : l'agent enregistré par l'ancienne version ne démarrerait plus, on le réenregistre.
         let installer = AgentInstaller()
-        if Bundle.main.bundlePath.hasSuffix(".app") { installer.reRegisterAfterUpdate() }
+        if Bundle.main.bundlePath.hasSuffix(".app") { Task { await installer.reRegisterAfterUpdate() } }
         _installer = State(initialValue: installer)
         let model = AgentModel(agent: AgentClient.machService(AgentIdentifiers.service()))
         _model = State(initialValue: model)

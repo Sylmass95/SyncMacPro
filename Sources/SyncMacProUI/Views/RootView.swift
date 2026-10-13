@@ -54,7 +54,14 @@ public struct RootView: View {
         .glassThemed()
         // L'agent a disparu (désinstallé, désactivé) : on relit son état pour proposer la bonne action.
         .onChange(of: model.connection) { _, state in
-            if state == .unreachable { installer.refresh() }
+            guard state == .unreachable else { return }
+            installer.refresh()
+            // Déclaré installé mais muet (ancienne signature après une mise à jour…) : on le réenregistre une fois.
+            if installer.state == .enabled && Bundle.main.bundlePath.hasSuffix(".app") {
+                Task {
+                    if await installer.repairIfStuck() { model.restart() }
+                }
+            }
         }
         .alert(
             localizer.text("alert.title"),

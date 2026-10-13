@@ -1,6 +1,9 @@
-SyncMacPro 1.2.0 — corrections issues d'une campagne de tests réels.
+SyncMacPro 1.2.1 — mise à jour sans perdre l'agent, et les corrections de la 1.2.0.
 
-**Corrections**
+**Corrections (1.2.1)**
+- Après une mise à jour, l'agent d'arrière-plan pouvait rester arrêté (macOS gardait l'ancien agent, refusé pour sa signature). L'app attend désormais que macOS l'ait retiré avant de le réenregistrer, et répare d'elle-même un agent installé qui ne répond pas.
+
+**Corrections (1.2.0)**
 - Synchronisation bidirectionnelle : elle échouait dès que les chemins des deux dossiers étaient longs (au-delà de 255 caractères au total, par exemple un dossier Google Drive pour ordinateur et un NAS).
 - Rouvrir l'app depuis le Dock ou le Finder montre de nouveau la fenêtre.
 - Une tâche « toutes les N minutes » part à l'heure (elle partait jusqu'à une minute en retard à chaque fois).
