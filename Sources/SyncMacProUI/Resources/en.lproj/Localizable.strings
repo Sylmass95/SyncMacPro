@@ -1,0 +1,152 @@
+"app.name" = "SyncMacPro";
+"sidebar.dashboard" = "Dashboard";
+"sidebar.history" = "History";
+"sidebar.settings" = "Settings";
+
+"state.idle" = "Idle";
+"state.queued" = "Queued";
+"state.running" = "Running";
+"state.paused" = "Paused";
+"state.waiting" = "Waiting: %@";
+"state.approval" = "Approval needed";
+"state.disabled" = "Disabled";
+
+"status.running" = "Running";
+"status.succeeded" = "Succeeded";
+"status.failed" = "Failed";
+"status.blocked" = "Blocked";
+"status.quota" = "Quota reached";
+"status.interrupted" = "Interrupted";
+"status.stopped" = "Stopped";
+
+"mode.copy" = "Copy";
+"mode.mirror" = "Mirror";
+"mode.bidirectional" = "Two-way";
+"mode.move" = "Move";
+"mode.versioned" = "Versioned";
+"mode.verify" = "Verify";
+
+"schedule.manual" = "Manual";
+"schedule.daily" = "Every day at %@";
+"schedule.everyMinutes" = "Every %d min";
+"schedule.weekdays" = "%@ at %@";
+"schedule.whenAvailable" = "When available";
+"weekday.1" = "Sun";
+"weekday.2" = "Mon";
+"weekday.3" = "Tue";
+"weekday.4" = "Wed";
+"weekday.5" = "Thu";
+"weekday.6" = "Fri";
+"weekday.7" = "Sat";
+
+"relative.now" = "just now";
+"relative.minutes" = "%d min ago";
+"relative.hours" = "%d h ago";
+"relative.days" = "%d d ago";
+"next.today" = "today at %@";
+"next.tomorrow" = "tomorrow at %@";
+"next.none" = "No schedule";
+"last.never" = "Never run";
+"last.format" = "%@ %@";
+"last.format.summary" = "%@ %@ — %@";
+"summary.files" = "%d file(s)";
+"summary.errors" = "%d error(s)";
+"unit.byte" = "B";
+"unit.kilobyte" = "KB";
+"unit.megabyte" = "MB";
+"unit.gigabyte" = "GB";
+"unit.terabyte" = "TB";
+"progress.line" = "%@ of %@ · %@ · %@ left";
+"progress.line.noeta" = "%@ of %@ · %@";
+"progress.line.unknown" = "%@ copied";
+
+"connection.connecting" = "Connecting to the agent…";
+"connection.reconnecting" = "Reconnecting to the agent… (attempt %d)";
+"connection.unreachable.title" = "The agent is not responding";
+"connection.unreachable.body" = "It may not be installed, or it just stopped. Install it or try again.";
+"connection.version.title" = "Incompatible versions";
+"connection.version.body" = "The agent (version %d) and the app no longer understand each other: update the agent or the app.";
+"connection.retry" = "Try again";
+
+"banner.recovered" = "The agent restarted paused: its state file was unreadable.";
+"banner.tasksfile" = "The tasks file is unreadable; the previous tasks are kept. %@";
+
+"dashboard.title" = "Dashboard";
+"dashboard.pause.global" = "Global pause";
+"dashboard.pause.on" = "Globally paused";
+"dashboard.pause.help" = "Nothing starts and running copies are frozen.";
+"dashboard.resume" = "Resume";
+"dashboard.empty.title" = "No tasks";
+"dashboard.empty.body" = "Task creation is coming soon. Until then, use the command: syncmacpro-ctl add";
+
+"card.run" = "Run now";
+"card.pause" = "Pause";
+"card.resume" = "Resume";
+"card.stop" = "Stop";
+"card.approve" = "Approve deletions";
+"card.next" = "Next: %@";
+"card.last" = "Last: %@";
+"card.approval.body" = "This task would delete many files, so it was blocked for safety. %@";
+
+"menubar.idle" = "Idle";
+"menubar.copies" = "%d copies";
+"menubar.active" = "Running copies";
+"menubar.none" = "No copy running";
+"menubar.upcoming" = "Upcoming runs";
+"menubar.nonext" = "No scheduled run";
+"menubar.open" = "Open SyncMacPro";
+"menubar.quit" = "Quit";
+
+"history.title" = "History";
+"history.column.date" = "Date";
+"history.column.task" = "Task";
+"history.column.status" = "Status";
+"history.column.duration" = "Duration";
+"history.column.files" = "Files";
+"history.column.size" = "Size";
+"history.column.errors" = "Errors";
+"history.filter.task" = "Task";
+"history.filter.alltasks" = "All tasks";
+"history.filter.status" = "Status";
+"history.filter.allstatus" = "All statuses";
+"history.period.day" = "24 hours";
+"history.period.week" = "7 days";
+"history.period.month" = "30 days";
+"history.period.all" = "All time";
+"history.search" = "Search a task";
+"history.empty" = "No runs";
+"history.empty.filtered" = "No run matches the filters";
+"history.error" = "The history is unreadable: %@";
+"history.detail.none" = "Select a run";
+"history.detail.message" = "Message";
+"history.detail.engine" = "Engine";
+"history.detail.started" = "Started";
+"history.detail.finished" = "Finished";
+
+"settings.title" = "Settings";
+"settings.appearance" = "Appearance";
+"settings.appearance.auto" = "Automatic";
+"settings.appearance.light" = "Light";
+"settings.appearance.dark" = "Dark";
+"settings.login" = "Open SyncMacPro at login";
+"settings.agent" = "Background agent";
+"agent.state.enabled" = "Installed and running";
+"agent.state.notRegistered" = "Not installed";
+"agent.state.requiresApproval" = "Needs approval in System Settings";
+"agent.state.notFound" = "Not found in the app";
+"agent.state.unknown" = "Unknown state";
+"agent.install" = "Install the agent";
+"agent.uninstall" = "Uninstall the agent";
+"agent.opensettings" = "Open System Settings";
+"settings.data" = "Data";
+"settings.data.reveal" = "Show the data folder";
+"settings.about" = "About";
+"settings.version" = "Version %@";
+
+"onboarding.title" = "Welcome to SyncMacPro";
+"onboarding.body" = "To run your syncs even when the app is closed, SyncMacPro installs a small background agent.";
+"onboarding.install" = "Install the agent";
+"onboarding.approve" = "macOS needs your approval: open System Settings › General › Login Items & Extensions, then turn on SyncMacPro.";
+
+"alert.title" = "Action failed";
+"alert.ok" = "OK";
