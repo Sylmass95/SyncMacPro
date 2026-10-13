@@ -88,6 +88,8 @@ public enum RemoteConfigError: Error, Equatable, LocalizedError {
     case rclone(String)
     case unreadable
     case timedOut
+    /// Une lecture (test, liste, dossiers) sans réponse : service lent ou injoignable.
+    case noAnswer
     case cancelled
 
     public var errorDescription: String? {
@@ -95,6 +97,7 @@ public enum RemoteConfigError: Error, Equatable, LocalizedError {
         case .rclone(let message): return message
         case .unreadable: return "Réponse de rclone illisible."
         case .timedOut: return "rclone n'a pas répondu à temps (connexion dans le navigateur non terminée ?)."
+        case .noAnswer: return "Le service n'a pas répondu à temps (lent ou injoignable) : réessayez."
         case .cancelled: return "Configuration annulée."
         }
     }
