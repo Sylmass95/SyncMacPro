@@ -19,6 +19,7 @@ public actor AgentCore {
         var pausedByGlobal = false
         var lastProgressEmit: Date?
         var latest: ProgressInfo?
+        var logWriter: RunLogWriter?
     }
 
     let configuration: AgentConfiguration
@@ -31,6 +32,8 @@ public actor AgentCore {
     let activity: ActivityHolding
     let log: @Sendable (String) -> Void
     let makeRunner: @Sendable () -> TaskRunning
+    /// Dossier des journaux d'exécution ; `nil` : pas de journal.
+    let logDirectory: URL?
 
     var tasks: [SyncTask] = []
     var state: SchedulerState
@@ -54,8 +57,10 @@ public actor AgentCore {
         history: HistoryStore, clock: SchedulerClock, conditions: SystemConditions,
         notifier: AgentNotifier, activity: ActivityHolding,
         log: @escaping @Sendable (String) -> Void = { _ in },
+        logDirectory: URL? = nil,
         makeRunner: @escaping @Sendable () -> TaskRunning
     ) {
+        self.logDirectory = logDirectory
         self.configuration = configuration
         self.taskStore = taskStore
         self.stateStore = stateStore
@@ -185,8 +190,25 @@ public actor AgentCore {
         if let last = state.lastPurge, now.timeIntervalSince(last) < 86400 { return }
         let limit = now.addingTimeInterval(-Double(configuration.historyRetentionDays) * 86400)
         _ = try? history.purge(finishedBefore: limit)
+        if let logDirectory { removeLogs(in: logDirectory, olderThan: limit) }
         state.lastPurge = now
         persist()
+    }
+
+    func removeLogs(in folder: URL, olderThan limit: Date) {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: [.contentModificationDateKey]
+        )) ?? []
+        for file in files where file.pathExtension == "log" {
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            if let modified, modified < limit { try? FileManager.default.removeItem(at: file) }
+        }
+    }
+
+    public func runLog(runID: UUID, maxBytes: Int) throws -> RunLogText {
+        guard let record = try history.record(id: runID), let path = record.logPath,
+              FileManager.default.fileExists(atPath: path) else { throw AgentError.unknownRun }
+        return try RunLogWriter.readTail(url: URL(fileURLWithPath: path), maxBytes: maxBytes)
     }
 
     // MARK: exécution
@@ -226,7 +248,16 @@ public actor AgentCore {
         let now = clock.now()
         let key = task.id.uuidString
         let engine = (try? EngineSelector.engine(for: runTask)) ?? .rsync
-        let record = RunRecord(taskID: task.id, taskName: task.name, engine: engine, mode: task.mode, startedAt: now)
+        var record = RunRecord(taskID: task.id, taskName: task.name, engine: engine, mode: task.mode, startedAt: now)
+        var writer: RunLogWriter?
+        if let logDirectory {
+            let url = logDirectory.appendingPathComponent("\(record.id.uuidString).log")
+            record.logPath = url.path
+            let clock = self.clock
+            let created = RunLogWriter(url: url, now: { clock.now() })
+            created.append("Tâche « \(task.name) » — moteur \(engine.rawValue), mode \(task.mode.rawValue)")
+            writer = created
+        }
         try? history.save(record)
 
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
@@ -238,7 +269,7 @@ public actor AgentCore {
         persist()
 
         let runner = makeRunner()
-        jobs[task.id] = Job(task: task, runner: runner, record: record)
+        jobs[task.id] = Job(task: task, runner: runner, record: record, logWriter: writer)
         waiting[task.id] = nil
         refreshActivity()
         emit(.taskStarted(task.id))
@@ -247,12 +278,17 @@ public actor AgentCore {
         // La référence forte à l'acteur dure le temps de l'exécution, que `jobTasks` tient de toute façon.
         let id = task.id
         let frozenTask = runTask
+        let logWriter = writer
         let core = self
         jobTasks[id] = Task.detached {
             let outcome: Result<RunResult, Error>
             do {
                 outcome = .success(try await runner.run(frozenTask, dryRun: false) { update in
-                    if case .snapshot(let snapshot) = update { Task { await core.progress(id, snapshot) } }
+                    switch update {
+                    case .snapshot(let snapshot): Task { await core.progress(id, snapshot) }
+                    case .line(let text): logWriter?.append(text)
+                    case .phase: break
+                    }
                 })
             } catch {
                 outcome = .failure(error)
@@ -298,6 +334,8 @@ public actor AgentCore {
         job.record.summary = summary
         job.record.finishedAt = now
         try? history.save(job.record)
+        job.logWriter?.append("Fin : \(status.rawValue)" + (summary.message.map { " — \($0)" } ?? ""))
+        job.logWriter?.close()
 
         let key = id.uuidString
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)

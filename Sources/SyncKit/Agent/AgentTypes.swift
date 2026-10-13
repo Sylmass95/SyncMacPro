@@ -167,3 +167,14 @@ public struct SimulationResult: Codable, Equatable, Sendable {
         )
     }
 }
+
+public struct RunLogText: Codable, Equatable, Sendable {
+    public var text: String
+    /// Vrai si le début du journal n'est pas inclus.
+    public var truncated: Bool
+
+    public init(text: String, truncated: Bool) {
+        self.text = text
+        self.truncated = truncated
+    }
+}

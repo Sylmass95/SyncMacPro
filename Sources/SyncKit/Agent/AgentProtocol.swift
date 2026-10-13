@@ -25,6 +25,7 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case removeTask(UUID)
     case simulate(SyncTask)
     case cancelSimulation(UUID)
+    case runLog(runID: UUID, maxBytes: Int)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {
@@ -34,6 +35,7 @@ public enum AgentResponse: Codable, Equatable, Sendable {
     case history([RunRecord])
     case error(AgentError)
     case simulation(SimulationResult)
+    case log(RunLogText)
 }
 
 public struct AgentRequestEnvelope: Codable, Sendable {

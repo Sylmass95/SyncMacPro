@@ -203,6 +203,13 @@ public final class AgentClient: @unchecked Sendable {
         return result
     }
 
+    public func runLog(runID: UUID, maxBytes: Int = 262_144) async throws -> RunLogText {
+        guard case .log(let text) = try await send(.runLog(runID: runID, maxBytes: maxBytes)) else {
+            throw AgentClientError.badReply
+        }
+        return text
+    }
+
     public func status() async throws -> AgentStatus {
         guard case .status(let status) = try await send(.status) else { throw AgentClientError.badReply }
         return status
