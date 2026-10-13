@@ -13,6 +13,7 @@ final class AgentProtocolTests: XCTestCase {
             .status, .listTasks, .history(taskID: id, limit: 5), .history(taskID: nil, limit: 20),
             .runNow(id), .pause(id), .resume(id), .stop(id), .setGlobalPause(true), .approveDeletion(id), .reloadTasks,
             .saveTask(makeTask("x")), .removeTask(id), .simulate(makeTask("x")), .cancelSimulation(id), .runLog(runID: id, maxBytes: 10),
+            .runOnce(makeTask("x")),
         ]
         for request in requests { XCTAssertEqual(try roundTrip(request), request) }
     }

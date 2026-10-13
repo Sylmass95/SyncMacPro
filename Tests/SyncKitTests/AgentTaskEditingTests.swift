@@ -82,9 +82,9 @@ final class AgentTaskEditingTests: XCTestCase {
             from: await AgentRouter.handle(JSONEncoder().encode(AgentRequestEnvelope(request: .saveTask(task))), core: core)
         )
         XCTAssertEqual(saved.response, .ok)
-        XCTAssertEqual(saved.version, 2)
+        XCTAssertEqual(saved.version, agentProtocolVersion)
         let old = Data(#"{"version":1,"request":"status"}"#.utf8)
         let refused = try JSONDecoder().decode(AgentResponseEnvelope.self, from: await AgentRouter.handle(old, core: core))
-        XCTAssertEqual(refused.response, .error(.versionMismatch(agent: 2, client: 1)))
+        XCTAssertEqual(refused.response, .error(.versionMismatch(agent: agentProtocolVersion, client: 1)))
     }
 }

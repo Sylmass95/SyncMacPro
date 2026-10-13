@@ -52,6 +52,7 @@ extension AgentCore {
         }
         guard let index = queue.firstIndex(where: { $0.id == id }) else { throw AgentError.notRunning }
         queue.remove(at: index)
+        oneOffs[id] = nil   // une copie ponctuelle retirée de la file n'existe plus
         emit(.stateChanged)
     }
 

@@ -35,6 +35,7 @@ public enum AgentRouter {
             case .simulate(let task): return .simulation(try await core.simulate(task))
             case .cancelSimulation(let id): await core.cancelSimulation(id)
             case .runLog(let id, let maxBytes): return .log(try await core.runLog(runID: id, maxBytes: maxBytes))
+            case .runOnce(let task): try await core.runOnce(task)
             }
             return .ok
         } catch let error as AgentError {

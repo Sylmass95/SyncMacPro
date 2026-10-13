@@ -51,6 +51,8 @@ public actor AgentCore {
     var observers: [UUID: @Sendable (AgentEvent) -> Void] = [:]
     /// Simulations en cours, par tâche : une nouvelle simulation de la même tâche remplace la précédente.
     var simulations: [UUID: TaskRunning] = [:]
+    /// Copies manuelles en file ou en cours (jamais écrites dans `tasks.json`).
+    var oneOffs: [UUID: SyncTask] = [:]
 
     public init(
         configuration: AgentConfiguration, taskStore: TaskStore, stateStore: SchedulerStateStore,
@@ -217,7 +219,7 @@ public actor AgentCore {
         guard !state.paused, !shuttingDown else { return }
         while jobs.count < configuration.maxParallel, !queue.isEmpty {
             let next = queue.removeFirst()
-            guard let task = tasks.first(where: { $0.id == next.id }), jobs[task.id] == nil else { continue }
+            guard let task = lookupTask(next.id), jobs[task.id] == nil else { continue }
             // Une exécution planifiée peut attendre des heures derrière deux longues copies : on revérifie.
             if !next.manual {
                 guard task.isEnabled else { continue }
@@ -368,6 +370,11 @@ public actor AgentCore {
         }
         state.tasks[key] = entry
         persist()
+        // Une copie ponctuelle n'existe que le temps de son exécution : elle n'est jamais rattrapée.
+        if oneOffs.removeValue(forKey: id) != nil {
+            state.tasks[key] = nil
+            persist()
+        }
 
         notify(job.task, status, summary)
         refreshActivity()
@@ -405,7 +412,8 @@ public actor AgentCore {
 
     public func status() -> AgentStatus {
         let now = clock.now()
-        let infos = tasks.map { task -> AgentTaskInfo in
+        let ponctual = oneOffs.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let infos = (tasks + ponctual).map { task -> AgentTaskInfo in
             let entry = state.tasks[task.id.uuidString]
             let runState: TaskRunState
             if let job = jobs[task.id] {
@@ -425,7 +433,7 @@ public actor AgentCore {
             let last = (try? history.list(taskID: task.id, limit: 1))?.first
             return AgentTaskInfo(
                 id: task.id, name: task.name, state: runState, nextDue: next, lastRun: last,
-                progress: jobs[task.id]?.latest
+                progress: jobs[task.id]?.latest, isOneOff: oneOffs[task.id] != nil
             )
         }
         return AgentStatus(
