@@ -43,7 +43,7 @@ public struct RootView: View {
         } detail: {
             detail
         }
-        .frame(minWidth: 860, minHeight: 560)
+        .frame(minWidth: 940, minHeight: 560)
         // L'agent a disparu (désinstallé, désactivé) : on relit son état pour proposer la bonne action.
         .onChange(of: model.connection) { _, state in
             if state == .unreachable { installer.refresh() }

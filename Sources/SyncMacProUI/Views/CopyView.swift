@@ -76,12 +76,12 @@ struct CopyView: View {
                 .help(localizer.text("copy.action.swap"))
             if offline {
                 Text(localizer.text("copy.offline")).font(.caption).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center).frame(width: 130)
+                    .multilineTextAlignment(.center).frame(width: 124)
             }
             Spacer()
         }
         .labelStyle(.titleAndIcon)
-        .frame(width: 150)
+        .frame(width: 140)
     }
 
     private func copy(simulate: Bool) {

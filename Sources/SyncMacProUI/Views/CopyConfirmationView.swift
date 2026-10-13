@@ -89,6 +89,8 @@ struct CopyConfirmationView: View {
     }
 
     private var offline: Bool { model.connection != .connected }
+    /// Une demande refusée (dossiers imbriqués…) ne se simule ni ne se lance.
+    private var invalid: Bool { tasks.contains { !TaskValidator.problems(in: $0).isEmpty } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -105,16 +107,16 @@ struct CopyConfirmationView: View {
                 if case .running = simulation {
                     Button(localizer.text("editor.simulate.cancel")) { cancelSimulations() }
                 } else {
-                    Button(localizer.text("confirm.simulate")) { Task { await simulate() } }.disabled(offline)
+                    Button(localizer.text("confirm.simulate")) { Task { await simulate() } }.disabled(offline || invalid)
                 }
                 Button(localizer.text("confirm.launch")) { Task { await launch() } }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(offline || launching || tasks.contains { !TaskValidator.problems(in: $0).isEmpty })
+                    .disabled(offline || launching || invalid)
             }
         }
         .padding(20)
         .frame(width: 540, height: 380)
-        .task { if session.simulateAtOnce { await simulate() } }
+        .task { if session.simulateAtOnce && !invalid { await simulate() } }
         .onDisappear { cancelSimulations() }
     }
 

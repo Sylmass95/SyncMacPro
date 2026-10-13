@@ -85,3 +85,11 @@ final class AgentProtocolTests: XCTestCase {
         guard case .error(.internalFailure) = reply.response else { return XCTFail("attendu : erreur interne") }
     }
 }
+
+final class AgentServiceNameTests: XCTestCase {
+    func testDevelopmentOverrideOfTheServiceName() {
+        XCTAssertEqual(AgentIdentifiers.service(environment: [:]), AgentIdentifiers.machService)
+        XCTAssertEqual(AgentIdentifiers.service(environment: ["SYNCMACPRO_AGENT_SERVICE": "x.dev"]), "x.dev")
+        XCTAssertEqual(AgentIdentifiers.service(environment: ["SYNCMACPRO_AGENT_SERVICE": " "]), AgentIdentifiers.machService)
+    }
+}

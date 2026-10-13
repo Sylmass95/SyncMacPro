@@ -44,6 +44,8 @@ struct FileListBody: View {
     let onClick: (URL, Bool, Bool) -> Void
     let onOpen: (DirectoryItem) -> Void
     let menu: (DirectoryItem) -> PaneMenu
+    /// Un panneau étroit masque les dates : le nom garde la place.
+    var showsDates = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -70,12 +72,15 @@ struct FileListBody: View {
             Image(systemName: item.isDirectory ? "folder.fill" : "doc")
                 .foregroundStyle(item.isDirectory ? Color.accentColor : .secondary)
                 .frame(width: 18)
-            Text(item.name).lineLimit(1).truncationMode(.middle)
-            Spacer(minLength: 8)
+            // Le nom passe avant les colonnes : il garde la place et se tronque au milieu en dernier recours.
+            Text(item.name).lineLimit(1).truncationMode(.middle).layoutPriority(1)
+            Spacer(minLength: 4)
             Text(item.size.map { localizer.bytes($0) } ?? "—")
-                .foregroundStyle(.secondary).monospacedDigit().frame(width: 80, alignment: .trailing)
-            Text(item.modified.map { $0.formatted(date: .numeric, time: .shortened) } ?? "")
-                .foregroundStyle(.secondary).monospacedDigit().frame(width: 130, alignment: .trailing)
+                .lineLimit(1).foregroundStyle(.secondary).monospacedDigit().frame(width: 64, alignment: .trailing)
+            if showsDates {
+                Text(item.modified.map { $0.formatted(date: .numeric, time: .omitted) } ?? "")
+                    .lineLimit(1).foregroundStyle(.secondary).monospacedDigit().frame(width: 76, alignment: .trailing)
+            }
         }
         .font(.callout)
         .opacity(item.isHidden ? 0.6 : 1)
@@ -111,6 +116,7 @@ struct FilePaneView: View {
     let onDrop: ([URL]) -> Void
     let menu: (DirectoryItem) -> PaneMenu
     @State private var targeted = false
+    @State private var width: CGFloat = 500
 
     var body: some View {
         VStack(spacing: 0) {
@@ -125,7 +131,7 @@ struct FilePaneView: View {
                     onOpen: { item in
                         if item.isDirectory { pane.open(item.url) } else { NSWorkspace.shared.open(item.url) }
                     },
-                    menu: menu
+                    menu: menu, showsDates: width >= 400
                 )
             }
             .dropDestination(for: URL.self) { urls, _ in
@@ -133,6 +139,12 @@ struct FilePaneView: View {
                 return true
             } isTargeted: { targeted = $0 }
         }
+        .frame(minWidth: 240, maxWidth: .infinity)
+        .background(GeometryReader { geometry in
+            Color.clear
+                .onAppear { width = geometry.size.width }
+                .onChange(of: geometry.size.width) { _, new in width = new }
+        })
         .background(.background)
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(targeted ? Color.accentColor : Color.secondary.opacity(0.25),
                                                                 lineWidth: targeted ? 2 : 1))
@@ -160,9 +172,10 @@ struct FilePaneView: View {
                 }
             } label: {
                 Label(pane.folder.lastPathComponent.isEmpty ? "/" : pane.folder.lastPathComponent, systemImage: "folder")
+                    .lineLimit(1)
             }
-            .fixedSize()
-            Spacer()
+            .frame(maxWidth: 160, alignment: .leading)
+            Spacer(minLength: 0)
             Button { pane.goUp() } label: { Image(systemName: "arrow.up") }
                 .disabled(!pane.canGoUp).help(localizer.text("copy.up"))
             Button {

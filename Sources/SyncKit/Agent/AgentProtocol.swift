@@ -8,6 +8,13 @@ public enum AgentIdentifiers {
     public static let machService = "com.sylvain.syncmacpro.agent"
     public static let launchdLabel = machService
     public static let bundleIdentifier = "com.sylvain.syncmacpro"
+
+    /// Le service à joindre : `SYNCMACPRO_AGENT_SERVICE` permet d'ouvrir l'app sur l'agent de développement.
+    public static func service(environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
+        guard let name = environment["SYNCMACPRO_AGENT_SERVICE"]?.trimmingCharacters(in: .whitespaces), !name.isEmpty
+        else { return machService }
+        return name
+    }
 }
 
 public enum AgentRequest: Codable, Equatable, Sendable {

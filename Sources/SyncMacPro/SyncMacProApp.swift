@@ -19,7 +19,7 @@ struct SyncMacProApp: App {
     private let localizer = Localizer.system
 
     init() {
-        let model = AgentModel(agent: AgentClient.machService())
+        let model = AgentModel(agent: AgentClient.machService(AgentIdentifiers.service()))
         _model = State(initialValue: model)
         // Le modèle démarre avec l'app, pas avec la fenêtre : l'icône de la barre de menus reste vivante même si
         // macOS relance l'app sans ouvrir sa fenêtre (restauration, ouverture à la connexion).
@@ -31,6 +31,7 @@ struct SyncMacProApp: App {
             RootView(model: model, installer: installer, loginItem: loginItem, localizer: localizer)
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
         }
+        .defaultSize(width: 1180, height: 720)
 
         MenuBarExtra {
             MenuBarContent(model: model, localizer: localizer)
