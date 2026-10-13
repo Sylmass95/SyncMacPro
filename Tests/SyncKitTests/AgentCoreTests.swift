@@ -297,6 +297,18 @@ final class AgentFailureTests: XCTestCase {
         XCTAssertTrue(record.summary?.message?.contains("Boom") == true)
     }
 
+    func testMissingRsyncIsRecordedWithAClearMessage() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        h.factory.failure.set(RunnerError.binaryMissing(.rsync))
+        let task = makeTask()
+        try h.save([task])
+        let core = h.makeCore()
+        await core.start()
+        await core.tick(); await core.waitForIdle()
+        let message = try XCTUnwrap(try h.history.list(taskID: task.id).first?.summary?.message)
+        XCTAssertTrue(message.contains("brew install rsync"), message)
+    }
+
     func testHistoryOlderThanRetentionIsPurged() async throws {
         let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
         h.clock.set(h.at(2026, 10, 12, 9))

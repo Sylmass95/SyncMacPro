@@ -50,8 +50,18 @@ public struct RunResult: Equatable, Sendable {
     public var snapshot: TransferSnapshot
 }
 
-public enum RunnerError: Error, Equatable {
+public enum RunnerError: Error, Equatable, LocalizedError {
     case binaryMissing(EngineKind)
+
+    public var errorDescription: String? {
+        switch self {
+        case .binaryMissing(.rsync):
+            return "rsync 3 est introuvable. L'outil rsync de macOS (openrsync) ne convient pas : "
+                + "installez rsync 3 avec « brew install rsync »."
+        case .binaryMissing(.rclone):
+            return "rclone est introuvable : installez-le avec « brew install rclone »."
+        }
+    }
 }
 
 /// Accès thread-safe au suivi de progression (alimenté par plusieurs threads).

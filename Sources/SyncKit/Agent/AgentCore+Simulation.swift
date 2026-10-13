@@ -20,7 +20,7 @@ extension AgentCore {
         do {
             outcome = SimulationResult(try await runner.run(task, dryRun: true, onUpdate: { _ in }))
         } catch {
-            outcome = SimulationResult(status: .failed, filesToTransfer: 0, bytesToTransfer: 0, deletions: 0, message: "\(error)")
+            outcome = SimulationResult(status: .failed, filesToTransfer: 0, bytesToTransfer: 0, deletions: 0, message: (error as? LocalizedError)?.errorDescription ?? "\(error)")
         }
         if simulations[task.id] === runner { simulations[task.id] = nil }
         return outcome
