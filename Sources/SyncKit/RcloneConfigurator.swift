@@ -83,14 +83,17 @@ public final class RcloneConfigurator: RemoteConfiguring, @unchecked Sendable {
         return Output(code: code, stdout: value.out.joined(separator: "\n"), stderr: value.err.joined(separator: "\n"))
     }
 
-    /// Dernière ligne utile de rclone (sans l'horodatage ni le niveau).
+    /// Dernière ligne utile de rclone, sans horodatage, niveau ni enveloppes techniques (« lsjson with 2 errors… »,
+    /// code HTTP) : on garde la cause (« InvalidAccessKeyId: … », « directory not found »).
     static func message(_ stderr: String) -> String {
-        let line = stderr.split(separator: "\n").last.map(String.init) ?? ""
-        for marker in ["CRITICAL: ", "ERROR : ", "ERROR: ", "Failed to "] {
-            if let range = line.range(of: marker) {
-                return String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
-            }
+        var line = stderr.split(separator: "\n").last.map(String.init) ?? ""
+        for marker in ["CRITICAL: ", "ERROR : ", "ERROR: ", "NOTICE: "] {
+            if let range = line.range(of: marker) { line = String(line[range.upperBound...]) }
         }
+        for marker in ["api error ", "last error was: ", "error in ListJSON: "] {
+            if let range = line.range(of: marker, options: .backwards) { line = String(line[range.upperBound...]) }
+        }
+        line = line.trimmingCharacters(in: .whitespaces)
         return line.isEmpty ? "rclone a échoué." : line
     }
 

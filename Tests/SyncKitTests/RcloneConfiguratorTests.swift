@@ -107,4 +107,15 @@ final class RcloneConfiguratorTests: XCTestCase {
         XCTAssertEqual(output.stdout.split(separator: "\n").count, 2000)
         XCTAssertEqual(output.stderr.split(separator: "\n").count, 2000)
     }
+
+    // Les messages de rclone sont ramenés à l'essentiel.
+    func testMessagesAreShortened() {
+        let s3 = "2026/10/13 15:30:00 ERROR : : error listing: lsjson with 2 errors: last error was: error in ListJSON: operation error S3: ListBuckets, https response error StatusCode: 403, RequestID: X, HostID: Y, api error InvalidAccessKeyId: The AWS Access Key Id you provided does not exist in our records."
+        XCTAssertEqual(RcloneConfigurator.message(s3), "InvalidAccessKeyId: The AWS Access Key Id you provided does not exist in our records.")
+        let missing = "2026/10/13 15:30:00 NOTICE: lsjson with 2 errors: last error was: error in ListJSON: directory not found"
+        XCTAssertEqual(RcloneConfigurator.message(missing), "directory not found")
+        let unknown = #"2026/10/13 15:04:40 CRITICAL: Failed to create file system for "nope:": didn't find section in config file ("nope")"#
+        XCTAssertEqual(RcloneConfigurator.message(unknown), #"Failed to create file system for "nope:": didn't find section in config file ("nope")"#)
+        XCTAssertEqual(RcloneConfigurator.message(""), "rclone a échoué.")
+    }
 }
