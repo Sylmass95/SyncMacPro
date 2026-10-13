@@ -12,7 +12,7 @@ Conception : [`docs/superpowers/specs/2026-10-12-syncmacpro-design.md`](docs/sup
 |---|---|
 | 1. Cœur (`SyncKit`) | terminé : modèle de tâche, moteurs rsync/rclone, progression, historique |
 | 2. Planification (agent) | en cours : agent d'arrière-plan, XPC et outil `syncmacpro-ctl` (voir ci-dessous) |
-| 3. Interface | à venir |
+| 3. Interface | 3a livrée : tableau de bord, barre de menus, historique, réglages ; 3b (tâches) et 3c (copie à deux panneaux) à venir |
 | 4. Connexion aux services | à venir |
 | 5. Distribution | à venir |
 
@@ -76,3 +76,23 @@ Sans bundle, `scripts/dev-launchd.sh install` déclare un agent de développemen
 
 Vérifié sur macOS 26 avec une signature ad hoc ; macOS 14 et 15 restent à confirmer. Après un arrêt brutal,
 launchd met environ 10 s à relancer l'agent : l'outil patiente jusqu'à 20 s.
+
+## Interface (sous-projet 3a)
+
+L'app `SyncMacPro` affiche l'état de l'agent en direct : **tableau de bord** (une carte par tâche, progression, pause globale),
+**icône de barre de menus** (repos, pourcentage, pause, erreur), **historique** (filtres, détail) et **réglages**
+(apparence, ouverture à la connexion, agent). Elle n'effectue aucune synchronisation : fermer la fenêtre garde l'app dans la
+barre de menus, la quitter laisse l'agent tourner. Si l'agent redémarre, l'app se reconnecte seule.
+
+```bash
+scripts/make-dev-bundle.sh          # assemble ~/Applications/SyncMacPro.app (signature ad hoc)
+open ~/Applications/SyncMacPro.app
+```
+
+L'installation de l'agent se fait au premier lancement (ou dans Réglages › Agent). La création de tâches depuis l'app arrive
+en 3b ; d'ici là : `syncmacpro-ctl add`. Textes en français et en anglais (`Sources/SyncMacProUI/Resources/*.lproj`, fichiers
+`.strings` : `swift build` ne compile pas les catalogues `.xcstrings`). L'agent a besoin de **rsync 3** (`brew install rsync`) :
+sans lui macOS utilise `openrsync` et le résumé des exécutions est faux (le bundle de rsync viendra au sous-projet 5).
+Vérifications à la main : [`docs/manual-checks-ui.md`](docs/manual-checks-ui.md). Les tests de rendu (`ImageRenderer`) écrivent
+des PNG dans `$TMPDIR/syncmacpro-renders/` ; `ImageRenderer` ne dessine ni les `ScrollView` ni les contrôles AppKit
+(barres de progression, filtres), qui se vérifient dans l'app.

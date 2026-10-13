@@ -6,7 +6,9 @@ import Foundation
 /// Un objet par connexion : traduit les appels XPC et retire ses observateurs à la fermeture.
 final class AgentConnectionHandler: NSObject, AgentXPCProtocol, @unchecked Sendable {
     private let core: AgentCore
-    private let tokens = Locked<[UUID]>([])
+    private let lock = NSLock()
+    private var tokens: [UUID] = []
+    private var closed = false
 
     init(core: AgentCore) { self.core = core }
 
@@ -21,14 +23,27 @@ final class AgentConnectionHandler: NSObject, AgentXPCProtocol, @unchecked Senda
             let token = await core.addObserver { event in
                 if let data = try? JSONEncoder().encode(event) { observer.event(data) }
             }
-            tokens.set(tokens.get() + [token])
+            // La connexion est déjà fermée : personne n'écoutera, on ne laisse pas l'observateur traîner.
+            if !register(token) { await core.removeObserver(token) }
             reply()
         }
     }
 
+    /// Faux si la connexion est déjà fermée. Synchrone : le verrou ne traverse jamais un `await`.
+    private func register(_ token: UUID) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if closed { return false }
+        tokens.append(token)
+        return true
+    }
+
     func tearDown() {
-        let pending = tokens.get()
-        tokens.set([])
+        lock.lock()
+        closed = true
+        let pending = tokens
+        tokens = []
+        lock.unlock()
         let core = self.core
         Task { for token in pending { await core.removeObserver(token) } }
     }
@@ -37,6 +52,7 @@ final class AgentConnectionHandler: NSObject, AgentXPCProtocol, @unchecked Senda
 public final class AgentListenerDelegate: NSObject, NSXPCListenerDelegate {
     private let core: AgentCore
     private let requirement: String?
+    var onNewConnection: ((NSXPCConnection) -> Void)?
 
     /// `codeSigningRequirement` : exigence de signature du client (app signée avec une équipe) ;
     /// `nil` en signature ad hoc, où l'on se limite au même utilisateur.
@@ -53,6 +69,7 @@ public final class AgentListenerDelegate: NSObject, NSXPCListenerDelegate {
         connection.exportedObject = handler
         connection.remoteObjectInterface = NSXPCInterface(with: AgentObserverXPC.self)
         connection.invalidationHandler = { handler.tearDown() }
+        onNewConnection?(connection)
         connection.resume()
         return true
     }
@@ -105,13 +122,19 @@ final class ClientObserver: NSObject, AgentObserverXPC, @unchecked Sendable {
 public final class AgentWatch: @unchecked Sendable {
     private let connection: NSXPCConnection
     private let observer: ClientObserver
+    private let cancelled: Locked<Bool>
 
-    init(connection: NSXPCConnection, observer: ClientObserver) {
+    init(connection: NSXPCConnection, observer: ClientObserver, cancelled: Locked<Bool>) {
         self.connection = connection
         self.observer = observer
+        self.cancelled = cancelled
     }
 
-    public func cancel() { connection.invalidate() }
+    /// Fin volontaire : `onEnd` n'est pas appelé.
+    public func cancel() {
+        cancelled.set(true)
+        connection.invalidate()
+    }
 }
 
 public final class AgentClient: @unchecked Sendable {
@@ -194,10 +217,21 @@ public final class AgentClient: @unchecked Sendable {
         _ = try await send(request)
     }
 
-    /// Reçoit les événements de l'agent jusqu'à `cancel()` ou à la fermeture de l'agent.
-    public func watch(_ onEvent: @escaping @Sendable (AgentEvent) -> Void) async throws -> AgentWatch {
+    /// Reçoit les événements de l'agent. `onEnd` est appelé quand la connexion est coupée ou interrompue
+    /// (l'agent s'est arrêté : l'abonnement est perdu et il faut se reconnecter), jamais après `cancel()`.
+    public func watch(
+        _ onEvent: @escaping @Sendable (AgentEvent) -> Void,
+        onEnd: @escaping @Sendable () -> Void = {}
+    ) async throws -> AgentWatch {
         let connection = factory()
         let observer = ClientObserver(onEvent)
+        let cancelled = Locked(false)
+        let end: @Sendable () -> Void = { if !cancelled.get() { onEnd() } }
+        connection.invalidationHandler = end
+        connection.interruptionHandler = {
+            end()
+            connection.invalidate()
+        }
         connection.remoteObjectInterface = AgentXPC.makeInterface()
         connection.exportedInterface = NSXPCInterface(with: AgentObserverXPC.self)
         connection.exportedObject = observer
@@ -223,9 +257,10 @@ public final class AgentClient: @unchecked Sendable {
                 }
             }
         } catch {
+            cancelled.set(true)
             connection.invalidate()
             throw error
         }
-        return AgentWatch(connection: connection, observer: observer)
+        return AgentWatch(connection: connection, observer: observer, cancelled: cancelled)
     }
 }

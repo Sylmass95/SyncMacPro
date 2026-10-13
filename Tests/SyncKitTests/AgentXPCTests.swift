@@ -92,4 +92,52 @@ final class AgentXPCTests: XCTestCase {
             XCTAssertEqual(error as? AgentClientError, .unreachable)
         }
     }
+
+    func testWatcherIsToldWhenTheAgentConnectionEnds() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let core = h.makeCore()
+        await core.start()
+        let delegate = AgentListenerDelegate(core: core)
+        let serverConnections = Locked<[NSXPCConnection]>([])
+        delegate.onNewConnection = { serverConnections.set(serverConnections.get() + [$0]) }
+        let listener = NSXPCListener.anonymous()
+        listener.delegate = delegate
+        listener.resume()
+        let endpoint = listener.endpoint
+        let client = AgentClient(timeout: 5) { NSXPCConnection(listenerEndpoint: endpoint) }
+
+        let ended = Locked(false)
+        let watch = try await client.watch({ _ in }, onEnd: { ended.set(true) })
+        // L'agent « meurt » : sa connexion est coupée côté serveur.
+        serverConnections.get().forEach { $0.invalidate() }
+        let told = await eventually { ended.get() }
+        XCTAssertTrue(told, "le client doit savoir que l'agent a disparu")
+        withExtendedLifetime((watch, listener, delegate)) {}
+    }
+
+    func testCancellingAWatchDoesNotReportAnEnd() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let server = await makeServer(h)
+        let ended = Locked(false)
+        let watch = try await server.client.watch({ _ in }, onEnd: { ended.set(true) })
+        watch.cancel()
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertFalse(ended.get(), "annuler soi-même n'est pas une fin de connexion")
+        withExtendedLifetime(server) {}
+    }
+
+    func testObserverRegisteredAfterTearDownIsRemoved() async throws {
+        final class StubObserver: NSObject, AgentObserverXPC { func event(_ data: Data) {} }
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let core = h.makeCore()
+        await core.start()
+        let handler = AgentConnectionHandler(core: core)
+        handler.tearDown()   // le client s'est déconnecté avant que l'abonnement n'arrive
+        let replied = Locked(false)
+        handler.subscribe(StubObserver()) { replied.set(true) }
+        let done = await eventually { replied.get() }
+        XCTAssertTrue(done)
+        let count = await core.observerCount
+        XCTAssertEqual(count, 0, "un observateur orphelin ne doit pas rester enregistré")
+    }
 }

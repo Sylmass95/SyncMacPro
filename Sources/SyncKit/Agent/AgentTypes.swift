@@ -72,13 +72,18 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     public var state: TaskRunState
     public var nextDue: Date?
     public var lastRun: RunRecord?
+    public var progress: ProgressInfo?
 
-    public init(id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil) {
+    public init(
+        id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,
+        progress: ProgressInfo? = nil
+    ) {
         self.id = id
         self.name = name
         self.state = state
         self.nextDue = nextDue
         self.lastRun = lastRun
+        self.progress = progress
     }
 }
 

@@ -77,6 +77,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
     let status = Locked<RunStatus>(.succeeded)
     let message = Locked<String?>(nil)
     let failure = Locked<Error?>(nil)
+    let snapshot = Locked<TransferSnapshot?>(nil)
     private let gate: Gate?
     private let stopped = Locked(false)
 
@@ -93,6 +94,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         calls.set(calls.get() + ["run"])
         ranTasks.set(ranTasks.get() + [task])
         onUpdate(.phase(.running))
+        if let current = snapshot.get() { onUpdate(.snapshot(current)) }
         if let gate { await gate.wait() }
         if let failure = failure.get() { throw failure }
         let final = stopped.get() ? RunStatus.stopped : status.get()
@@ -116,6 +118,7 @@ final class RunnerFactory: @unchecked Sendable {
     let runners = Locked<[FakeRunner]>([])
     let status = Locked<RunStatus>(.succeeded)
     let failure = Locked<Error?>(nil)
+    let snapshot = Locked<TransferSnapshot?>(nil)
     let gated: Bool
 
     init(gated: Bool = false) { self.gated = gated }
@@ -123,6 +126,7 @@ final class RunnerFactory: @unchecked Sendable {
     func make() -> TaskRunning {
         let runner = FakeRunner(status: status.get(), gated: gated)
         runner.failure.set(failure.get())
+        runner.snapshot.set(snapshot.get())
         runners.set(runners.get() + [runner])
         return runner
     }
