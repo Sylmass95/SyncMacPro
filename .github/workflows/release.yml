@@ -1,0 +1,41 @@
+name: Publication
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+  # Les changements de la construction elle-même sont vérifiés sur la PR (sans publication).
+  pull_request:
+    paths: ['scripts/**', '.github/workflows/release.yml', 'Package.swift']
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Cache des binaires embarqués
+        uses: actions/cache@v4
+        with:
+          path: .build/vendor
+          key: vendor-${{ hashFiles('scripts/vendor.lock', 'scripts/fetch-vendor.sh') }}
+      - name: Construire le DMG
+        run: scripts/make-release.sh
+      - name: Garder le DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: SyncMacPro-dmg
+          path: build/*.dmg
+      - name: Publier
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          [ "v$VERSION" = "$GITHUB_REF_NAME" ] || { echo "VERSION ($VERSION) ≠ étiquette ($GITHUB_REF_NAME)"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" build/SyncMacPro-$VERSION.dmg .build/vendor/src/rsync-*.tar.gz \
+            --title "SyncMacPro $VERSION" --notes-file docs/release-notes.md

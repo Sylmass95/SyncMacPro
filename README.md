@@ -8,13 +8,23 @@ Conception : [`docs/superpowers/specs/2026-10-12-syncmacpro-design.md`](docs/sup
 
 ## État
 
-| Sous-projet | État |
-|---|---|
-| 1. Cœur (`SyncKit`) | terminé : modèle de tâche, moteurs rsync/rclone, progression, historique |
-| 2. Planification (agent) | en cours : agent d'arrière-plan, XPC et outil `syncmacpro-ctl` (voir ci-dessous) |
-| 3. Interface | 3a et 3b livrées : tableau de bord, barre de menus, historique, réglages, tâches, éditeur, simulation, journal ; 3c (copie à deux panneaux) à venir |
-| 4. Connexion aux services | à venir |
-| 5. Distribution | à venir |
+Les cinq sous-projets sont livrés : cœur (`SyncKit`), agent d'arrière-plan, interface (tableau de bord, tâches, copie
+à deux panneaux, historique, réglages), connexions aux services en ligne et distribution.
+
+## Installer
+
+1. Téléchargez `SyncMacPro-<version>.dmg` depuis les [publications](https://github.com/Sylmass95/SyncMacPro/releases).
+2. Ouvrez-le et glissez **SyncMacPro** dans **Applications**, puis ouvrez-la depuis Applications.
+3. L'app est signée « ad hoc » (sans compte Apple Developer) : au premier lancement macOS l'arrête.
+   - macOS 15 et suivants : Réglages Système › Confidentialité et sécurité › **Ouvrir quand même** ;
+   - macOS 14 : clic droit sur l'app › **Ouvrir** ;
+   - ou : `xattr -dr com.apple.quarantine /Applications/SyncMacPro.app`.
+4. L'accueil installe l'agent d'arrière-plan (macOS peut demander de l'autoriser dans Réglages Système › Général ›
+   Ouverture).
+
+macOS 14 ou plus récent, Apple Silicon et Intel. rsync 3.5.1 et rclone 1.75.1 sont inclus : rien d'autre à installer.
+L'app vérifie chaque jour s'il existe une nouvelle version (Réglages › À propos) ; elle ne s'installe pas seule.
+Diagnostic : `/Applications/SyncMacPro.app/Contents/MacOS/syncmacpro-ctl doctor`.
 
 ## Développer
 
@@ -93,8 +103,8 @@ open ~/Applications/SyncMacPro.app
 L'installation de l'agent se fait au premier lancement (ou dans Réglages › Agent). Les tâches se créent dans l'app (écran
 Tâches ou « Créer une tâche »), avec un éditeur en 5 étapes qui simule avant d'enregistrer ; l'historique montre le journal
 de chaque exécution. L'agent est le seul à écrire `tasks.json` ; `syncmacpro-ctl add / remove / simulate / log` passent par lui. Textes en français et en anglais (`Sources/SyncMacProUI/Resources/*.lproj`, fichiers
-`.strings` : `swift build` ne compile pas les catalogues `.xcstrings`). L'agent a besoin de **rsync 3** (`brew install rsync`) :
-l'`openrsync` de macOS est refusé avec un message clair (le bundle de rsync viendra au sous-projet 5).
+`.strings` : `swift build` ne compile pas les catalogues `.xcstrings`). L'app publiée embarque rsync 3 et rclone ; en développement (`swift run`, agent de
+développement), l'agent prend ceux de Homebrew (`brew install rsync rclone`) — l'`openrsync` de macOS est refusé avec un message clair.
 Vérifications à la main : [`docs/manual-checks-ui.md`](docs/manual-checks-ui.md). Les tests de rendu (`ImageRenderer`) écrivent
 des PNG dans `$TMPDIR/syncmacpro-renders/` ; `ImageRenderer` ne dessine ni les `ScrollView` ni les contrôles AppKit
 (barres de progression, filtres), qui se vérifient dans l'app.
@@ -144,3 +154,22 @@ syncmacpro-ctl remote delete "Google Drive"
 
 Développement : l'agent accepte `--rclone-config FICHIER` ; `SYNCMACPRO_DEV_RCLONE_CONFIG=FICHIER scripts/dev-launchd.sh install`
 le transmet à l'agent de développement (essais sans toucher à la vraie configuration).
+
+## Construire et publier
+
+```bash
+scripts/fetch-vendor.sh      # rsync (compilé) et rclone (officiel), universels, empreintes de scripts/vendor.lock
+scripts/make-release.sh      # build/SyncMacPro-<VERSION>.dmg (app universelle, signature ad hoc)
+scripts/make-dev-bundle.sh   # bundle de développement dans ~/Applications (binaires embarqués s'ils sont prêts)
+```
+
+Publier une version : mettre à jour `VERSION` et `docs/release-notes.md`, fusionner, puis pousser l'étiquette
+`vX.Y.Z` (`git tag v1.0.0 && git push origin v1.0.0`). Le workflow **Publication** construit le DMG et crée la
+publication GitHub avec le DMG et l'archive source de rsync. Lancé à la main (onglet Actions), il construit seulement
+et garde le DMG comme artefact. Changer de version de rsync ou rclone : modifier `scripts/vendor.lock` (versions,
+adresses, empreintes SHA-256 officielles).
+
+## Licences
+
+SyncMacPro est sous licence MIT. Il embarque rsync (GPL v3) et rclone (MIT), non modifiés, lancés comme programmes
+séparés : voir [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) (dans l'app : Réglages › À propos › Licences).
