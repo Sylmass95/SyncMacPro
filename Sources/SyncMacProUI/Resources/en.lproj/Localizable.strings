@@ -323,3 +323,4 @@
 "confirm.cancel" = "Cancel";
 "confirm.simulate" = "Simulate";
 "confirm.launch" = "Start";
+"problem.invalidItem" = "Selected items must be names inside the source (not empty, “.” or “..”).";

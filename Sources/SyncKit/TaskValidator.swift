@@ -16,6 +16,8 @@ public enum TaskProblem: String, Codable, CaseIterable, Equatable, Sendable {
     case relativePath
     /// Le dossier d'archive doit être un simple nom, dans la destination.
     case invalidArchiveFolder
+    /// Un élément choisi doit être un nom (ou un chemin) dans la source : ni vide, ni « . », ni « .. », ni absolu.
+    case invalidItem
 
     public var message: String {
         switch self {
@@ -29,6 +31,7 @@ public enum TaskProblem: String, Codable, CaseIterable, Equatable, Sendable {
         case .invalidSchedule: return "La planification est incomplète (heure, jours ou intervalle)."
         case .relativePath: return "Les chemins doivent être complets (commencer par /)."
         case .invalidArchiveFolder: return "Le dossier d'archive doit être un simple nom, sans « / » ni « .. »."
+        case .invalidItem: return "Les éléments choisis doivent être des noms dans la source (ni vide, ni « . », ni « .. »)."
         }
     }
 }
@@ -47,7 +50,9 @@ public enum TaskValidator {
                 found.append(.relativePath)
             } else {
                 let source = location(task.source), destination = location(task.destination)
-                if source.namespace == destination.namespace {
+                if !task.sourceItems.allSatisfy(isValidItem) {
+                    found.append(.invalidItem)
+                } else if source.namespace == destination.namespace {
                     if let problem = task.sourceItems.isEmpty
                         ? overlap(source.parts, destination.parts)
                         : overlap(items: task.sourceItems, in: source, destination.parts) {
@@ -85,6 +90,15 @@ public enum TaskValidator {
             if destination.starts(with: path) || path.starts(with: arrival) { return .nestedFolders }
         }
         return nil
+    }
+
+    /// « photos/2024 » ou « .cache » ; jamais vide, absolu, ni avec un composant « . » ou « .. » (qui sortirait de la source
+    /// ou désignerait la source elle-même : un miroir effacerait alors la destination entière).
+    static func isValidItem(_ item: String) -> Bool {
+        let trimmed = item.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("/") else { return false }
+        let parts = trimmed.split(separator: "/", omittingEmptySubsequences: true)
+        return !parts.isEmpty && !parts.contains { $0 == "." || $0 == ".." }
     }
 
     static func isEmpty(_ endpoint: Endpoint) -> Bool {

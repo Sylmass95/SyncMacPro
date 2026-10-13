@@ -16,7 +16,7 @@ struct CopyConfirmationContent: View {
 
     /// Après une simulation qui annonce des suppressions, une synchronisation peut les accepter d'avance
     /// (le garde-fou bloquerait sinon une exécution qui n'existe plus ensuite pour être validée).
-    static func offersDeletionApproval(isSync: Bool, simulation: SimulationState) -> Bool {
+    nonisolated static func offersDeletionApproval(isSync: Bool, simulation: SimulationState) -> Bool {
         guard isSync, case .finished(.finished(let result)) = simulation else { return false }
         return result.deletions > 0
     }
@@ -73,8 +73,7 @@ struct CopyConfirmationView: View {
     let session: CopySession
     let localizer: Localizer
     let onClose: () -> Void
-    @State private var simulation: SimulationState = .idle
-    @State private var acceptDeletions = false
+    @State private var flow = ConfirmationFlow()
     @State private var error: String?
     @State private var launching = false
     @State private var simulatedIDs: [UUID] = []
@@ -85,7 +84,7 @@ struct CopyConfirmationView: View {
     }
 
     private var tasks: [SyncTask] {
-        OneOffPlanner.tasks(for: session.request, acceptDeletions: acceptDeletions, localizer: localizer)
+        OneOffPlanner.tasks(for: session.request, acceptDeletions: flow.acceptsDeletions(isSync: isSync), localizer: localizer)
     }
 
     private var offline: Bool { model.connection != .connected }
@@ -96,15 +95,15 @@ struct CopyConfirmationView: View {
         VStack(alignment: .leading, spacing: 16) {
             ScrollView {
                 CopyConfirmationContent(
-                    tasks: tasks, isSync: isSync, simulation: simulation, error: error,
-                    acceptDeletions: $acceptDeletions, offline: offline, localizer: localizer
+                    tasks: tasks, isSync: isSync, simulation: flow.simulation, error: error,
+                    acceptDeletions: $flow.acceptDeletions, offline: offline, localizer: localizer
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack {
                 Button(localizer.text("confirm.cancel"), role: .cancel) { close() }.keyboardShortcut(.cancelAction)
                 Spacer()
-                if case .running = simulation {
+                if case .running = flow.simulation {
                     Button(localizer.text("editor.simulate.cancel")) { cancelSimulations() }
                 } else {
                     Button(localizer.text("confirm.simulate")) { Task { await simulate() } }.disabled(offline || invalid)
@@ -122,22 +121,22 @@ struct CopyConfirmationView: View {
 
     private func simulate() async {
         error = nil
-        simulation = .running
+        flow.beginSimulation()
         let planned = tasks
         simulatedIDs = planned.map(\.id)
         var outcomes: [SimulationOutcome] = []
         for task in planned {
             outcomes.append(await model.simulate(task))
-            guard case .running = simulation else { return }
+            guard case .running = flow.simulation else { return }
         }
         simulatedIDs = []
-        simulation = .finished(OneOffPlanner.combine(outcomes))
+        flow.finish(OneOffPlanner.combine(outcomes))
     }
 
     private func cancelSimulations() {
-        guard case .running = simulation else { return }
+        guard case .running = flow.simulation else { return }
         let ids = simulatedIDs
-        simulation = .idle
+        flow.simulation = .idle
         simulatedIDs = []
         Task { for id in ids { await model.cancelSimulation(id) } }
     }

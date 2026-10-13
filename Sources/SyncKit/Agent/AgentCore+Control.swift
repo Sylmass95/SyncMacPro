@@ -89,6 +89,17 @@ extension AgentCore {
     /// marquées « interrompues » et rattrapées au prochain démarrage.
     public func shutdown() async {
         shuttingDown = true
+        // Une copie ponctuelle encore en file ne sera jamais reprise : l'historique le dit.
+        let now = clock.now()
+        for run in queue where jobs[run.id] == nil {
+            guard let task = oneOffs.removeValue(forKey: run.id) else { continue }
+            let record = RunRecord(
+                taskID: task.id, taskName: task.name, engine: (try? EngineSelector.engine(for: task)) ?? .rsync,
+                mode: task.mode, startedAt: now, finishedAt: now, status: .interrupted,
+                summary: RunSummary(message: "Arrêt de l'agent avant le début de la copie.")
+            )
+            try? history.save(record)
+        }
         queue.removeAll()
         for job in jobs.values { job.runner.stop() }
         for runner in simulations.values { runner.stop() }

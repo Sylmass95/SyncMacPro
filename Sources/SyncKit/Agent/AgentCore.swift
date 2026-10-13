@@ -371,18 +371,19 @@ public actor AgentCore {
         state.tasks[key] = entry
         persist()
         // Une copie ponctuelle n'existe que le temps de son exécution : elle n'est jamais rattrapée.
-        if oneOffs.removeValue(forKey: id) != nil {
+        let wasOneOff = oneOffs.removeValue(forKey: id) != nil
+        if wasOneOff {
             state.tasks[key] = nil
             persist()
         }
 
-        notify(job.task, status, summary)
+        notify(job.task, status, summary, oneOff: wasOneOff)
         refreshActivity()
         emit(.taskFinished(id, status, summary.message))
         startQueued()
     }
 
-    func notify(_ task: SyncTask, _ status: RunStatus, _ summary: RunSummary) {
+    func notify(_ task: SyncTask, _ status: RunStatus, _ summary: RunSummary, oneOff: Bool = false) {
         if shuttingDown || status == .stopped || status == .interrupted || status == .running { return }
         let isError = status == .failed || status == .blocked || status == .quotaReached
         switch task.notifications {
@@ -397,8 +398,16 @@ public actor AgentCore {
         case .quotaReached: title = "\(task.name) : quota atteint"
         default: title = "\(task.name) : échec"
         }
-        let body = summary.message
+        var body = summary.message
             ?? "\(summary.filesTransferred) fichier(s), \(Formatting.bytes(summary.bytesTransferred))"
+        // Une copie ponctuelle n'existe plus après son exécution : il n'y a rien à valider, on explique comment relancer.
+        if oneOff && status == .blocked {
+            notifier.notify(
+                title: "\(task.name) : bloquée",
+                body: body + " Relancez-la depuis l'écran Copie après une simulation, en acceptant les suppressions."
+            )
+            return
+        }
         notifier.notify(title: title, body: body)
     }
 
