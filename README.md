@@ -172,6 +172,10 @@ publication GitHub avec le DMG et l'archive source de rsync. Lancé à la main (
 et garde le DMG comme artefact. Changer de version de rsync ou rclone : modifier `scripts/vendor.lock` (versions,
 adresses, empreintes SHA-256 officielles).
 
+## Confidentialité
+
+SyncMacPro ne collecte aucune donnée : voir [`PRIVACY.md`](PRIVACY.md).
+
 ## Licences
 
 SyncMacPro est sous licence MIT. Il embarque rsync (GPL v3) et rclone (MIT), non modifiés, lancés comme programmes
