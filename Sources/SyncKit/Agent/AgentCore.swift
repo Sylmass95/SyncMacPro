@@ -53,6 +53,12 @@ public actor AgentCore {
     var simulations: [UUID: TaskRunning] = [:]
     /// Copies manuelles en file ou en cours (jamais écrites dans `tasks.json`).
     var oneOffs: [UUID: SyncTask] = [:]
+    /// Connexions rclone ; `nil` : rclone introuvable.
+    let remotes: RemoteConfiguring?
+    /// Connexions dont une étape de configuration est en cours (une seule à la fois par nom).
+    var configuringRemotes: Set<String> = []
+    /// Connexions créées par l'assistant et pas encore terminées : supprimées si la création échoue ou est annulée.
+    var creatingRemotes: Set<String> = []
 
     public init(
         configuration: AgentConfiguration, taskStore: TaskStore, stateStore: SchedulerStateStore,
@@ -60,9 +66,11 @@ public actor AgentCore {
         notifier: AgentNotifier, activity: ActivityHolding,
         log: @escaping @Sendable (String) -> Void = { _ in },
         logDirectory: URL? = nil,
+        remotes: RemoteConfiguring? = nil,
         makeRunner: @escaping @Sendable () -> TaskRunning
     ) {
         self.logDirectory = logDirectory
+        self.remotes = remotes
         self.configuration = configuration
         self.taskStore = taskStore
         self.stateStore = stateStore

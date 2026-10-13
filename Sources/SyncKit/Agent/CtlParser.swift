@@ -32,6 +32,7 @@ public enum CtlCommand: Equatable, Sendable {
     case history(String?, limit: Int)
     case add(NewTask)
     case copy(OneOffRequest)
+    case remotes, remoteTest(String), remoteDelete(String)
     case agentInstall, agentUninstall, agentStatus
 }
 
@@ -72,6 +73,8 @@ public enum CtlParser {
       add --name N --source P --dest P [--mode copy|mirror|bidirectional|move|versioned|verify]
           [--every MINUTES | --daily HH:MM] [--ac-power]
       remove <tâche>
+      remotes                        connexions rclone (services en ligne)
+      remote test | delete <nom>     tester ou supprimer une connexion
       copy --source DOSSIER --dest DOSSIER [--item NOM]... [--mirror]
                                      copie ponctuelle par l'agent (sans créer de tâche)
       simulate <tâche>               ce que ferait la tâche, sans rien modifier
@@ -86,7 +89,7 @@ public enum CtlParser {
         "statut": "status", "liste": "list", "lancer": "run", "reprendre": "resume", "arreter": "stop",
         "arrêter": "stop", "historique": "history", "valider": "approve", "pause-tout": "pause-all",
         "reprendre-tout": "resume-all", "ajouter": "add", "supprimer": "remove", "aide": "help",
-        "simuler": "simulate", "journal": "log", "copier": "copy",
+        "simuler": "simulate", "journal": "log", "copier": "copy", "connexions": "remotes",
     ]
 
     private static let valued: Set<String> = [
@@ -166,6 +169,15 @@ public enum CtlParser {
             default: throw CtlParseError.invalid("agent attend : install, uninstall ou status")
             }
         case "add": return invocation(.add(try newTask(values, flagged)))
+        case "remotes": return invocation(.remotes)
+        case "remote":
+            guard rest.count >= 2 else { throw CtlParseError.invalid("remote attend : test NOM ou delete NOM") }
+            let target = rest.dropFirst().joined(separator: " ")
+            switch rest[0] {
+            case "test": return invocation(.remoteTest(target))
+            case "delete": return invocation(.remoteDelete(target))
+            default: throw CtlParseError.invalid("remote attend : test NOM ou delete NOM")
+            }
         case "copy":
             guard let source = values["source"] else { throw CtlParseError.missingValue("--source") }
             guard let destination = values["dest"] else { throw CtlParseError.missingValue("--dest") }

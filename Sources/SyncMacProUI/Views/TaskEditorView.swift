@@ -16,6 +16,9 @@ public struct TaskEditorView: View {
     @State private var saving = false
     /// La version du brouillon simulée : un résultat ne vaut que pour elle.
     @State private var simulatedKey: SyncTask?
+    @State private var wizard: WizardModel?
+    /// Connexions connues à l'ouverture de l'assistant : la nouvelle est choisie d'office à sa fermeture.
+    @State private var remotesBefore: Set<String> = []
 
     public init(
         model: AgentModel, draft: TaskDraft, isNew: Bool, localizer: Localizer = .system,
@@ -42,7 +45,15 @@ public struct TaskEditorView: View {
                     draft: $draft, step: step, text: text, resolver: resolver, simulation: simulation,
                     saveError: saveError, offline: offline,
                     onSimulate: { Task { await simulate() } },
-                    onCancelSimulation: { Task { await model.cancelSimulation(draft.id) } }
+                    onCancelSimulation: { Task { await model.cancelSimulation(draft.id) } },
+                    remotes: RemoteContext(
+                        remotes: model.remotes,
+                        onAdd: {
+                            remotesBefore = Set(model.remotes.map(\.name))
+                            wizard = WizardModel(model: model, localizer: localizer)
+                        },
+                        browse: { remote, path in await model.remoteFolders(remote: remote, path: path) }
+                    )
                 )
                 .padding(20)
             }
@@ -61,6 +72,13 @@ public struct TaskEditorView: View {
         }
         // Fermer l'éditeur (Annuler, Échap, enregistrement) arrête la simulation en cours.
         .onDisappear { cancelRunningSimulation() }
+        .task { await model.reloadRemotes() }
+        .sheet(item: Binding(get: { wizard.map(WizardSession.init) }, set: { if $0 == nil { wizard = nil } })) { session in
+            ConnectionWizardView(wizard: session.wizard, localizer: localizer) {
+                wizard = nil
+                Task { await adoptNewRemote() }
+            }
+        }
     }
 
     private var header: some View {
@@ -140,6 +158,18 @@ public struct TaskEditorView: View {
         // Le brouillon a changé pendant la simulation : ce résultat ne le décrit plus.
         guard draft.simulationKey(resolver: resolver) == key else { return }
         simulation = .finished(outcome)
+    }
+
+    /// Après l'assistant : la nouvelle connexion va au côté « service en ligne » encore vide (destination d'abord).
+    private func adoptNewRemote() async {
+        await model.reloadRemotes()
+        let added = model.remotes.map(\.name).filter { !remotesBefore.contains($0) }
+        guard added.count == 1, let name = added.first else { return }
+        if draft.destination.kind == .cloud && draft.destination.remote.isEmpty {
+            draft.destination.remote = name
+        } else if draft.source.kind == .cloud && draft.source.remote.isEmpty {
+            draft.source.remote = name
+        }
     }
 
     private func cancelRunningSimulation() {

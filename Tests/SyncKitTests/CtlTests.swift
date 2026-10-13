@@ -4,6 +4,15 @@ import XCTest
 final class CtlParserTests: XCTestCase {
     func parse(_ arguments: String...) throws -> CtlInvocation { try CtlParser.parse(arguments) }
 
+    func testRemoteCommands() throws {
+        XCTAssertEqual(try parse("remotes").command, .remotes)
+        XCTAssertEqual(try parse("connexions").command, .remotes)
+        XCTAssertEqual(try parse("remote", "test", "Drive").command, .remoteTest("Drive"))
+        XCTAssertEqual(try parse("remote", "delete", "Mon Drive").command, .remoteDelete("Mon Drive"))
+        XCTAssertThrowsError(try parse("remote", "test"))
+        XCTAssertThrowsError(try parse("remote", "rename", "x"))
+    }
+
     func testCopyCommand() throws {
         let invocation = try parse("copy", "--source", "/a", "--dest", "/b", "--item", "x.txt", "--item", "photos")
         XCTAssertEqual(invocation.command, .copy(OneOffRequest(source: "/a", destination: "/b", items: ["x.txt", "photos"], mirror: false)))

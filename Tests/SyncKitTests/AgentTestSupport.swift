@@ -152,3 +152,70 @@ func eventually(timeout: TimeInterval = 2, _ condition: () async -> Bool) async 
     }
     return await condition()
 }
+
+final class FakeRemotes: RemoteConfiguring, @unchecked Sendable {
+    let remotes = Locked<[RemoteInfo]>([])
+    let steps = Locked<[RemoteConfigStep]>([])
+    let deleted = Locked<[String]>([])
+    let cancelled = Locked<[String]>([])
+    let outcomes = Locked<[Result<RemoteConfigOutcome, RemoteConfigError>]>([])
+    let gate = Locked<TestGate?>(nil)
+    /// Si défini, `listRemotes` attend cette porte (appel lent).
+    let listGate = Locked<TestGate?>(nil)
+    let idleWaits = Locked(0)
+
+    func listRemotes() async throws -> [RemoteInfo] {
+        if let gate = listGate.get() { await gate.wait() }
+        return remotes.get()
+    }
+    func waitForIdle() async { idleWaits.set(idleWaits.get() + 1) }
+    func configure(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome {
+        steps.set(steps.get() + [step])
+        if case .start(let name, let type, _) = step { remotes.set(remotes.get() + [RemoteInfo(name: name, type: type)]) }
+        if let gate = gate.get() { await gate.wait() }
+        var queue = outcomes.get()
+        let next = queue.isEmpty ? .success(.done) : queue.removeFirst()
+        outcomes.set(queue)
+        return try next.get()
+    }
+    func cancelConfiguration(_ name: String) {
+        cancelled.set(cancelled.get() + [name])
+        gate.get()?.release()
+    }
+    func cancelAll() { cancelled.set(cancelled.get() + ["*"]); gate.get()?.release() }
+    func delete(_ name: String) async throws {
+        deleted.set(deleted.get() + [name])
+        remotes.set(remotes.get().filter { $0.name != name })
+    }
+    func test(_ name: String) async -> RemoteTestResult { RemoteTestResult(ok: remotes.get().contains { $0.name == name }) }
+    func folders(remote: String, path: String) async throws -> [String] { ["A", "B"] }
+}
+
+/// Porte ouverte par le test : tout ce qui attend reprend d'un coup.
+final class TestGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            if isOpen {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                waiters.append(continuation)
+                lock.unlock()
+            }
+        }
+    }
+
+    func release() {
+        lock.lock()
+        isOpen = true
+        let pending = waiters
+        waiters = []
+        lock.unlock()
+        pending.forEach { $0.resume() }
+    }
+}

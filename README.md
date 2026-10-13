@@ -118,3 +118,29 @@ après une simulation, d'accepter les suppressions annoncées.
 syncmacpro-ctl copy --source DOSSIER --dest DOSSIER [--item NOM]... [--mirror]
 SYNCMACPRO_AGENT_SERVICE=com.sylvain.syncmacpro.agent.dev .build/debug/SyncMacPro   # l'app sur l'agent de développement
 ```
+
+## Connexions aux services (sous-projet 4)
+
+L'écran **Connexions** liste les services en ligne configurés (y compris ceux créés avec rclone en ligne de commande),
+les tâches qui les utilisent, et permet de les **tester**, de les **reconnecter** (jeton expiré) et de les **supprimer**
+(refusé tant qu'une tâche s'en sert). L'**assistant** crée une connexion sans terminal :
+- **Google Drive** : avec votre propre identifiant Google (guide pas à pas, recommandé : celui de rclone est limité et
+  retiré en 2026) ou avec l'identifiant partagé de rclone ;
+- **Dropbox**, **OneDrive** : connexion dans le navigateur ; les questions propres au service (choix du lecteur…) sont
+  posées telles que rclone les formule ;
+- **Amazon S3** et services compatibles (Cloudflare R2, Wasabi, MinIO…) : clés d'accès.
+
+Dans l'éditeur de tâches, le côté « Service en ligne » propose ces connexions et un sélecteur de dossier distant.
+
+L'agent pilote rclone par son mode non interactif et n'écrit jamais lui-même la configuration. Le fichier est celui de
+rclone (`~/.config/rclone/rclone.conf`, partagé avec la ligne de commande) ; les secrets y restent comme rclone les
+écrit (fichier privé de l'utilisateur), le chiffrement viendra plus tard.
+
+```bash
+syncmacpro-ctl remotes                 # connexions
+syncmacpro-ctl remote test "Google Drive"
+syncmacpro-ctl remote delete "Google Drive"
+```
+
+Développement : l'agent accepte `--rclone-config FICHIER` ; `SYNCMACPRO_DEV_RCLONE_CONFIG=FICHIER scripts/dev-launchd.sh install`
+le transmet à l'agent de développement (essais sans toucher à la vraie configuration).

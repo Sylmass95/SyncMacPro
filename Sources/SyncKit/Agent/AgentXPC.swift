@@ -203,6 +203,31 @@ public final class AgentClient: @unchecked Sendable {
         return result
     }
 
+    public func listRemotes() async throws -> [RemoteInfo] {
+        guard case .remotes(let remotes) = try await send(.listRemotes) else { throw AgentClientError.badReply }
+        return remotes
+    }
+
+    /// Une étape peut attendre la connexion dans le navigateur : 10 minutes et un peu plus.
+    public func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome {
+        guard case .remoteConfig(let outcome) = try await send(.configureRemote(step), timeout: 630) else {
+            throw AgentClientError.badReply
+        }
+        return outcome
+    }
+
+    public func testRemote(_ name: String) async throws -> RemoteTestResult {
+        guard case .remoteTest(let result) = try await send(.testRemote(name), timeout: 60) else { throw AgentClientError.badReply }
+        return result
+    }
+
+    public func remoteFolders(remote: String, path: String) async throws -> [String] {
+        guard case .folders(let folders) = try await send(.listRemoteFolders(remote: remote, path: path), timeout: 60) else {
+            throw AgentClientError.badReply
+        }
+        return folders
+    }
+
     public func runLog(runID: UUID, maxBytes: Int = 262_144) async throws -> RunLogText {
         guard case .log(let text) = try await send(.runLog(runID: runID, maxBytes: maxBytes)) else {
             throw AgentClientError.badReply

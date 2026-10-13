@@ -70,3 +70,14 @@ Nettoyage à la fin : `syncmacpro-ctl agent uninstall`, supprimer `~/Application
 - [ ] Démonter un disque affiché puis Actualiser : le panneau remonte et le signale.
 - [ ] Agent arrêté : boutons désactivés avec la raison.
 - [ ] Enregistrer comme tâche : l'éditeur s'ouvre avec source, destination et éléments choisis.
+
+## Connexions (4)
+- [ ] Google Drive avec son propre identifiant : guide, console, connexion dans le navigateur, test réussi ; une tâche vers Drive avec un dossier choisi s'exécute.
+- [ ] Google Drive avec l'identifiant partagé : avertissement, connexion, test.
+- [ ] Dropbox et OneDrive (choix du lecteur posé tel que rclone le formule).
+- [ ] S3 : bonnes clés → test réussi ; mauvaises clés → échec clair (« InvalidAccessKeyId… »), « Corriger » revient aux réglages.
+- [ ] Annuler pendant l'attente du navigateur : la connexion n'apparaît pas.
+- [ ] Reconnecter une connexion Drive (jeton expiré ou révoqué).
+- [ ] Supprimer une connexion utilisée par une tâche : refus avec le nom de la tâche.
+- [ ] Éditeur : choisir une connexion, parcourir ses dossiers, « Ajouter une connexion… » la sélectionne à la fermeture de l'assistant.
+- [ ] Les connexions créées avec rclone en ligne de commande apparaissent et sont utilisables.

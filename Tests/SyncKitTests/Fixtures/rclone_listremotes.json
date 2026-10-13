@@ -1,0 +1,5 @@
+[
+{"name":"od","type":"onedrive","source":"file","description":""},
+{"name":"s","type":"s3","source":"file","description":""},
+{"name":"a","type":"alias","source":"file","description":""}
+]

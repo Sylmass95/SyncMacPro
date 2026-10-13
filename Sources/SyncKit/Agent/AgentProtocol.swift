@@ -1,7 +1,7 @@
 import Foundation
 
 /// Numéro du contrat XPC. À incrémenter quand un message change de forme.
-public let agentProtocolVersion = 3
+public let agentProtocolVersion = 4
 
 public enum AgentIdentifiers {
     /// Nom du service Mach déclaré dans le plist de l'agent.
@@ -35,6 +35,13 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case runLog(runID: UUID, maxBytes: Int)
     /// Exécution ponctuelle (copie manuelle), sans enregistrer la tâche.
     case runOnce(SyncTask)
+    // Connexions rclone (contrat 4)
+    case listRemotes
+    case configureRemote(RemoteConfigStep)
+    case cancelRemoteConfiguration(String)
+    case deleteRemote(String)
+    case testRemote(String)
+    case listRemoteFolders(remote: String, path: String)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {
@@ -45,6 +52,10 @@ public enum AgentResponse: Codable, Equatable, Sendable {
     case error(AgentError)
     case simulation(SimulationResult)
     case log(RunLogText)
+    case remotes([RemoteInfo])
+    case remoteConfig(RemoteConfigOutcome)
+    case remoteTest(RemoteTestResult)
+    case folders([String])
 }
 
 public struct AgentRequestEnvelope: Codable, Sendable {

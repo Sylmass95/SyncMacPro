@@ -1,0 +1,32 @@
+{
+	"State": "client_id_warning",
+	"Option": {
+		"Name": "config_shared_client_id",
+		"FieldName": "",
+		"Help": "rclone's shared Google Drive client_id is being retired and will stop working during 2026.\nCreate your own to avoid interruption: https://rclone.org/drive/#making-your-own-client-id\n\nContinue using the shared client_id anyway?",
+		"Default": false,
+		"Value": null,
+		"Examples": [
+			{
+				"Value": "true",
+				"Help": "Yes"
+			},
+			{
+				"Value": "false",
+				"Help": "No"
+			}
+		],
+		"Hide": 0,
+		"Required": false,
+		"IsPassword": false,
+		"NoPrefix": false,
+		"Advanced": false,
+		"Exclusive": true,
+		"Sensitive": false,
+		"DefaultStr": "false",
+		"ValueStr": "false",
+		"Type": "bool"
+	},
+	"Error": "",
+	"Result": ""
+}

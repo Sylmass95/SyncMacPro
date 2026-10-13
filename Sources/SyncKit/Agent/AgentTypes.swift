@@ -44,6 +44,10 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case invalidTask(String)
     case unknownRun
     case tooManySimulations
+    case remoteInUse([String])
+    case invalidRemote(String)
+    case remoteBusy
+    case rcloneMissing
 
     public var errorDescription: String? {
         switch self {
@@ -58,6 +62,11 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .invalidTask(let reason): return reason
         case .unknownRun: return "Exécution inconnue."
         case .tooManySimulations: return "Deux simulations sont déjà en cours : attendez qu'elles se terminent."
+        case .remoteInUse(let tasks):
+            return "Cette connexion est utilisée par : \(tasks.joined(separator: ", ")). Modifiez ou supprimez ces tâches d'abord."
+        case .invalidRemote(let reason): return reason
+        case .remoteBusy: return "Cette connexion est déjà en cours de configuration."
+        case .rcloneMissing: return "rclone est introuvable : installez-le avec « brew install rclone »."
         }
     }
 }
