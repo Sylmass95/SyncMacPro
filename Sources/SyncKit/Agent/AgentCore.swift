@@ -241,17 +241,21 @@ public actor AgentCore {
         refreshActivity()
         emit(.taskStarted(task.id))
 
+        // Copies immuables : Swift 5.10 refuse de capturer une `var` (ou un `weak self`) dans une closure concurrente.
+        // La référence forte à l'acteur dure le temps de l'exécution, que `jobTasks` tient de toute façon.
         let id = task.id
-        jobTasks[id] = Task.detached { [weak self] in
+        let frozenTask = runTask
+        let core = self
+        jobTasks[id] = Task.detached {
             let outcome: Result<RunResult, Error>
             do {
-                outcome = .success(try await runner.run(runTask, dryRun: false) { update in
-                    if case .snapshot(let snapshot) = update { Task { await self?.progress(id, snapshot) } }
+                outcome = .success(try await runner.run(frozenTask, dryRun: false) { update in
+                    if case .snapshot(let snapshot) = update { Task { await core.progress(id, snapshot) } }
                 })
             } catch {
                 outcome = .failure(error)
             }
-            await self?.finish(id, outcome)
+            await core.finish(id, outcome)
         }
     }
 
