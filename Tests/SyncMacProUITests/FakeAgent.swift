@@ -15,6 +15,7 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
     private var _watchStarts = 0
     private var _watchCancels = 0
     private var _performed: [AgentRequest] = []
+    private var _holdNextStatus: TestGate?
     private var onEvent: (@Sendable (AgentEvent) -> Void)?
     private var onEnd: (@Sendable () -> Void)?
 
@@ -46,13 +47,20 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
     // MARK: AgentConnecting
 
     func status() async throws -> AgentStatus {
-        let result: Result<AgentStatus, Error> = locked {
+        let (result, hold): (Result<AgentStatus, Error>, TestGate?) = locked {
             _statusCalls += 1
-            if statusResults.count > 1 { return statusResults.removeFirst() }
-            return statusResults.first ?? .failure(AgentClientError.unreachable)
+            let held = _holdNextStatus
+            _holdNextStatus = nil
+            if statusResults.count > 1 { return (statusResults.removeFirst(), held) }
+            return (statusResults.first ?? .failure(AgentClientError.unreachable), held)
         }
+        // La réponse est choisie à l'appel ; elle n'arrive qu'une fois la porte ouverte (appel XPC lent).
+        if let hold { await hold.wait() }
         return try result.get()
     }
+
+    /// Le prochain appel à `status()` restera en suspens jusqu'à `gate.release()`.
+    func holdNextStatus(_ gate: TestGate) { locked { _holdNextStatus = gate } }
 
     func listTasks() async throws -> [SyncTask] { locked { _tasks } }
 
@@ -166,4 +174,33 @@ func makeStatus(
     paused: Bool = false, recovered: Bool = false, _ tasks: [AgentTaskInfo] = []
 ) -> AgentStatus {
     AgentStatus(globalPause: paused, stateRecovered: recovered, taskLoadError: nil, tasks: tasks)
+}
+
+/// Porte ouverte par le test : tout ce qui attend reprend d'un coup.
+final class TestGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            if isOpen {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                waiters.append(continuation)
+                lock.unlock()
+            }
+        }
+    }
+
+    func release() {
+        lock.lock()
+        isOpen = true
+        let pending = waiters
+        waiters = []
+        lock.unlock()
+        pending.forEach { $0.resume() }
+    }
 }

@@ -11,18 +11,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct SyncMacProApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = AgentModel(agent: AgentClient.machService())
+    @State private var model: AgentModel
     @State private var installer = AgentInstaller()
     @State private var loginItem = LoginItemModel()
     @AppStorage("appearance") private var appearance = Appearance.auto.rawValue
 
     private let localizer = Localizer.system
 
+    init() {
+        let model = AgentModel(agent: AgentClient.machService())
+        _model = State(initialValue: model)
+        // Le modèle démarre avec l'app, pas avec la fenêtre : l'icône de la barre de menus reste vivante même si
+        // macOS relance l'app sans ouvrir sa fenêtre (restauration, ouverture à la connexion).
+        model.start()
+    }
+
     var body: some Scene {
         Window(localizer.text("app.name"), id: "main") {
             RootView(model: model, installer: installer, loginItem: loginItem, localizer: localizer)
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
-                .task { model.start() }
         }
 
         MenuBarExtra {

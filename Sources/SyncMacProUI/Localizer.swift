@@ -5,17 +5,35 @@ import Foundation
 public struct Localizer: Sendable {
     public let language: String?
     public let locale: Locale
+    /// Dossier des ressources de l'interface (fichiers `.strings`).
+    let resourcesURL: URL
 
     public init(language: String? = nil) {
+        self.init(language: language, resourcesURL: Self.defaultResourcesURL)
+    }
+
+    init(language: String?, resourcesURL: URL) {
         self.language = language
+        self.resourcesURL = resourcesURL
         locale = language.map { Locale(identifier: $0) } ?? .current
     }
 
     public static let system = Localizer()
 
+    static let resourceBundleName = "SyncMacPro_SyncMacProUI"
+    static let defaultResourcesURL = resourcesURL(in: .main)
+
+    /// Dans l'app : `Contents/Resources/SyncMacPro_SyncMacProUI.bundle`. Hors de l'app (tests, `swift run`) : `Bundle.module`.
+    /// L'accesseur généré par SwiftPM ne cherche qu'à la racine de l'app puis dans le dossier `.build` d'origine,
+    /// et plante si aucun n'existe : une app copiée sur un autre Mac planterait au lancement.
+    static func resourcesURL(in app: Bundle) -> URL {
+        app.url(forResource: resourceBundleName, withExtension: "bundle") ?? Bundle.module.bundleURL
+    }
+
     private var bundle: Bundle {
-        guard let language, let path = Bundle.module.path(forResource: language, ofType: "lproj"),
-              let localized = Bundle(path: path) else { return Bundle.module }
+        let base = Bundle(url: resourcesURL) ?? Bundle.main
+        guard let language, let path = base.path(forResource: language, ofType: "lproj"),
+              let localized = Bundle(path: path) else { return base }
         return localized
     }
 

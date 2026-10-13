@@ -37,6 +37,7 @@ public final class AgentModel {
     @ObservationIgnored private var historyDirty = false
     @ObservationIgnored private var hasConnected = false
     @ObservationIgnored private var failures = 0
+    @ObservationIgnored private var generation = 0
     @ObservationIgnored private static let log = Logger(subsystem: "com.sylvain.syncmacpro", category: "agent")
 
     public init(agent: AgentConnecting, sleeper: Sleeping = RealSleeper(), timing: Timing = Timing()) {
@@ -64,7 +65,9 @@ public final class AgentModel {
 
     public func start() {
         guard loop == nil else { return }
-        loop = Task { [weak self] in await self?.runLoop() }
+        generation += 1
+        let current = generation
+        loop = Task { [weak self] in await self?.runLoop(generation: current) }
     }
 
     /// « Réessayer » : repart tout de suite au lieu d'attendre la fin de l'attente.
@@ -75,6 +78,8 @@ public final class AgentModel {
     }
 
     public func shutdown() {
+        // Tout ce qu'une boucle précédente fera encore (un appel XPC n'est pas annulable) sera ignoré.
+        generation += 1
         loop?.cancel()
         loop = nil
         safety?.cancel()
@@ -95,42 +100,49 @@ public final class AgentModel {
         Self.log.notice("connexion : \(String(describing: state), privacy: .public)")
     }
 
-    private func runLoop() async {
-        while !Task.isCancelled {
+    /// Vrai tant que la boucle `generation` est celle en service : une boucle remplacée ne touche plus à rien.
+    private func isCurrent(_ generation: Int) -> Bool {
+        generation == self.generation && !Task.isCancelled
+    }
+
+    private func runLoop(generation: Int) async {
+        while isCurrent(generation) {
             let delay: TimeInterval
             do {
-                try await session()
+                try await session(generation: generation)
+                guard isCurrent(generation) else { return }
                 // La session s'est terminée (l'agent a disparu) : on retente vite.
                 failures = 1
                 setConnection(.reconnecting(attempt: 1))
                 delay = timing.backoff[0]
-            } catch is CancellationError {
-                return
-            } catch let error as AgentClientError {
-                if case .agent(.versionMismatch(let agentVersion, _)) = error {
+            } catch {
+                guard isCurrent(generation) else { return }
+                if case AgentClientError.agent(.versionMismatch(let agentVersion, _))? = error as? AgentClientError {
                     setConnection(.versionMismatch(agent: agentVersion))
                     delay = timing.versionRetry
                 } else {
                     delay = registerFailure()
                 }
-            } catch {
-                delay = registerFailure()
             }
-            if Task.isCancelled { return }
             try? await sleeper.sleep(seconds: delay)
         }
     }
 
+    /// Une fois le plafond d'attente atteint, l'agent est déclaré injoignable : le bandeau propose alors
+    /// Installer et Réessayer, au lieu d'une « reconnexion » sans fin.
     private func registerFailure() -> TimeInterval {
         failures += 1
-        setConnection(hasConnected ? .reconnecting(attempt: failures) : .unreachable)
+        let stillTrying = hasConnected && failures < timing.backoff.count
+        setConnection(stillTrying ? .reconnecting(attempt: failures) : .unreachable)
         return timing.backoff[min(failures - 1, timing.backoff.count - 1)]
     }
 
-    /// Se connecte, s'abonne, puis attend la fin de la connexion.
-    private func session() async throws {
+    /// Se connecte, s'abonne, puis attend la fin de la connexion. L'abonnement et la relecture de sécurité
+    /// restent propres à cette session : une session remplacée ne peut ni écraser ni annuler ceux de la suivante.
+    private func session(generation: Int) async throws {
         let first = try await agent.status()
         let list = try await agent.listTasks()
+        guard isCurrent(generation) else { throw CancellationError() }
         failures = 0
         hasConnected = true
         apply(status: first, tasks: list)
@@ -141,18 +153,30 @@ public final class AgentModel {
         // Boîte à référence faible plutôt que `[weak self]` : Swift 5.10 refuse un `weak self` capturé dans une
         // closure concurrente imbriquée (« reference to captured var 'self' »).
         let target = WeakModel(self)
-        watching = try await agent.startWatching(
+        let watch = try await agent.startWatching(
             onEvent: { event in Task { @MainActor in target.value?.handle(event) } },
             onEnd: { ended.fire() }
         )
+        guard isCurrent(generation) else {
+            watch.cancel()
+            throw CancellationError()
+        }
+        watching = watch
         await reloadHistory()
-        startSafetyRefresh()
+        guard isCurrent(generation) else {
+            watch.cancel()
+            throw CancellationError()
+        }
+        let refresher = makeSafetyRefresh()
+        safety = refresher
         await ended.wait()
-        safety?.cancel()
-        safety = nil
-        watching?.cancel()
-        watching = nil
-        currentEnd = nil
+        refresher.cancel()
+        watch.cancel()
+        if isCurrent(generation) {
+            safety = nil
+            watching = nil
+            currentEnd = nil
+        }
     }
 
     // MARK: événements
@@ -189,9 +213,8 @@ public final class AgentModel {
         if includeHistory { await reloadHistory() }
     }
 
-    private func startSafetyRefresh() {
-        safety?.cancel()
-        safety = Task { [weak self] in
+    private func makeSafetyRefresh() -> Task<Void, Never> {
+        Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 try? await self.sleeper.sleep(seconds: self.timing.safetyRefresh)

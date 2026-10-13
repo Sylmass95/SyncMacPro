@@ -10,6 +10,8 @@ Nettoyage à la fin : `syncmacpro-ctl agent uninstall`, supprimer `~/Application
 `~/Library/Application Support/SyncMacPro`.
 
 ## Premier lancement
+- [ ] Copier l'app sur un autre Mac (ou masquer le dossier `.build`) : elle se lance et affiche ses textes (ressources lues dans `Contents/Resources`).
+- [ ] Quitter l'app fenêtre fermée, la relancer : l'icône de la barre de menus est vivante même si la fenêtre ne s'ouvre pas.
 - [ ] Sans agent installé : l'écran d'accueil s'affiche avec « Installer l'agent ».
 - [ ] Cliquer sur Installer : si macOS demande une autorisation, l'écran explique où la donner et ouvre Réglages Système ; après autorisation, le tableau de bord apparaît seul.
 - [ ] Sans aucune tâche : le message « Aucune tâche » indique la commande `syncmacpro-ctl add`.
@@ -29,7 +31,7 @@ Nettoyage à la fin : `syncmacpro-ctl agent uninstall`, supprimer `~/Application
 
 ## Connexion
 - [ ] Tuer l'agent (`kill -KILL "$(launchctl print gui/$(id -u)/com.sylvain.syncmacpro.agent | awk '/^\tpid = /{print $3}')"`) : l'interface affiche « Reconnexion… », puis se rétablit seule en une quinzaine de secondes.
-- [ ] Désinstaller l'agent pendant que l'app est ouverte : bandeau « L'agent ne répond pas » avec Installer et Réessayer.
+- [ ] Désinstaller l'agent pendant que l'app est ouverte : après une quinzaine de secondes de « Reconnexion… », l'app propose Installer (accueil) ou Réessayer.
 
 ## Historique
 - [ ] Les exécutions terminées apparaissent ; les filtres (tâche, état, période, recherche) fonctionnent ; les flèches haut / bas déplacent la sélection ; le détail montre le message d'un échec.
