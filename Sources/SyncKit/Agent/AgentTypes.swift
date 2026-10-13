@@ -142,3 +142,28 @@ public enum AgentEvent: Codable, Equatable, Sendable {
     /// Pause globale, file d'attente ou liste de tâches modifiée : relire `status`.
     case stateChanged
 }
+
+/// Ce que ferait une exécution, sans rien modifier.
+public struct SimulationResult: Codable, Equatable, Sendable {
+    public var status: RunStatus
+    public var filesToTransfer: Int
+    public var bytesToTransfer: Int64
+    public var deletions: Int
+    public var message: String?
+
+    public init(status: RunStatus, filesToTransfer: Int, bytesToTransfer: Int64, deletions: Int, message: String?) {
+        self.status = status
+        self.filesToTransfer = filesToTransfer
+        self.bytesToTransfer = bytesToTransfer
+        self.deletions = deletions
+        self.message = message
+    }
+
+    public init(_ result: RunResult) {
+        self.init(
+            status: result.status, filesToTransfer: result.summary.filesTransferred,
+            bytesToTransfer: result.summary.bytesTransferred, deletions: result.summary.deletions,
+            message: result.summary.message
+        )
+    }
+}

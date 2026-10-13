@@ -46,6 +46,8 @@ public actor AgentCore {
     /// Vrai tant que l'assertion anti-veille est tenue.
     var activityHeld = false
     var observers: [UUID: @Sendable (AgentEvent) -> Void] = [:]
+    /// Simulations en cours, par tâche : une nouvelle simulation de la même tâche remplace la précédente.
+    var simulations: [UUID: TaskRunning] = [:]
 
     public init(
         configuration: AgentConfiguration, taskStore: TaskStore, stateStore: SchedulerStateStore,

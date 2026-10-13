@@ -78,6 +78,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
     let message = Locked<String?>(nil)
     let failure = Locked<Error?>(nil)
     let snapshot = Locked<TransferSnapshot?>(nil)
+    let dryRuns = Locked<[Bool]>([])
     private let gate: Gate?
     private let stopped = Locked(false)
 
@@ -92,6 +93,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         _ task: SyncTask, dryRun: Bool, onUpdate: @escaping @Sendable (RunUpdate) -> Void
     ) async throws -> RunResult {
         calls.set(calls.get() + ["run"])
+        dryRuns.set(dryRuns.get() + [dryRun])
         ranTasks.set(ranTasks.get() + [task])
         onUpdate(.phase(.running))
         if let current = snapshot.get() { onUpdate(.snapshot(current)) }

@@ -23,6 +23,8 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case reloadTasks
     case saveTask(SyncTask)
     case removeTask(UUID)
+    case simulate(SyncTask)
+    case cancelSimulation(UUID)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {
@@ -31,6 +33,7 @@ public enum AgentResponse: Codable, Equatable, Sendable {
     case tasks([SyncTask])
     case history([RunRecord])
     case error(AgentError)
+    case simulation(SimulationResult)
 }
 
 public struct AgentRequestEnvelope: Codable, Sendable {

@@ -155,9 +155,9 @@ public final class AgentClient: @unchecked Sendable {
 
     // MARK: appels
 
-    public func send(_ request: AgentRequest) async throws -> AgentResponse {
+    public func send(_ request: AgentRequest, timeout: TimeInterval? = nil) async throws -> AgentResponse {
         let payload = try JSONEncoder().encode(AgentRequestEnvelope(request: request))
-        let reply = try await sendRaw(payload)
+        let reply = try await sendRaw(payload, timeout: timeout)
         struct Probe: Decodable { let version: Int }
         if let probe = try? JSONDecoder().decode(Probe.self, from: reply), probe.version != agentProtocolVersion {
             throw AgentClientError.agent(.versionMismatch(agent: probe.version, client: agentProtocolVersion))
@@ -169,12 +169,12 @@ public final class AgentClient: @unchecked Sendable {
         return envelope.response
     }
 
-    func sendRaw(_ data: Data) async throws -> Data {
+    func sendRaw(_ data: Data, timeout: TimeInterval? = nil) async throws -> Data {
         let connection = factory()
         connection.remoteObjectInterface = AgentXPC.makeInterface()
         connection.resume()
         defer { connection.invalidate() }
-        let timeout = self.timeout
+        let timeout = timeout ?? self.timeout
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
             let shot = OneShot(continuation)
             let timer = DispatchWorkItem { shot.finish(.failure(AgentClientError.unreachable)) }
@@ -193,6 +193,14 @@ public final class AgentClient: @unchecked Sendable {
                 shot.finish(.success(reply))
             }
         }
+    }
+
+    /// Une simulation peut durer : 15 minutes avant d'abandonner.
+    public func simulate(_ task: SyncTask) async throws -> SimulationResult {
+        guard case .simulation(let result) = try await send(.simulate(task), timeout: 900) else {
+            throw AgentClientError.badReply
+        }
+        return result
     }
 
     public func status() async throws -> AgentStatus {
