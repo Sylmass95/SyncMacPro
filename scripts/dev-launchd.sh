@@ -20,6 +20,11 @@ case "${1:-}" in
     if [ -n "${SYNCMACPRO_RSYNC:-}" ]; then
       ENV_XML="<key>EnvironmentVariables</key><dict><key>SYNCMACPRO_RSYNC</key><string>$SYNCMACPRO_RSYNC</string></dict>"
     fi
+    # Essais réels : une configuration rclone à part, pour ne jamais toucher à la vraie.
+    RCLONE_XML=""
+    if [ -n "${SYNCMACPRO_DEV_RCLONE_CONFIG:-}" ]; then
+      RCLONE_XML="<string>--rclone-config</string><string>$SYNCMACPRO_DEV_RCLONE_CONFIG</string>"
+    fi
     cat > "$PLIST" <<XML
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -30,6 +35,7 @@ case "${1:-}" in
     <string>--state-dir</string><string>$DATA</string>
     <string>--mach-service</string><string>$LABEL</string>
     <string>--startup-hold</string><string>0</string>
+    $RCLONE_XML
   </array>
   <key>MachServices</key><dict><key>$LABEL</key><true/></dict>
   <key>RunAtLoad</key><true/>

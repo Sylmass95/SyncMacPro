@@ -140,6 +140,8 @@ public enum RcloneConfigReply {
 
     public static func remotes(from data: Data) throws -> [RemoteInfo] {
         struct Entry: Decodable { var name: String; var type: String? }
+        // Sans fichier de configuration, rclone n'écrit rien : aucune connexion.
+        if String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
         guard let entries = try? JSONDecoder().decode([Entry].self, from: data) else { throw RemoteConfigError.unreadable }
         return entries.map { RemoteInfo(name: $0.name, type: $0.type ?? "") }
     }

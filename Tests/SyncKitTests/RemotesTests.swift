@@ -62,6 +62,12 @@ final class RemotesTests: XCTestCase {
         XCTAssertEqual(try RcloneConfigReply.folders(from: listing), ["A", "b"])
     }
 
+    func testNoConfigurationFileMeansNoRemotes() throws {
+        // Sans rclone.conf (première installation), rclone n'écrit rien sur la sortie standard.
+        XCTAssertEqual(try RcloneConfigReply.remotes(from: Data()), [])
+        XCTAssertEqual(try RcloneConfigReply.remotes(from: Data(" \n".utf8)), [])
+    }
+
     func testCommands() {
         let config = "/tmp/r.conf"
         XCTAssertEqual(RcloneConfigCommand.listRemotes(config: config), ["listremotes", "--long", "--json", "--config", config])

@@ -5,6 +5,7 @@ import SyncKit
 // Agent d'arrière-plan de SyncMacPro.
 //
 //   syncmacpro-agent [--foreground] [--state-dir DOSSIER] [--mach-service NOM] [--startup-hold SECONDES]
+//                    [--rclone-config FICHIER]
 //
 // Lancé par launchd (SMAppService) il répond aux requêtes XPC. Avec --foreground il tourne dans le terminal
 // sans XPC : un service Mach exige launchd (voir scripts/dev-launchd.sh pour le développement).
@@ -27,8 +28,11 @@ let serviceName = option("--mach-service") ?? AgentIdentifiers.machService
 
 try FileManager.default.createDirectory(at: paths.root, withIntermediateDirectories: true)
 let history = try HistoryStore(path: paths.history.path)
+// Fichier de configuration rclone : celui de rclone par défaut (partagé avec la ligne de commande).
+let rcloneConfig = option("--rclone-config")
+let rclonePath = BinaryLocator.locate(.rclone)
 let runnerConfiguration = RunnerConfiguration(
-    rsyncPath: BinaryLocator.locate(.rsync), rclonePath: BinaryLocator.locate(.rclone), workDirectory: paths.work
+    rsyncPath: BinaryLocator.locate(.rsync), rclonePath: rclonePath, rcloneConfigPath: rcloneConfig, workDirectory: paths.work
 )
 var agentConfiguration = AgentConfiguration()
 if let hold = option("--startup-hold").flatMap(Double.init) { agentConfiguration.startupHold = hold }
@@ -44,6 +48,7 @@ let core = AgentCore(
     activity: SleepActivity(),
     log: { log($0) },
     logDirectory: paths.logs,
+    remotes: rclonePath.map { RcloneConfigurator(rclonePath: $0, configPath: rcloneConfig) },
     makeRunner: { TaskRunner(configuration: runnerConfiguration) }
 )
 await core.start()

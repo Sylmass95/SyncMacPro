@@ -36,6 +36,13 @@ public enum AgentRouter {
             case .cancelSimulation(let id): await core.cancelSimulation(id)
             case .runLog(let id, let maxBytes): return .log(try await core.runLog(runID: id, maxBytes: maxBytes))
             case .runOnce(let task): try await core.runOnce(task)
+            case .listRemotes: return .remotes(try await core.listRemotes())
+            case .configureRemote(let step): return .remoteConfig(try await core.configureRemote(step))
+            case .cancelRemoteConfiguration(let name): await core.cancelRemoteConfiguration(name)
+            case .deleteRemote(let name): try await core.deleteRemote(name)
+            case .testRemote(let name): return .remoteTest(try await core.testRemote(name))
+            case .listRemoteFolders(let remote, let path):
+                return .folders(try await core.listRemoteFolders(remote: remote, path: path))
             }
             return .ok
         } catch let error as AgentError {

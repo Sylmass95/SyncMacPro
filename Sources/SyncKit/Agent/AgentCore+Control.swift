@@ -103,6 +103,7 @@ extension AgentCore {
         queue.removeAll()
         for job in jobs.values { job.runner.stop() }
         for runner in simulations.values { runner.stop() }
+        remotes?.cancelAll()
         await waitForIdle()
     }
 }

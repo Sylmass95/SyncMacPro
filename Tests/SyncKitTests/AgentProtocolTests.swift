@@ -14,6 +14,9 @@ final class AgentProtocolTests: XCTestCase {
             .runNow(id), .pause(id), .resume(id), .stop(id), .setGlobalPause(true), .approveDeletion(id), .reloadTasks,
             .saveTask(makeTask("x")), .removeTask(id), .simulate(makeTask("x")), .cancelSimulation(id), .runLog(runID: id, maxBytes: 10),
             .runOnce(makeTask("x")),
+            .listRemotes, .configureRemote(.start(name: "a", type: "s3", parameters: ["k": "v"])),
+            .configureRemote(.answer(name: "a", state: "s", result: "r")), .configureRemote(.reconnect(name: "a")),
+            .cancelRemoteConfiguration("a"), .deleteRemote("a"), .testRemote("a"), .listRemoteFolders(remote: "a", path: "x"),
         ]
         for request in requests { XCTAssertEqual(try roundTrip(request), request) }
     }
