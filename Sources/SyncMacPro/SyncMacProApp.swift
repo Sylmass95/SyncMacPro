@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct SyncMacProApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model: AgentModel
-    @State private var installer = AgentInstaller()
+    @State private var installer: AgentInstaller
     @State private var loginItem = LoginItemModel()
     @State private var updates = UpdateModel(checker: UpdateChecker(current: AppInfo.version()))
     @AppStorage("appearance") private var appearance = Appearance.auto.rawValue
@@ -25,6 +25,10 @@ struct SyncMacProApp: App {
         if Bundle.main.bundlePath.hasSuffix(".app"), InstallLocation.problem(bundlePath: Bundle.main.bundlePath) == nil {
             Quarantine.clear(bundle: Bundle.main.bundleURL)
         }
+        // App mise à jour : l'agent enregistré par l'ancienne version ne démarrerait plus, on le réenregistre.
+        let installer = AgentInstaller()
+        if Bundle.main.bundlePath.hasSuffix(".app") { installer.reRegisterAfterUpdate() }
+        _installer = State(initialValue: installer)
         let model = AgentModel(agent: AgentClient.machService(AgentIdentifiers.service()))
         _model = State(initialValue: model)
         // Le modèle démarre avec l'app, pas avec la fenêtre : l'icône de la barre de menus reste vivante même si
