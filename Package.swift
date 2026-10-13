@@ -7,10 +7,12 @@ let package = Package(
     products: [
         .library(name: "SyncKit", targets: ["SyncKit"]),
         .executable(name: "synckit-cli", targets: ["synckit-cli"]),
+        .executable(name: "syncmacpro-ctl", targets: ["syncmacpro-ctl"]),
     ],
     targets: [
         .target(name: "SyncKit"),
         .executableTarget(name: "synckit-cli", dependencies: ["SyncKit"]),
+        .executableTarget(name: "syncmacpro-ctl", dependencies: ["SyncKit"]),
         .testTarget(
             name: "SyncKitTests",
             dependencies: ["SyncKit"],
