@@ -59,6 +59,7 @@ public struct SyncTask: Codable, Equatable, Identifiable, Sendable {
     public var options: TaskOptions
     public var schedule: Schedule
     public var notifications: NotificationPolicy
+    public var conditions: TaskConditions
     public var isEnabled: Bool
 
     public init(
@@ -71,6 +72,7 @@ public struct SyncTask: Codable, Equatable, Identifiable, Sendable {
         options: TaskOptions = TaskOptions(),
         schedule: Schedule = .manual,
         notifications: NotificationPolicy = .always,
+        conditions: TaskConditions = TaskConditions(),
         isEnabled: Bool = true
     ) {
         self.id = id
@@ -82,6 +84,23 @@ public struct SyncTask: Codable, Equatable, Identifiable, Sendable {
         self.options = options
         self.schedule = schedule
         self.notifications = notifications
+        self.conditions = conditions
         self.isEnabled = isEnabled
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        source = try container.decode(Endpoint.self, forKey: .source)
+        destination = try container.decode(Endpoint.self, forKey: .destination)
+        sourceItems = try container.decode([String].self, forKey: .sourceItems)
+        mode = try container.decode(SyncMode.self, forKey: .mode)
+        options = try container.decode(TaskOptions.self, forKey: .options)
+        schedule = try container.decode(Schedule.self, forKey: .schedule)
+        notifications = try container.decode(NotificationPolicy.self, forKey: .notifications)
+        // Les fichiers écrits avant le sous-projet 2 n'ont pas cette clé.
+        conditions = try container.decodeIfPresent(TaskConditions.self, forKey: .conditions) ?? TaskConditions()
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
     }
 }

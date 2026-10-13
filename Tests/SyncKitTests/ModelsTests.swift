@@ -52,3 +52,42 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(SyncMode.mirror.requiresRclone)
     }
 }
+
+final class TaskConditionsTests: XCTestCase {
+    func testHourRangeWithinTheDay() {
+        let range = HourRange(start: 9, end: 17)
+        XCTAssertTrue(range.contains(hour: 9))
+        XCTAssertTrue(range.contains(hour: 16))
+        XCTAssertFalse(range.contains(hour: 17))
+        XCTAssertFalse(range.contains(hour: 3))
+    }
+
+    func testHourRangeAcrossMidnight() {
+        let range = HourRange(start: 22, end: 6)
+        XCTAssertTrue(range.contains(hour: 23))
+        XCTAssertTrue(range.contains(hour: 2))
+        XCTAssertFalse(range.contains(hour: 6))
+        XCTAssertFalse(range.contains(hour: 12))
+    }
+
+    func testEqualBoundsMeanWholeDay() {
+        XCTAssertTrue(HourRange(start: 5, end: 5).contains(hour: 14))
+    }
+
+    func testTaskWithoutConditionsKeyStillDecodes() throws {
+        let task = SyncTask(name: "ancienne", source: .local(path: "/a"), destination: .local(path: "/b"))
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(task)) as? [String: Any])
+        json.removeValue(forKey: "conditions")
+        let legacy = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(SyncTask.self, from: legacy)
+        XCTAssertEqual(decoded.name, "ancienne")
+        XCTAssertEqual(decoded.conditions, TaskConditions())
+    }
+
+    func testConditionsSurviveEncoding() throws {
+        var task = SyncTask(name: "nuit", source: .local(path: "/a"), destination: .local(path: "/b"))
+        task.conditions = TaskConditions(requiresACPower: true, requiresNetwork: true, allowedHours: HourRange(start: 22, end: 6))
+        let decoded = try JSONDecoder().decode(SyncTask.self, from: JSONEncoder().encode(task))
+        XCTAssertEqual(decoded, task)
+    }
+}
