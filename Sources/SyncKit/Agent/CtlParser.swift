@@ -33,6 +33,7 @@ public enum CtlCommand: Equatable, Sendable {
     case add(NewTask)
     case copy(OneOffRequest)
     case remotes, remoteTest(String), remoteDelete(String)
+    case version, doctor
     case agentInstall, agentUninstall, agentStatus
 }
 
@@ -74,6 +75,8 @@ public enum CtlParser {
           [--every MINUTES | --daily HH:MM] [--ac-power]
       remove <tâche>
       remotes                        connexions rclone (services en ligne)
+      version                        version de SyncMacPro
+      doctor                         rsync et rclone retenus, état de l'agent
       remote test | delete <nom>     tester ou supprimer une connexion
       copy --source DOSSIER --dest DOSSIER [--item NOM]... [--mirror]
                                      copie ponctuelle par l'agent (sans créer de tâche)
@@ -89,7 +92,7 @@ public enum CtlParser {
         "statut": "status", "liste": "list", "lancer": "run", "reprendre": "resume", "arreter": "stop",
         "arrêter": "stop", "historique": "history", "valider": "approve", "pause-tout": "pause-all",
         "reprendre-tout": "resume-all", "ajouter": "add", "supprimer": "remove", "aide": "help",
-        "simuler": "simulate", "journal": "log", "copier": "copy", "connexions": "remotes",
+        "simuler": "simulate", "journal": "log", "copier": "copy", "connexions": "remotes", "diagnostic": "doctor",
     ]
 
     private static let valued: Set<String> = [
@@ -98,6 +101,9 @@ public enum CtlParser {
     private static let flags: Set<String> = ["json", "ac-power", "help", "mirror"]
 
     public static func parse(_ arguments: [String]) throws -> CtlInvocation {
+        if arguments == ["--version"] {
+            return CtlInvocation(command: .version, json: false, stateDirectory: nil, service: nil)
+        }
         var json = false
         var stateDirectory: String?
         var service: String?
@@ -170,6 +176,8 @@ public enum CtlParser {
             }
         case "add": return invocation(.add(try newTask(values, flagged)))
         case "remotes": return invocation(.remotes)
+        case "version": return invocation(.version)
+        case "doctor": return invocation(.doctor)
         case "remote":
             guard rest.count >= 2 else { throw CtlParseError.invalid("remote attend : test NOM ou delete NOM") }
             let target = rest.dropFirst().joined(separator: " ")

@@ -67,7 +67,7 @@ let task = SyncTask(
     source: .local(path: source), destination: .local(path: destination), mode: mode, options: options
 )
 let runner = TaskRunner(configuration: RunnerConfiguration(
-    rsyncPath: BinaryLocator.locate(.rsync), rclonePath: BinaryLocator.locate(.rclone),
+    rsyncPath: BinaryLocator.locateForProcess(.rsync), rclonePath: BinaryLocator.locateForProcess(.rclone),
     workDirectory: stateDirectory.appendingPathComponent("work")
 ))
 

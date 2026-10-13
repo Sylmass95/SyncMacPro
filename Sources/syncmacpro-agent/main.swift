@@ -30,9 +30,9 @@ try FileManager.default.createDirectory(at: paths.root, withIntermediateDirector
 let history = try HistoryStore(path: paths.history.path)
 // Fichier de configuration rclone : celui de rclone par défaut (partagé avec la ligne de commande).
 let rcloneConfig = option("--rclone-config")
-let rclonePath = BinaryLocator.locate(.rclone)
+let rclonePath = BinaryLocator.locateForProcess(.rclone)
 let runnerConfiguration = RunnerConfiguration(
-    rsyncPath: BinaryLocator.locate(.rsync), rclonePath: rclonePath, rcloneConfigPath: rcloneConfig, workDirectory: paths.work
+    rsyncPath: BinaryLocator.locateForProcess(.rsync), rclonePath: rclonePath, rcloneConfigPath: rcloneConfig, workDirectory: paths.work
 )
 var agentConfiguration = AgentConfiguration()
 if let hold = option("--startup-hold").flatMap(Double.init) { agentConfiguration.startupHold = hold }
@@ -52,7 +52,7 @@ let core = AgentCore(
     makeRunner: { TaskRunner(configuration: runnerConfiguration) }
 )
 await core.start()
-log("agent démarré (données : \(paths.root.path), rsync : \(runnerConfiguration.rsyncPath ?? "introuvable"))")
+log("agent \(AppInfo.version()) démarré (données : \(paths.root.path), rsync : \(runnerConfiguration.rsyncPath ?? "introuvable"), rclone : \(rclonePath ?? "introuvable"))")
 
 // XPC : le service doit être déclaré par launchd ; sans lui, rien à écouter.
 let delegate = AgentListenerDelegate(
