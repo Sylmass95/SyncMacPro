@@ -18,6 +18,14 @@ Conception : [`docs/superpowers/specs/2026-10-12-syncmacpro-design.md`](docs/sup
 
 ## Développer
 
+Prérequis : macOS 14 ou plus, Xcode (ou ses outils en ligne de commande), **rsync 3.x** (`brew install rsync`, celui de
+macOS est `openrsync`, insuffisant) et `rclone`.
+
+```bash
+swift build
+SYNCMACPRO_RSYNC=/opt/homebrew/bin/rsync swift test   # les tests d'intégration sont ignorés sans rsync 3
+```
+
 ## Agent d'arrière-plan
 
 Un agent lance les tâches planifiées **app fermée** : horaires (quotidien, jours de la semaine, toutes les N minutes,
