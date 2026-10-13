@@ -73,20 +73,20 @@ final class RemotesTests: XCTestCase {
         XCTAssertEqual(RcloneConfigCommand.listRemotes(config: config), ["listremotes", "--long", "--json", "--config", config])
         XCTAssertEqual(
             RcloneConfigCommand.arguments(for: .start(name: "Drive", type: "drive", parameters: ["scope": "drive", "client_id": "x"]), config: nil),
-            ["config", "create", "Drive", "drive", "client_id=x", "scope=drive", "--non-interactive"]
+            ["config", "create", "--non-interactive", "--", "Drive", "drive", "client_id=x", "scope=drive"]
         )
         XCTAssertEqual(
             RcloneConfigCommand.arguments(for: .answer(name: "Drive", state: "*oauth", result: "true"), config: config),
-            ["config", "update", "Drive", "--continue", "--state", "*oauth", "--result", "true", "--non-interactive", "--config", config]
+            ["config", "update", "--continue", "--state", "*oauth", "--result", "true", "--non-interactive", "--config", config, "--", "Drive"]
         )
         XCTAssertEqual(
             RcloneConfigCommand.arguments(for: .reconnect(name: "Drive"), config: nil),
-            ["config", "update", "Drive", "config_refresh_token=true", "--non-interactive"]
+            ["config", "update", "--non-interactive", "--", "Drive", "config_refresh_token=true"]
         )
-        XCTAssertEqual(RcloneConfigCommand.delete("Drive", config: nil), ["config", "delete", "Drive"])
-        XCTAssertEqual(RcloneConfigCommand.test("Drive", config: nil), ["lsjson", "Drive:", "--dirs-only", "--max-depth", "1"])
+        XCTAssertEqual(RcloneConfigCommand.delete("Drive", config: nil), ["config", "delete", "--", "Drive"])
+        XCTAssertEqual(RcloneConfigCommand.test("Drive", config: nil), ["lsjson", "--dirs-only", "--max-depth", "1", "--", "Drive:"])
         XCTAssertEqual(RcloneConfigCommand.folders(remote: "Drive", path: "/Photos/", config: nil),
-                       ["lsjson", "Drive:Photos", "--dirs-only", "--max-depth", "1"])
+                       ["lsjson", "--dirs-only", "--max-depth", "1", "--", "Drive:Photos"])
     }
 
     func testNameRule() {

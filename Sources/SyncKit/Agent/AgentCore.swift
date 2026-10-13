@@ -59,6 +59,8 @@ public actor AgentCore {
     var configuringRemotes: Set<String> = []
     /// Connexions créées par l'assistant et pas encore terminées : supprimées si la création échoue ou est annulée.
     var creatingRemotes: Set<String> = []
+    /// Annulations reçues pendant une étape (avant que rclone soit lancé).
+    var cancelledRemotes: Set<String> = []
 
     public init(
         configuration: AgentConfiguration, taskStore: TaskStore, stateStore: SchedulerStateStore,

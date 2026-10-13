@@ -20,16 +20,23 @@ extension AgentCore {
     public func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome {
         let rclone = try configurator()
         let name = step.name
+        try Self.check(step)
         guard !configuringRemotes.contains(name) else { throw AgentError.remoteBusy }
         // Réservé avant tout `await` : l'acteur est réentrant, une seconde demande du même nom serait sinon acceptée.
         configuringRemotes.insert(name)
-        defer { configuringRemotes.remove(name) }
+        defer {
+            configuringRemotes.remove(name)
+            cancelledRemotes.remove(name)
+            rclone.forgetCancellation(name)
+        }
         switch step {
         case .start:
             let existing = try await listRemotes().map(\.name)
             if let problem = RemoteNameRule.problem(name, existing: existing) {
                 throw AgentError.invalidRemote(Self.message(problem))
             }
+            // Annulée pendant la lecture de la liste : on s'arrête avant de lancer rclone.
+            if cancelledRemotes.contains(name) { throw AgentError.invalidRemote(RemoteConfigError.cancelled.errorDescription ?? "") }
             creatingRemotes.insert(name)
         case .reconnect:
             // Une connexion reconnectée existe : elle n'est jamais supprimée, même après une création inachevée.
@@ -48,12 +55,14 @@ extension AgentCore {
     }
 
     public func cancelRemoteConfiguration(_ name: String) async {
+        if configuringRemotes.contains(name) { cancelledRemotes.insert(name) }
         remotes?.cancelConfiguration(name)
         if creatingRemotes.remove(name) != nil { try? await remotes?.delete(name) }
     }
 
     public func deleteRemote(_ name: String) async throws {
         let rclone = try configurator()
+        try Self.checkName(name)
         creatingRemotes.remove(name)
         let users = tasks.filter { $0.remoteNames.contains(name) }.map(\.name).sorted()
         guard users.isEmpty else { throw AgentError.remoteInUse(users) }
@@ -61,10 +70,13 @@ extension AgentCore {
     }
 
     public func testRemote(_ name: String) async throws -> RemoteTestResult {
-        try await configurator().test(name)
+        try Self.checkName(name)
+        return try await configurator().test(name)
     }
 
     public func listRemoteFolders(remote: String, path: String) async throws -> [String] {
+        try Self.checkName(remote)
+        try Self.checkValue(path)
         do { return try await configurator().folders(remote: remote, path: path) } catch { throw Self.agentError(error) }
     }
 
@@ -76,6 +88,35 @@ extension AgentCore {
         let pending = creatingRemotes
         creatingRemotes.removeAll()
         for name in pending { try? await remotes.delete(name) }
+    }
+
+    /// Un nom bien formé pour rclone (déjà pris ou non) ; refus avant tout appel.
+    static func checkName(_ name: String) throws {
+        if let problem = RemoteNameRule.problem(name, existing: []) { throw AgentError.invalidRemote(message(problem)) }
+    }
+
+    /// Une valeur sur une seule ligne : un retour à la ligne s'écrirait tel quel dans `rclone.conf`.
+    static func checkValue(_ value: String) throws {
+        if value.contains(where: \.isNewline) {
+            throw AgentError.invalidRemote("Une valeur ne peut pas contenir de retour à la ligne.")
+        }
+    }
+
+    static func check(_ step: RemoteConfigStep) throws {
+        try checkName(step.name)
+        switch step {
+        case .start(_, let type, let parameters):
+            try checkValue(type)
+            for (key, value) in parameters {
+                try checkValue(key)
+                try checkValue(value)
+            }
+        case .answer(_, let state, let result):
+            try checkValue(state)
+            try checkValue(result)
+        case .reconnect:
+            break
+        }
     }
 
     static func message(_ problem: RemoteNameProblem) -> String {

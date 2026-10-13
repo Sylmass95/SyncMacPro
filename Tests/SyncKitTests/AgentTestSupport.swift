@@ -183,6 +183,7 @@ final class FakeRemotes: RemoteConfiguring, @unchecked Sendable {
         gate.get()?.release()
     }
     func cancelAll() { cancelled.set(cancelled.get() + ["*"]); gate.get()?.release() }
+    func forgetCancellation(_ name: String) {}
     func delete(_ name: String) async throws {
         deleted.set(deleted.get() + [name])
         remotes.set(remotes.get().filter { $0.name != name })
