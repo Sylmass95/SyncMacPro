@@ -15,8 +15,8 @@ final class RootViewTests: XCTestCase {
         XCTAssertFalse(show(.reconnecting(attempt: 2), .notRegistered))
     }
 
-    func testSidebarHasThreeEntries() {
-        XCTAssertEqual(SidebarItem.allCases, [.dashboard, .history, .settings])
+    func testSidebarEntries() {
+        XCTAssertEqual(SidebarItem.allCases, [.dashboard, .tasks, .history, .settings])
     }
 
     func testOnboardingRendersForEveryInstallState() throws {
