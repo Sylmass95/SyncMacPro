@@ -69,7 +69,7 @@ final class UpdatesTests: XCTestCase {
         XCTAssertNil(InstallLocation.problem(bundlePath: "/Applications/SyncMacPro.app"))
         XCTAssertNil(InstallLocation.problem(bundlePath: "/Users/moi/Applications/SyncMacPro.app"))
         XCTAssertEqual(InstallLocation.problem(bundlePath: "/private/var/folders/x/T/AppTranslocation/ABC/d/SyncMacPro.app"), .translocated)
-        XCTAssertEqual(InstallLocation.problem(bundlePath: "/Volumes/SyncMacPro 1.0.0/SyncMacPro.app"), .diskImage)
+        XCTAssertEqual(InstallLocation.problem(bundlePath: "/Volumes/SyncMacPro 1.0.0/SyncMacPro.app", isReadOnlyVolume: { _ in true }), .diskImage)
         XCTAssertNil(InstallLocation.problem(bundlePath: "/Users/moi/Desktop/PROJET/.build/debug/SyncMacPro"), "développement : pas un bundle")
     }
 }

@@ -20,6 +20,11 @@ struct SyncMacProApp: App {
     private let localizer = Localizer.system
 
     init() {
+        // Lancée, l'app est autorisée : on retire la quarantaine de son bundle, sinon rsync, rclone et l'agent restent
+        // bloqués (ils ne sont pas couverts par l'autorisation donnée à l'app).
+        if Bundle.main.bundlePath.hasSuffix(".app"), InstallLocation.problem(bundlePath: Bundle.main.bundlePath) == nil {
+            Quarantine.clear(bundle: Bundle.main.bundleURL)
+        }
         let model = AgentModel(agent: AgentClient.machService(AgentIdentifiers.service()))
         _model = State(initialValue: model)
         // Le modèle démarre avec l'app, pas avec la fenêtre : l'icône de la barre de menus reste vivante même si

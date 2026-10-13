@@ -18,10 +18,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Cache des binaires embarqués
+      - name: Cache des archives vérifiées (les binaires sont toujours reconstruits)
         uses: actions/cache@v4
         with:
-          path: .build/vendor
+          path: .build/vendor/src
           key: vendor-${{ hashFiles('scripts/vendor.lock', 'scripts/fetch-vendor.sh') }}
       - name: Construire le DMG
         run: scripts/make-release.sh
