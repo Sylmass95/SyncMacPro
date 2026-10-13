@@ -147,7 +147,9 @@ Dans l'éditeur de tâches, le côté « Service en ligne » propose ces connexi
 
 L'agent pilote rclone par son mode non interactif et n'écrit jamais lui-même la configuration. Le fichier est celui de
 rclone (`~/.config/rclone/rclone.conf`, partagé avec la ligne de commande) ; les secrets y restent comme rclone les
-écrit (fichier privé de l'utilisateur), le chiffrement viendra plus tard.
+écrit (fichier privé de l'utilisateur), le chiffrement viendra plus tard. À la création d'une connexion, les clés
+(S3, secret Google) passent en argument à rclone : elles sont visibles quelques instants dans la liste des processus,
+pour votre seul compte macOS (qui peut déjà lire `rclone.conf`).
 
 ```bash
 syncmacpro-ctl remotes                 # connexions

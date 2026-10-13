@@ -8,8 +8,9 @@ on:
   pull_request:
     paths: ['scripts/**', '.github/workflows/release.yml', 'Package.swift']
 
+# Lecture seule par défaut : seul le job de publication (étiquette poussée) peut écrire.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   dmg:
@@ -18,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Cache des archives vérifiées (les binaires sont toujours reconstruits)
         uses: actions/cache@v4
         with:
@@ -25,17 +27,39 @@ jobs:
           key: vendor-${{ hashFiles('scripts/vendor.lock', 'scripts/fetch-vendor.sh') }}
       - name: Construire le DMG
         run: scripts/make-release.sh
-      - name: Garder le DMG
+      - name: Garder le DMG et la source de rsync
         uses: actions/upload-artifact@v4
         with:
           name: SyncMacPro-dmg
-          path: build/*.dmg
+          path: |
+            build/*.dmg
+            .build/vendor/src/rsync-*.tar.gz
+
+  publish:
+    needs: dmg
+    # Uniquement quand une étiquette vX.Y.Z est poussée (jamais sur une PR ni un lancement manuel).
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: SyncMacPro-dmg
+          path: dist
       - name: Publier
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="$(tr -d '[:space:]' < VERSION)"
           [ "v$VERSION" = "$GITHUB_REF_NAME" ] || { echo "VERSION ($VERSION) ≠ étiquette ($GITHUB_REF_NAME)"; exit 1; }
-          gh release create "$GITHUB_REF_NAME" build/SyncMacPro-$VERSION.dmg .build/vendor/src/rsync-*.tar.gz \
-            --title "SyncMacPro $VERSION" --notes-file docs/release-notes.md
+          DMG="$(find dist -name "SyncMacPro-$VERSION.dmg" | head -1)"
+          RSYNC_SRC="$(find dist -name 'rsync-*.tar.gz' | head -1)"
+          [ -n "$DMG" ] && [ -n "$RSYNC_SRC" ] || { echo "Fichiers à publier introuvables"; exit 1; }
+          cp docs/release-notes.md notes.md
+          printf '\n**Empreinte SHA-256 du DMG** : `%s`\n' "$(sha256sum "$DMG" | cut -d' ' -f1)" >> notes.md
+          gh release create "$GITHUB_REF_NAME" "$DMG" "$RSYNC_SRC" --repo "$GITHUB_REPOSITORY" \
+            --title "SyncMacPro $VERSION" --notes-file notes.md
