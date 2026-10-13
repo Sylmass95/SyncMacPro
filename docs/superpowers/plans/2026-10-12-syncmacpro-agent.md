@@ -3669,7 +3669,7 @@ let core = AgentCore(
     conditions: MacSystemConditions(),
     notifier: UserNotifier(),
     activity: SleepActivity(),
-    log: log,
+    log: { log($0) },
     makeRunner: { TaskRunner(configuration: runnerConfiguration) }
 )
 await core.start()
@@ -3691,27 +3691,32 @@ if foreground {
 func modificationDate(_ url: URL) -> Date? {
     (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
 }
-var tasksStamp = modificationDate(paths.tasks)
+final class StampBox: @unchecked Sendable { var value: Date? }
+let tasksStamp = StampBox()
+tasksStamp.value = modificationDate(paths.tasks)
 
 func evaluate() async {
     let stamp = modificationDate(paths.tasks)
-    if stamp != tasksStamp {
-        tasksStamp = stamp
+    if stamp != tasksStamp.value {
+        tasksStamp.value = stamp
         await core.reloadTasks()
     }
     await core.tick()
 }
 
 await evaluate()
-let timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in Task { await evaluate() } }
+let timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in Task.detached { await evaluate() } }
 
 // Arrêt propre : les copies en cours sont arrêtées, marquées « interrompues » et rattrapées au prochain démarrage.
 signal(SIGTERM, SIG_IGN)
 signal(SIGINT, SIG_IGN)
+// File dédiée : appelée depuis le code asynchrone de main.swift, `RunLoop.main.run()` ne sert pas la file principale.
+let signalQueue = DispatchQueue(label: "syncmacpro.signals")
 let signalSources = [SIGTERM, SIGINT].map { number -> DispatchSourceSignal in
-    let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+    let source = DispatchSource.makeSignalSource(signal: number, queue: signalQueue)
     source.setEventHandler {
-        Task {
+        // `Task.detached` : le code de main.swift est lié à l'acteur principal, bloqué dans RunLoop.main.run().
+        Task.detached {
             log("arrêt demandé")
             await core.shutdown()
             exit(0)
