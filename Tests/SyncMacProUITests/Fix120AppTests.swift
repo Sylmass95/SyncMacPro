@@ -61,4 +61,12 @@ final class Fix120AppTests: XCTestCase {
         XCTAssertEqual(wizard.step, .test)
         XCTAssertNotNil(wizard.error)
     }
+
+    // Messages de mise à jour : des codes traduits par l'interface, pas le texte anglais de GitHub.
+    func testUpdateFailuresAreCodes() {
+        XCTAssertEqual(UpdateChecker.parse(Data(#"{"message":"API rate limit exceeded"}"#.utf8), status: 403, current: SemanticVersion("1.0.0")), .failed("rateLimit"))
+        XCTAssertEqual(UpdateChecker.parse(Data("<html>".utf8), status: 200, current: SemanticVersion("1.0.0")), .failed("unreadable"))
+        XCTAssertEqual(UpdateChecker.parse(Data(), status: 500, current: SemanticVersion("1.0.0")), .failed("http"))
+        XCTAssertNil(InstallLocation.originalURL(ofTranslocated: URL(fileURLWithPath: "/Applications/SyncMacPro.app")))
+    }
 }

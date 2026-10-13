@@ -48,14 +48,11 @@ public struct UpdateChecker: Sendable {
             var draft: Bool?
             var prerelease: Bool?
         }
-        guard status == 200 else {
-            struct Message: Decodable { var message: String }
-            let message = (try? JSONDecoder().decode(Message.self, from: data))?.message ?? "HTTP \(status)"
-            return .failed(message)
-        }
+        // Codes traduits par l'interface (`update.failed.<code>`) : le message de GitHub est en anglais.
+        guard status == 200 else { return .failed(status == 403 || status == 429 ? "rateLimit" : "http") }
         guard let release = try? JSONDecoder().decode(Release.self, from: data),
               let version = SemanticVersion(release.tag_name), let url = URL(string: release.html_url)
-        else { return .failed("réponse illisible") }
+        else { return .failed("unreadable") }
         guard release.draft != true, release.prerelease != true, let current, current < version else { return .upToDate }
         return .available(ReleaseInfo(version: version, url: url))
     }

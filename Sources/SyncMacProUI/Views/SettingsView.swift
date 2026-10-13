@@ -96,7 +96,9 @@ public struct SettingsView: View {
         case .checking: return localizer.text("update.checking")
         case .upToDate: return localizer.text("update.upToDate")
         case .available(let release): return localizer.format("update.available", release.version.description)
-        case .failed(let message): return localizer.format("update.failed", message)
+        case .failed(let message):
+            let known = ["rateLimit", "http", "unreadable"].contains(message)
+            return localizer.format("update.failed", known ? localizer.text("update.failed.\(message)") : message)
         }
     }
 

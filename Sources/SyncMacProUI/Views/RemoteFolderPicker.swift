@@ -89,8 +89,8 @@ struct RemoteFolderPicker: View {
                 }
             }
             .frame(minHeight: 220)
-            .background(.background)
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .glassCard(cornerRadius: 10, dense: true)
             TextField(localizer.text("remote.newFolder"), text: $newFolder).textFieldStyle(.roundedBorder)
             HStack {
                 Button(localizer.text("confirm.cancel"), role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)

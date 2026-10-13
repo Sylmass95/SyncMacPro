@@ -40,7 +40,9 @@ public struct OnboardingView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 440)
                     Button(localizer.text("onboarding.location.reveal")) {
-                        NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+                        // Translocalisée : montrer le vrai fichier (souvent dans Téléchargements), pas la copie cachée.
+                        let original = InstallLocation.originalURL(ofTranslocated: Bundle.main.bundleURL) ?? Bundle.main.bundleURL
+                        NSWorkspace.shared.activateFileViewerSelecting([original])
                     }
                 }
             } else if installer.state == .requiresApproval {

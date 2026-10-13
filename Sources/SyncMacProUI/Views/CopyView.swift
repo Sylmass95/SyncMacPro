@@ -98,7 +98,7 @@ struct CopyView: View {
         }
         .labelStyle(.titleAndIcon)
         .buttonStyle(GlassButtonStyle(prominent: false))
-        .frame(width: 140)
+        .frame(width: 172)
     }
 
     private func copy(simulate: Bool) {

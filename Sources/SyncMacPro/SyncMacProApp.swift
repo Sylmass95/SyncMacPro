@@ -60,8 +60,10 @@ struct SyncMacProApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView(installer: installer, loginItem: loginItem, localizer: localizer)
+            SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
                 .frame(width: 520, height: 520)
+                .background(GlassBackdrop())
+                .glassThemed()
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
         }
     }
