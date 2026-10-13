@@ -57,3 +57,16 @@ Nettoyage à la fin : `syncmacpro-ctl agent uninstall`, supprimer `~/Application
 - [ ] Activer / désactiver, modifier, dupliquer, supprimer (confirmation) depuis l'écran Tâches.
 - [ ] Modèles depuis le tableau de bord vide et depuis Tâches.
 - [ ] Historique : « Voir le journal » montre les lignes du moteur ; Copier fonctionne ; une exécution antérieure à 3b affiche « Aucun journal ».
+
+## Copie (3c)
+- [ ] Naviguer : double-clic sur un dossier, barre de chemin, dossier parent, emplacements, disques, favoris (étoile).
+- [ ] Fichiers cachés : bouton œil. Fenêtre étroite : les noms restent lisibles (les dates se masquent).
+- [ ] Choisir plusieurs fichiers (⌘, ⇧) : la barre d'état affiche le nombre, la taille (calcul en cours, puis total) et la place libre.
+- [ ] Copier → confirmation → Simuler → Lancer : la carte « Copie manuelle » apparaît au tableau de bord, puis l'exécution dans l'historique avec son journal.
+- [ ] Synchroniser un dossier dont la destination a des fichiers en trop : la simulation annonce les suppressions ; « accepter les suppressions » permet de lancer malgré le garde-fou.
+- [ ] Glisser un fichier d'un panneau à l'autre ; déposer des fichiers du Finder (de deux dossiers différents : deux copies).
+- [ ] Copier un dossier dans un de ses sous-dossiers, ou synchroniser le dossier personnel vers le Bureau : refus clair, Simuler et Lancer désactivés.
+- [ ] Dossier sans droits de lecture : message dans le panneau.
+- [ ] Démonter un disque affiché puis Actualiser : le panneau remonte et le signale.
+- [ ] Agent arrêté : boutons désactivés avec la raison.
+- [ ] Enregistrer comme tâche : l'éditeur s'ouvre avec source, destination et éléments choisis.

@@ -117,6 +117,7 @@ public struct TaskSummaryText {
         case .invalidSchedule: return localizer.text("problem.invalidSchedule")
         case .relativePath: return localizer.text("problem.relativePath")
         case .invalidArchiveFolder: return localizer.text("problem.invalidArchiveFolder")
+        case .invalidItem: return localizer.text("problem.invalidItem")
         }
     }
 

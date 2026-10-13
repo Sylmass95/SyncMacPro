@@ -1,13 +1,20 @@
 import Foundation
 
 /// Numéro du contrat XPC. À incrémenter quand un message change de forme.
-public let agentProtocolVersion = 2
+public let agentProtocolVersion = 3
 
 public enum AgentIdentifiers {
     /// Nom du service Mach déclaré dans le plist de l'agent.
     public static let machService = "com.sylvain.syncmacpro.agent"
     public static let launchdLabel = machService
     public static let bundleIdentifier = "com.sylvain.syncmacpro"
+
+    /// Le service à joindre : `SYNCMACPRO_AGENT_SERVICE` permet d'ouvrir l'app sur l'agent de développement.
+    public static func service(environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
+        guard let name = environment["SYNCMACPRO_AGENT_SERVICE"]?.trimmingCharacters(in: .whitespaces), !name.isEmpty
+        else { return machService }
+        return name
+    }
 }
 
 public enum AgentRequest: Codable, Equatable, Sendable {
@@ -26,6 +33,8 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case simulate(SyncTask)
     case cancelSimulation(UUID)
     case runLog(runID: UUID, maxBytes: Int)
+    /// Exécution ponctuelle (copie manuelle), sans enregistrer la tâche.
+    case runOnce(SyncTask)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {

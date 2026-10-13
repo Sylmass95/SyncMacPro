@@ -104,6 +104,18 @@ do {
             print("Tâche « \(task.name) » ajoutée dans tasks.json (agent injoignable : il la lira au démarrage).")
         }
 
+    case .copy(let request):
+        let source = URL(fileURLWithPath: request.source), destination = URL(fileURLWithPath: request.destination)
+        let what = request.items.isEmpty ? source.lastPathComponent : request.items.joined(separator: ", ")
+        var task = SyncTask(
+            name: (request.mirror ? "Synchronisation de " : "Copie de ") + "\(what) vers \(destination.lastPathComponent)",
+            source: .local(path: source.standardizedFileURL.path), destination: .local(path: destination.standardizedFileURL.path),
+            sourceItems: request.items, mode: request.mirror ? .mirror : .copy
+        )
+        task.notifications = .always
+        try await client.perform(.runOnce(task))
+        print("« \(task.name) » lancée (suivre avec : syncmacpro-ctl watch).")
+
     case .remove(let text):
         do {
             let task = try await resolve(text)

@@ -13,6 +13,7 @@ final class AgentProtocolTests: XCTestCase {
             .status, .listTasks, .history(taskID: id, limit: 5), .history(taskID: nil, limit: 20),
             .runNow(id), .pause(id), .resume(id), .stop(id), .setGlobalPause(true), .approveDeletion(id), .reloadTasks,
             .saveTask(makeTask("x")), .removeTask(id), .simulate(makeTask("x")), .cancelSimulation(id), .runLog(runID: id, maxBytes: 10),
+            .runOnce(makeTask("x")),
         ]
         for request in requests { XCTAssertEqual(try roundTrip(request), request) }
     }
@@ -82,5 +83,13 @@ final class AgentProtocolTests: XCTestCase {
         let core = h.makeCore()
         let reply = try decode(await AgentRouter.handle(Data("pas du json".utf8), core: core))
         guard case .error(.internalFailure) = reply.response else { return XCTFail("attendu : erreur interne") }
+    }
+}
+
+final class AgentServiceNameTests: XCTestCase {
+    func testDevelopmentOverrideOfTheServiceName() {
+        XCTAssertEqual(AgentIdentifiers.service(environment: [:]), AgentIdentifiers.machService)
+        XCTAssertEqual(AgentIdentifiers.service(environment: ["SYNCMACPRO_AGENT_SERVICE": "x.dev"]), "x.dev")
+        XCTAssertEqual(AgentIdentifiers.service(environment: ["SYNCMACPRO_AGENT_SERVICE": " "]), AgentIdentifiers.machService)
     }
 }

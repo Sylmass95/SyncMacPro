@@ -9,7 +9,7 @@ extension TaskProblem {
     /// L'étape de l'éditeur où l'utilisateur corrige ce problème.
     public var step: EditorStep {
         switch self {
-        case .missingSource, .missingDestination, .sameSourceAndDestination, .nestedFolders, .relativePath: return .endpoints
+        case .missingSource, .missingDestination, .sameSourceAndDestination, .nestedFolders, .relativePath, .invalidItem: return .endpoints
         case .engineMismatch: return .mode
         case .invalidThreshold, .invalidArchiveFolder: return .options
         case .invalidSchedule: return .schedule

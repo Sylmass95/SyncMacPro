@@ -33,6 +33,9 @@ struct TaskCard: View {
                 Text("\(text.mode(task.mode)) · \(text.schedule(task.schedule))")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
+            if info.isOneOff {
+                Label(l.text("card.oneoff"), systemImage: "doc.on.doc").font(.caption).foregroundStyle(.secondary)
+            }
             if isActive { progressSection }
             if info.state == .awaitingApproval {
                 Text(l.format("card.approval.body", info.lastRun?.summary?.message ?? ""))

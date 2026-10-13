@@ -79,10 +79,12 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     public var nextDue: Date?
     public var lastRun: RunRecord?
     public var progress: ProgressInfo?
+    /// Copie manuelle : présente le temps de son exécution, jamais enregistrée.
+    public var isOneOff: Bool
 
     public init(
         id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,
-        progress: ProgressInfo? = nil
+        progress: ProgressInfo? = nil, isOneOff: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -90,6 +92,7 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
         self.nextDue = nextDue
         self.lastRun = lastRun
         self.progress = progress
+        self.isOneOff = isOneOff
     }
 }
 

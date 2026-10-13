@@ -1,7 +1,7 @@
 import SwiftUI
 
 public enum SidebarItem: String, CaseIterable, Identifiable, Sendable {
-    case dashboard, tasks, history, settings
+    case dashboard, tasks, copy, history, settings
     public var id: String { rawValue }
 }
 
@@ -11,7 +11,7 @@ struct EditorSession: Identifiable {
     let isNew: Bool
 }
 
-/// Fenêtre principale : barre latérale (tableau de bord, historique, réglages) et accueil au premier lancement.
+/// Fenêtre principale : barre latérale (tableau de bord, tâches, copie, historique, réglages) et accueil au premier lancement.
 @MainActor
 public struct RootView: View {
     let model: AgentModel
@@ -43,7 +43,7 @@ public struct RootView: View {
         } detail: {
             detail
         }
-        .frame(minWidth: 860, minHeight: 560)
+        .frame(minWidth: 940, minHeight: 560)
         // L'agent a disparu (désinstallé, désactivé) : on relit son état pour proposer la bonne action.
         .onChange(of: model.connection) { _, state in
             if state == .unreachable { installer.refresh() }
@@ -76,6 +76,8 @@ public struct RootView: View {
                 DashboardView(model: model, installer: installer, localizer: localizer, onCreate: { open($0, isNew: true) })
             case .tasks:
                 TasksView(model: model, localizer: localizer) { open($0, isNew: $1) }
+            case .copy:
+                CopyView(model: model, localizer: localizer) { open($0, isNew: true) }
             case .history: HistoryView(model: model, localizer: localizer)
             case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer)
             }
@@ -90,6 +92,7 @@ public struct RootView: View {
         switch item {
         case .dashboard: return localizer.text("sidebar.dashboard")
         case .tasks: return localizer.text("sidebar.tasks")
+        case .copy: return localizer.text("sidebar.copy")
         case .history: return localizer.text("sidebar.history")
         case .settings: return localizer.text("sidebar.settings")
         }
@@ -99,6 +102,7 @@ public struct RootView: View {
         switch item {
         case .dashboard: return "square.grid.2x2"
         case .tasks: return "list.bullet.rectangle"
+        case .copy: return "doc.on.doc"
         case .history: return "clock.arrow.circlepath"
         case .settings: return "gearshape"
         }
