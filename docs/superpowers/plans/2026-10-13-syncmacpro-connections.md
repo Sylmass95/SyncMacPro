@@ -22,7 +22,7 @@
 
 ## Décisions prises en rédigeant le plan
 
-- **Ruling : réponses automatiques par nom d'option rclone** : `client_id_warning = true` (l'assistant a déjà prévenu), `config_is_local = true` (l'utilisateur a cliqué « Se connecter » ; l'attente du navigateur commence), `config_change_team_drive = false`, `config_drive_ok = true`. Toute autre question est montrée.
+- **Ruling : réponses automatiques par nom d'option rclone** : `config_shared_client_id = true` (l'assistant a déjà prévenu), `config_is_local = true` (l'utilisateur a cliqué « Se connecter » ; l'attente du navigateur commence), `config_change_team_drive = false`, `config_drive_ok = true`. Toute autre question est montrée.
 - **Ruling : rollback** : si une création échoue ou est annulée, l'agent supprime la connexion à moitié créée (rclone l'écrit dès la première question).
 - **Ruling : test échoué** : l'assistant propose « Corriger » (la connexion est supprimée, retour à la préparation) ou « Garder quand même ».
 - **Ruling : ordre de la barre latérale** : tableau de bord, tâches, copie, historique, connexions, réglages.
@@ -1345,7 +1345,7 @@ final class WizardModelTests: XCTestCase {
         XCTAssertEqual(CloudService.forType("onedrive"), .onedrive)
         XCTAssertNil(CloudService.forType("alias"))
         XCTAssertFalse(CloudService.s3.usesBrowser)
-        XCTAssertEqual(CloudService.autoAnswer(option: "client_id_warning"), "true")
+        XCTAssertEqual(CloudService.autoAnswer(option: "config_shared_client_id"), "true")
         XCTAssertEqual(CloudService.autoAnswer(option: "config_is_local"), "true")
         XCTAssertEqual(CloudService.autoAnswer(option: "config_change_team_drive"), "false")
         XCTAssertNil(CloudService.autoAnswer(option: "config_driveid"))
@@ -1546,7 +1546,7 @@ public enum CloudService: String, CaseIterable, Identifiable, Sendable {
     /// Réponses données à la place de l'utilisateur, par nom d'option de rclone.
     public static func autoAnswer(option: String) -> String? {
         switch option {
-        case "client_id_warning": return "true"           // l'assistant a déjà expliqué l'identifiant partagé
+        case "config_shared_client_id": return "true"           // l'assistant a déjà expliqué l'identifiant partagé
         case "config_is_local": return "true"             // l'utilisateur a cliqué « Se connecter »
         case "config_change_team_drive": return "false"   // un Drive partagé se choisit plus tard, à la main
         case "config_drive_ok": return "true"
