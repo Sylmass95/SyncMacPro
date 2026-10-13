@@ -774,7 +774,7 @@ fi
 cp "$OUT"/work/rclone/arm64/*/README.txt "$OUT/licenses/rclone-README.txt" 2>/dev/null || true
 
 for tool in rsync rclone; do
-  lipo -verify_arch arm64 x86_64 "$OUT/bin/$tool" || { echo "$tool n'est pas universel" >&2; exit 1; }
+  lipo "$OUT/bin/$tool" -verify_arch arm64 x86_64 || { echo "$tool n'est pas universel" >&2; exit 1; }
 done
 echo "    $("$OUT/bin/rsync" --version | head -1)"
 echo "    $("$OUT/bin/rclone" version | head -1)"
@@ -805,7 +805,7 @@ BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 rm -rf "$OUT/stage" "$DMG"; mkdir -p "$OUT/stage"
 scripts/assemble-app.sh "$BIN" "$APP" "$VERSION" "$BUILD_NUMBER" .build/vendor
 for exe in "$APP"/Contents/MacOS/* "$APP"/Contents/Resources/bin/*; do
-  lipo -verify_arch arm64 x86_64 "$exe" || { echo "$exe n'est pas universel" >&2; exit 1; }
+  lipo "$exe" -verify_arch arm64 x86_64 || { echo "$exe n'est pas universel" >&2; exit 1; }
 done
 codesign --verify --deep --strict "$APP"
 ln -s /Applications "$OUT/stage/Applications"

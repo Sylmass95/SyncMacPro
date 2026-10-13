@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Installer rsync 3 et rclone
         run: brew install rsync rclone
+      - name: Scripts (syntaxe)
+        run: for script in scripts/*.sh; do bash -n "$script"; done
       - name: Tests
         run: swift test
         env:
