@@ -54,4 +54,16 @@ final class OneOffPlannerTests: XCTestCase {
         )
         XCTAssertEqual(accepted.options.deleteThresholdPercent, 100)
     }
+
+    func testDroppableKeepsOnlyWhatCanBeCopiedThere() {
+        let folder = URL(fileURLWithPath: "/dest/photos")
+        let dropped = [
+            URL(fileURLWithPath: "/a/x.txt"),
+            URL(fileURLWithPath: "/dest/photos/deja.txt"),
+            URL(fileURLWithPath: "/dest/photos"),
+            URL(fileURLWithPath: "/dest"),
+            URL(string: "https://exemple.fr/page")!,
+        ]
+        XCTAssertEqual(OneOffPlanner.droppable(dropped, into: folder).map(\.path), ["/a/x.txt"])
+    }
 }

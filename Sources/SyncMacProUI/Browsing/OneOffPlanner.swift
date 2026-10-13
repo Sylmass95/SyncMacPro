@@ -44,4 +44,15 @@ public enum OneOffPlanner {
         if acceptDeletions { task.options.deleteThresholdPercent = 100 }
         return task
     }
+
+    /// Ce qu'un dépôt dans `folder` peut copier : des fichiers locaux, ni déjà dans ce dossier, ni ce dossier ou un parent.
+    public static func droppable(_ urls: [URL], into folder: URL) -> [URL] {
+        let target = folder.standardizedFileURL.pathComponents
+        return urls.filter { url in
+            guard url.isFileURL else { return false }
+            let item = url.standardizedFileURL
+            if item.deletingLastPathComponent().pathComponents == target { return false }
+            return !target.starts(with: item.pathComponents)
+        }
+    }
 }
