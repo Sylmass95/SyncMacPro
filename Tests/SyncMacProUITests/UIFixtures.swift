@@ -94,11 +94,18 @@ enum UIFixtures {
 
     static func history() -> [RunRecord] {
         let statuses: [RunStatus] = [.succeeded, .succeeded, .failed, .succeeded, .blocked, .quotaReached, .interrupted, .stopped]
-        return (0..<30).map { index in
-            record(index % 5, statuses[index % statuses.count], hoursAgo: Double(index) * 5.5 + 1,
-                   files: 40 + index * 13, bytes: Int64(index + 1) * 98_765_432,
-                   errors: statuses[index % statuses.count] == .failed ? 3 : 0,
-                   message: statuses[index % statuses.count] == .failed ? "rsync : disque plein (code 11)" : nil)
+        var records: [RunRecord] = []
+        // Découpé en étapes : Swift 5.10 ne sait pas typer l'expression d'un seul tenant en un temps raisonnable.
+        for index in 0..<30 {
+            let status = statuses[index % statuses.count]
+            let failed = status == .failed
+            let hoursAgo = Double(index) * 5.5 + 1
+            let files = 40 + index * 13
+            let bytes = Int64(index + 1) * 98_765_432
+            let errors = failed ? 3 : 0
+            let message: String? = failed ? "rsync : disque plein (code 11)" : nil
+            records.append(record(index % 5, status, hoursAgo: hoursAgo, files: files, bytes: bytes, errors: errors, message: message))
         }
+        return records
     }
 }
