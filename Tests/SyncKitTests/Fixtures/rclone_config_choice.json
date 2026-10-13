@@ -1,0 +1,236 @@
+{
+	"State": "*all-set,0,false",
+	"Option": {
+		"Name": "provider",
+		"FieldName": "",
+		"Help": "Choose your S3 provider.",
+		"Default": "",
+		"Value": null,
+		"Examples": [
+			{
+				"Value": "AWS",
+				"Help": "Amazon Web Services (AWS) S3"
+			},
+			{
+				"Value": "Alibaba",
+				"Help": "Alibaba Cloud Object Storage System (OSS) formerly Aliyun"
+			},
+			{
+				"Value": "ArvanCloud",
+				"Help": "Arvan Cloud Object Storage (AOS)"
+			},
+			{
+				"Value": "BizflyCloud",
+				"Help": "Bizfly Cloud Simple Storage"
+			},
+			{
+				"Value": "Ceph",
+				"Help": "Ceph Object Storage"
+			},
+			{
+				"Value": "ChinaMobile",
+				"Help": "China Mobile Ecloud Elastic Object Storage (EOS)"
+			},
+			{
+				"Value": "Cloudflare",
+				"Help": "Cloudflare R2 Storage"
+			},
+			{
+				"Value": "Cubbit",
+				"Help": "Cubbit DS3 Object Storage"
+			},
+			{
+				"Value": "DigitalOcean",
+				"Help": "DigitalOcean Spaces"
+			},
+			{
+				"Value": "Dreamhost",
+				"Help": "Dreamhost DreamObjects"
+			},
+			{
+				"Value": "Exaba",
+				"Help": "Exaba Object Storage"
+			},
+			{
+				"Value": "Fastly",
+				"Help": "Fastly Object Storage"
+			},
+			{
+				"Value": "FileLu",
+				"Help": "FileLu S5 (S3-Compatible Object Storage)"
+			},
+			{
+				"Value": "FlashBlade",
+				"Help": "Pure Storage FlashBlade Object Storage"
+			},
+			{
+				"Value": "GCS",
+				"Help": "Google Cloud Storage"
+			},
+			{
+				"Value": "HCP",
+				"Help": "Hitachi Content Platform (HCP)"
+			},
+			{
+				"Value": "Hetzner",
+				"Help": "Hetzner Object Storage"
+			},
+			{
+				"Value": "HuaweiOBS",
+				"Help": "Huawei Object Storage Service"
+			},
+			{
+				"Value": "IBMCOS",
+				"Help": "IBM COS S3"
+			},
+			{
+				"Value": "IDrive",
+				"Help": "IDrive e2"
+			},
+			{
+				"Value": "ImpossibleCloud",
+				"Help": "Impossible Cloud Object Storage"
+			},
+			{
+				"Value": "Intercolo",
+				"Help": "Intercolo Object Storage"
+			},
+			{
+				"Value": "IONOS",
+				"Help": "IONOS Cloud"
+			},
+			{
+				"Value": "Leviia",
+				"Help": "Leviia Object Storage"
+			},
+			{
+				"Value": "Liara",
+				"Help": "Liara Object Storage"
+			},
+			{
+				"Value": "Linode",
+				"Help": "Linode Object Storage"
+			},
+			{
+				"Value": "LyveCloud",
+				"Help": "Seagate Lyve Cloud"
+			},
+			{
+				"Value": "Magalu",
+				"Help": "Magalu Object Storage"
+			},
+			{
+				"Value": "Mega",
+				"Help": "MEGA S4 Object Storage"
+			},
+			{
+				"Value": "Minio",
+				"Help": "Minio Object Storage"
+			},
+			{
+				"Value": "Netease",
+				"Help": "Netease Object Storage (NOS)"
+			},
+			{
+				"Value": "Outscale",
+				"Help": "OUTSCALE Object Storage (OOS)"
+			},
+			{
+				"Value": "OVHcloud",
+				"Help": "OVHcloud Object Storage"
+			},
+			{
+				"Value": "Petabox",
+				"Help": "Petabox Object Storage"
+			},
+			{
+				"Value": "Qiniu",
+				"Help": "Qiniu Object Storage (Kodo)"
+			},
+			{
+				"Value": "Rabata",
+				"Help": "Rabata Cloud Storage"
+			},
+			{
+				"Value": "RackCorp",
+				"Help": "RackCorp Object Storage"
+			},
+			{
+				"Value": "Rclone",
+				"Help": "Rclone S3 Server"
+			},
+			{
+				"Value": "Scaleway",
+				"Help": "Scaleway Object Storage"
+			},
+			{
+				"Value": "Scality",
+				"Help": "Scality (RING / ARTESCA)"
+			},
+			{
+				"Value": "SeaweedFS",
+				"Help": "SeaweedFS S3"
+			},
+			{
+				"Value": "Selectel",
+				"Help": "Selectel Object Storage"
+			},
+			{
+				"Value": "Servercore",
+				"Help": "Servercore Object Storage"
+			},
+			{
+				"Value": "SpectraLogic",
+				"Help": "Spectra Logic Black Pearl"
+			},
+			{
+				"Value": "Storj",
+				"Help": "Storj (S3 Compatible Gateway)"
+			},
+			{
+				"Value": "Synology",
+				"Help": "Synology C2 Object Storage"
+			},
+			{
+				"Value": "TencentCOS",
+				"Help": "Tencent Cloud Object Storage (COS)"
+			},
+			{
+				"Value": "US3",
+				"Help": "US3 Object Storage"
+			},
+			{
+				"Value": "Wasabi",
+				"Help": "Wasabi Object Storage"
+			},
+			{
+				"Value": "Zadara",
+				"Help": "Zadara Object Storage"
+			},
+			{
+				"Value": "Zata",
+				"Help": "Zata (S3 compatible Gateway)"
+			},
+			{
+				"Value": "ZeroServices",
+				"Help": "Zero Services GmbH (ZERO-Z3)"
+			},
+			{
+				"Value": "Other",
+				"Help": "Any other S3 compatible provider"
+			}
+		],
+		"Hide": 0,
+		"Required": false,
+		"IsPassword": false,
+		"NoPrefix": false,
+		"Advanced": false,
+		"Exclusive": false,
+		"Sensitive": false,
+		"DefaultStr": "",
+		"ValueStr": "",
+		"Type": "string"
+	},
+	"Error": "",
+	"Result": ""
+}
