@@ -6,6 +6,9 @@ extension AgentCore {
     public func saveTask(_ task: SyncTask) throws {
         if let problem = TaskValidator.problems(in: task).first { throw AgentError.invalidTask(problem.message) }
         do { try taskStore.upsert(task) } catch { throw AgentError.internalFailure("tasks.json non enregistré : \(error)") }
+        // Une tâche modifiée doit être replanifiée : une validation de suppressions ne vaut que pour l'ancienne version.
+        state.tasks[task.id.uuidString]?.awaitingApproval = false
+        queue.removeAll { $0.id == task.id && $0.overrideGuard }
         loadTasks()
         persist()
         emit(.stateChanged)

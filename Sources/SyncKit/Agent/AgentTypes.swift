@@ -43,6 +43,7 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case internalFailure(String)
     case invalidTask(String)
     case unknownRun
+    case tooManySimulations
 
     public var errorDescription: String? {
         switch self {
@@ -56,6 +57,7 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .internalFailure(let message): return "Erreur interne de l'agent : \(message)"
         case .invalidTask(let reason): return reason
         case .unknownRun: return "Exécution inconnue."
+        case .tooManySimulations: return "Deux simulations sont déjà en cours : attendez qu'elles se terminent."
         }
     }
 }

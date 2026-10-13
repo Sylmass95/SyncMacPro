@@ -303,7 +303,13 @@ public final class AgentModel {
     }
 
     public func simulate(_ task: SyncTask) async -> SimulationOutcome {
-        do { return .finished(try await agent.simulate(task)) } catch { return .failed(Self.describe(error)) }
+        do {
+            return .finished(try await agent.simulate(task))
+        } catch {
+            // Délai dépassé : l'agent simule peut-être encore ; on lui demande d'arrêter.
+            if case .unreachable? = error as? AgentClientError { try? await agent.perform(.cancelSimulation(task.id)) }
+            return .failed(Self.describe(error))
+        }
     }
 
     public func cancelSimulation(_ id: UUID) async {

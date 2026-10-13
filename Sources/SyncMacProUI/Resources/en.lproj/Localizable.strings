@@ -278,3 +278,5 @@
 "log.truncated" = "Beginning of the log not shown (too long).";
 "log.none" = "No log for this run.";
 "log.loading" = "Loading the log…";
+"problem.relativePath" = "Paths must be complete (start with /).";
+"problem.invalidArchiveFolder" = "The archive folder must be a plain name, without “/” or “..”.";

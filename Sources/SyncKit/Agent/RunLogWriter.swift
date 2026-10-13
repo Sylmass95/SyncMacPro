@@ -10,6 +10,8 @@ public final class RunLogWriter: @unchecked Sendable {
     private let now: @Sendable () -> Date
     private var written = 0
     private var truncated = false
+    private var closed = false
+    private var failed = false
 
     public init(url: URL, limit: Int = RunLogWriter.defaultLimit, now: @escaping @Sendable () -> Date = { Date() }) {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -19,28 +21,49 @@ public final class RunLogWriter: @unchecked Sendable {
         self.now = now
     }
 
-    public func append(_ line: String) {
-        write("[\(Self.clock(now()))] \(line)\n")
+    /// `force` : écrit même au-delà du plafond (la ligne de fin doit toujours y être).
+    /// Les lignes de progression du moteur sont ignorées : elles rempliraient le journal sans rien apprendre.
+    public func append(_ line: String, force: Bool = false) {
+        if !force && Self.isProgress(line) { return }
+        write("[\(Self.clock(now()))] \(line)\n", force: force)
     }
 
     public func close() {
         lock.lock()
         defer { lock.unlock() }
+        guard !closed else { return }
+        closed = true
         try? handle?.close()
     }
 
-    private func write(_ text: String) {
+    private func write(_ text: String, force: Bool) {
         lock.lock()
         defer { lock.unlock() }
-        guard let handle, !truncated else { return }
+        guard let handle, !closed, !failed else { return }
         let data = Data(text.utf8)
-        if written + data.count > limit {
-            truncated = true
-            handle.write(Data("… journal tronqué (limite de \(limit) octets atteinte)\n".utf8))
-            return
+        if !force {
+            if truncated { return }
+            if written + data.count > limit {
+                truncated = true
+                put(Data("… journal tronqué (limite de \(limit) octets atteinte)\n".utf8), into: handle)
+                return
+            }
         }
-        handle.write(data)
+        put(data, into: handle)
         written += data.count
+    }
+
+    /// `write(contentsOf:)` lève une erreur Swift (disque plein…) : l'ancienne API lèverait une exception
+    /// Objective-C impossible à rattraper, qui tuerait l'agent et ses copies.
+    private func put(_ data: Data, into handle: FileHandle) {
+        do { try handle.write(contentsOf: data) } catch { failed = true }
+    }
+
+    /// Ligne de progression de rsync (« 3,145,728  42%  12.50MB/s  0:00:03 ») ou statistiques JSON de rclone.
+    static func isProgress(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.contains("\"stats\"") { return true }
+        return trimmed.range(of: #"^[\d,.]+\s+\d{1,3}%\s"#, options: .regularExpression) != nil
     }
 
     static func clock(_ date: Date) -> String {

@@ -9,9 +9,9 @@ extension TaskProblem {
     /// L'étape de l'éditeur où l'utilisateur corrige ce problème.
     public var step: EditorStep {
         switch self {
-        case .missingSource, .missingDestination, .sameSourceAndDestination, .nestedFolders: return .endpoints
+        case .missingSource, .missingDestination, .sameSourceAndDestination, .nestedFolders, .relativePath: return .endpoints
         case .engineMismatch: return .mode
-        case .invalidThreshold: return .options
+        case .invalidThreshold, .invalidArchiveFolder: return .options
         case .invalidSchedule: return .schedule
         case .emptyName: return .summary
         }
@@ -45,7 +45,9 @@ public struct SideDraft: Equatable, Sendable {
     func endpoint(_ resolver: EndpointResolver) -> Endpoint {
         let path = self.path.trimmingCharacters(in: .whitespaces)
         switch kind {
-        case .folder: return path.isEmpty ? .local(path: "") : resolver.endpoint(forPath: path)
+        case .folder:
+            // « ~/Photos » saisi à la main : l'agent ne connaît pas « ~ ».
+            return path.isEmpty ? .local(path: "") : resolver.endpoint(forPath: (path as NSString).expandingTildeInPath)
         case .cloud: return .cloud(remote: remote.trimmingCharacters(in: .whitespaces), path: path)
         }
     }
@@ -180,6 +182,13 @@ public struct TaskDraft: Equatable, Sendable {
             mode: mode, options: options, schedule: scheduleDraft.schedule, notifications: notifications,
             conditions: conditions, isEnabled: isEnabled
         )
+    }
+
+    /// Ce qui distingue deux exécutions : la tâche sans son nom (un renommage ne périme pas une simulation).
+    public func simulationKey(resolver: EndpointResolver = .system) -> SyncTask {
+        var key = task(resolver: resolver)
+        key.name = ""
+        return key
     }
 
     public func problems(resolver: EndpointResolver = .system) -> [TaskProblem] {

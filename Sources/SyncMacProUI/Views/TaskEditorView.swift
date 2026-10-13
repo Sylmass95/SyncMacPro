@@ -14,6 +14,8 @@ public struct TaskEditorView: View {
     @State private var simulation: SimulationState = .idle
     @State private var saveError: String?
     @State private var saving = false
+    /// La version du brouillon simulée : un résultat ne vaut que pour elle.
+    @State private var simulatedKey: SyncTask?
 
     public init(
         model: AgentModel, draft: TaskDraft, isNew: Bool, localizer: Localizer = .system,
@@ -49,10 +51,16 @@ public struct TaskEditorView: View {
         }
         .frame(width: 740, height: 620)
         .onChange(of: draft) { _, _ in
-            // Une simulation ne vaut que pour la version simulée.
-            if case .finished = simulation { simulation = .idle }
+            // Une simulation ne vaut que pour la version simulée (un renommage ne compte pas).
+            if let key = simulatedKey, draft.simulationKey(resolver: resolver) != key {
+                cancelRunningSimulation()
+                simulation = .idle
+                simulatedKey = nil
+            }
             saveError = nil
         }
+        // Fermer l'éditeur (Annuler, Échap, enregistrement) arrête la simulation en cours.
+        .onDisappear { cancelRunningSimulation() }
     }
 
     private var header: some View {
@@ -125,8 +133,18 @@ public struct TaskEditorView: View {
     }
 
     private func simulate() async {
+        let key = draft.simulationKey(resolver: resolver)
+        simulatedKey = key
         simulation = .running
         let outcome = await model.simulate(draft.task(resolver: resolver))
+        // Le brouillon a changé pendant la simulation : ce résultat ne le décrit plus.
+        guard draft.simulationKey(resolver: resolver) == key else { return }
         simulation = .finished(outcome)
+    }
+
+    private func cancelRunningSimulation() {
+        guard case .running = simulation else { return }
+        let id = draft.id
+        Task { await model.cancelSimulation(id) }
     }
 }

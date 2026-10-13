@@ -12,6 +12,10 @@ public enum TaskProblem: String, Codable, CaseIterable, Equatable, Sendable {
     case engineMismatch
     case invalidThreshold
     case invalidSchedule
+    /// Un chemin doit être complet (commencer par « / »).
+    case relativePath
+    /// Le dossier d'archive doit être un simple nom, dans la destination.
+    case invalidArchiveFolder
 
     public var message: String {
         switch self {
@@ -23,6 +27,8 @@ public enum TaskProblem: String, Codable, CaseIterable, Equatable, Sendable {
         case .engineMismatch: return "Le moteur choisi ne sait pas faire ce mode."
         case .invalidThreshold: return "Le seuil de suppression doit être compris entre 1 et 100 %."
         case .invalidSchedule: return "La planification est incomplète (heure, jours ou intervalle)."
+        case .relativePath: return "Les chemins doivent être complets (commencer par /)."
+        case .invalidArchiveFolder: return "Le dossier d'archive doit être un simple nom, sans « / » ni « .. »."
         }
     }
 }
@@ -37,16 +43,24 @@ public enum TaskValidator {
         if sourceMissing { found.append(.missingSource) }
         if destinationMissing { found.append(.missingDestination) }
         if !sourceMissing && !destinationMissing {
-            let source = key(task.source), destination = key(task.destination)
-            if source == destination {
-                found.append(.sameSourceAndDestination)
-            } else if task.source.isCloud == task.destination.isCloud,
-                      source.hasPrefix(destination + "/") || destination.hasPrefix(source + "/") {
-                found.append(.nestedFolders)
+            if isRelative(task.source) || isRelative(task.destination) {
+                found.append(.relativePath)
+            } else {
+                let source = location(task.source), destination = location(task.destination)
+                if source.namespace == destination.namespace {
+                    if source.parts == destination.parts {
+                        found.append(.sameSourceAndDestination)
+                    } else if source.parts.starts(with: destination.parts) || destination.parts.starts(with: source.parts) {
+                        found.append(.nestedFolders)
+                    }
+                }
             }
         }
         if (try? EngineSelector.engine(for: task)) == nil { found.append(.engineMismatch) }
         if !(1...100).contains(task.options.deleteThresholdPercent) { found.append(.invalidThreshold) }
+        if (task.mode == .mirror || task.mode == .versioned) && !isValidArchiveFolder(task.options.archiveFolder) {
+            found.append(.invalidArchiveFolder)
+        }
         if !isValid(task.schedule) { found.append(.invalidSchedule) }
         return found
     }
@@ -59,16 +73,53 @@ public enum TaskValidator {
         }
     }
 
-    /// Forme comparable : chemin normalisé sans « / » final, ou « remote:chemin ».
-    static func key(_ endpoint: Endpoint) -> String {
+    static func isRelative(_ endpoint: Endpoint) -> Bool {
+        guard let path = endpoint.filesystemPath else { return false }
+        return !path.trimmingCharacters(in: .whitespaces).hasPrefix("/")
+    }
+
+    /// Où se trouve un côté : l'espace (disques du Mac, ou un service en ligne) et le chemin découpé.
+    struct Location: Equatable {
+        let namespace: String
+        let parts: [String]
+    }
+
+    /// Chemin normalisé, liens symboliques résolus (« /tmp » est « /private/tmp »), sans tenir compte de la casse :
+    /// APFS ne la distingue pas par défaut (au pire, un refus de trop sur un volume sensible à la casse).
+    /// La racine « / » donne une liste vide : elle contient tout.
+    static func location(_ endpoint: Endpoint) -> Location {
         if let path = endpoint.filesystemPath {
-            var standardized = URL(fileURLWithPath: path).standardizedFileURL.path
-            while standardized.count > 1 && standardized.hasSuffix("/") { standardized.removeLast() }
-            return standardized
+            let resolved = canonicalPath(path.trimmingCharacters(in: .whitespaces))
+            return Location(namespace: "", parts: resolved.lowercased().split(separator: "/").map(String.init))
         }
-        var spec = endpoint.rcloneSpec
-        while spec.hasSuffix("/") { spec.removeLast() }
-        return spec
+        if case .cloud(let remote, let path) = endpoint {
+            let parts = path.split(separator: "/").map(String.init).filter { !$0.isEmpty }
+            return Location(namespace: "cloud:" + remote.trimmingCharacters(in: .whitespaces), parts: parts)
+        }
+        return Location(namespace: "", parts: [])
+    }
+
+    /// `realpath` du plus profond dossier existant, puis le reste du chemin : un dossier qui n'existe pas encore
+    /// (destination à créer) est comparé sous la même forme que les autres (« /tmp/a » devient « /private/tmp/a »).
+    static func canonicalPath(_ path: String) -> String {
+        var existing = URL(fileURLWithPath: path).standardizedFileURL.path
+        var rest: [String] = []
+        while existing != "/" && !FileManager.default.fileExists(atPath: existing) {
+            rest.insert((existing as NSString).lastPathComponent, at: 0)
+            existing = (existing as NSString).deletingLastPathComponent
+        }
+        var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let base: String = buffer.withUnsafeMutableBufferPointer { pointer in
+            guard let start = pointer.baseAddress, realpath(existing, start) != nil else { return existing }
+            return String(cString: start)
+        }
+        return rest.isEmpty ? base : (base as NSString).appendingPathComponent(rest.joined(separator: "/"))
+    }
+
+    /// Un simple nom : sinon l'archive sortirait de la destination, ou ne protégerait plus rien (« »).
+    static func isValidArchiveFolder(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return !trimmed.isEmpty && trimmed != "." && trimmed != ".." && !trimmed.contains("/")
     }
 
     static func isValid(_ schedule: Schedule) -> Bool {

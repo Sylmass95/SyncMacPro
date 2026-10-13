@@ -334,7 +334,7 @@ public actor AgentCore {
         job.record.summary = summary
         job.record.finishedAt = now
         try? history.save(job.record)
-        job.logWriter?.append("Fin : \(status.rawValue)" + (summary.message.map { " — \($0)" } ?? ""))
+        job.logWriter?.append("Fin : \(status.rawValue)" + (summary.message.map { " — \($0)" } ?? ""), force: true)
         job.logWriter?.close()
 
         let key = id.uuidString
