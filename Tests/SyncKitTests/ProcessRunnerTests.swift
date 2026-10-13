@@ -141,9 +141,40 @@ final class ProcessRunnerTests: XCTestCase {
 }
 
 final class BinaryLocatorTests: XCTestCase {
-    func testEnvironmentOverrideWins() {
-        let path = BinaryLocator.locate(.rsync, environment: ["SYNCMACPRO_RSYNC": "/bin/ls"])
-        XCTAssertEqual(path, "/bin/ls")
+    func testEnvironmentOverrideWins() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("loc-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let rsync3 = try fakeRsync(in: dir, name: "mon-rsync", version: "rsync  version 3.4.1  protocol version 32")
+        let path = BinaryLocator.locate(.rsync, environment: ["SYNCMACPRO_RSYNC": rsync3], searchDirectories: [])
+        XCTAssertEqual(path, rsync3)
+    }
+
+    /// L'outil rsync de macOS est openrsync : ses sorties et ses options diffèrent (simulation fausse, miroir en échec).
+    func testOpenrsyncIsSkippedForTheNextCandidate() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("loc-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let openrsync = try fakeRsync(in: dir.appendingPathComponent("a"), name: "rsync", version: "openrsync: protocol version 29")
+        let rsync3 = try fakeRsync(in: dir.appendingPathComponent("b"), name: "rsync", version: "rsync  version 3.4.1  protocol version 32")
+        XCTAssertEqual(BinaryLocator.locate(.rsync, environment: ["SYNCMACPRO_RSYNC": openrsync], searchDirectories: []), nil)
+        XCTAssertEqual(
+            BinaryLocator.locate(.rsync, environment: [:], searchDirectories: [dir.appendingPathComponent("a").path, dir.appendingPathComponent("b").path]),
+            rsync3
+        )
+    }
+
+    func testMissingRsyncIsExplainedInFrench() {
+        let message = RunnerError.binaryMissing(.rsync).errorDescription ?? ""
+        XCTAssertTrue(message.contains("rsync 3"), message)
+        XCTAssertTrue(message.contains("brew install rsync"), message)
+        XCTAssertTrue((RunnerError.binaryMissing(.rclone).errorDescription ?? "").contains("rclone"))
+    }
+
+    func fakeRsync(in dir: URL, name: String, version: String) throws -> String {
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent(name)
+        try "#!/bin/sh\necho '\(version)'\n".write(to: url, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        return url.path
     }
 
     func testBundleDirectoryIsUsed() throws {
