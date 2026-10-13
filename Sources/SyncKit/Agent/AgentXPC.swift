@@ -217,7 +217,7 @@ public final class AgentClient: @unchecked Sendable {
     }
 
     public func testRemote(_ name: String) async throws -> RemoteTestResult {
-        guard case .remoteTest(let result) = try await send(.testRemote(name), timeout: 60) else { throw AgentClientError.badReply }
+        guard case .remoteTest(let result) = try await send(.testRemote(name), timeout: 90) else { throw AgentClientError.badReply }
         return result
     }
 
