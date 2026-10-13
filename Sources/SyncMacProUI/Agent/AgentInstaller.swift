@@ -70,14 +70,45 @@ public final class AgentInstaller {
         if state == .requiresApproval { service.openSystemSettings() }
     }
 
+    public typealias Pause = @Sendable (UInt64) async -> Void
+    public nonisolated static let realPause: Pause = { try? await Task.sleep(nanoseconds: $0) }
+    @ObservationIgnored private var repaired = false
+
     /// Après une mise à jour (app remplacée), launchd refuse de lancer l'agent enregistré avec l'ancienne signature ad hoc
-    /// (code 78) : on le désenregistre puis on le réenregistre. Rien si l'agent n'est pas installé ou hors bundle (« dev »).
-    public func reRegisterAfterUpdate(currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard) {
+    /// (code 78, ou OS_REASON_CODESIGNING) : on le désenregistre, on attend que macOS l'ait retiré, puis on le réenregistre.
+    /// Rien si l'agent n'est pas installé ou hors bundle (« dev »).
+    public func reRegisterAfterUpdate(
+        currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard, pause: Pause = AgentInstaller.realPause
+    ) async {
         guard currentBuild != "dev", service.status() == .enabled,
               defaults.string(forKey: Self.registeredBuildKey) != currentBuild else { return }
+        await reRegister(currentBuild: currentBuild, defaults: defaults, pause: pause)
+    }
+
+    /// Un agent déclaré installé qui ne répond jamais : on le réenregistre, une seule fois par lancement.
+    /// Vrai si une réparation a été tentée.
+    @discardableResult
+    public func repairIfStuck(
+        currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard, pause: Pause = AgentInstaller.realPause
+    ) async -> Bool {
+        guard !repaired, currentBuild != "dev", service.status() == .enabled else { return false }
+        repaired = true
+        await reRegister(currentBuild: currentBuild, defaults: defaults, pause: pause)
+        return true
+    }
+
+    private func reRegister(currentBuild: String, defaults: UserDefaults, pause: Pause) async {
         errorMessage = nil
         do {
             try service.unregister()
+            // macOS retire l'agent en différé : on attend (5 s au plus) qu'il ne soit plus déclaré, puis une seconde
+            // pour que launchd décharge l'ancien job. Réenregistrer aussitôt le laissait chargé avec l'ancienne signature.
+            var polls = 0
+            while service.status() == .enabled && polls < 25 {
+                polls += 1
+                await pause(200_000_000)
+            }
+            await pause(1_000_000_000)
             try service.register()
             defaults.set(currentBuild, forKey: Self.registeredBuildKey)
         } catch {
