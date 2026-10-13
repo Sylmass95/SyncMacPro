@@ -28,7 +28,12 @@ public struct TaskSummaryText {
     }
 
     public func sentence(for task: SyncTask) -> String {
-        let source = endpointLabel(task.source), destination = endpointLabel(task.destination)
+        var source = endpointLabel(task.source), destination = endpointLabel(task.destination)
+        // « Rend « Photos » identique à « Photos » » ne dit rien : on montre aussi le dossier parent.
+        if source == destination, let a = parentLabel(task.source), let b = parentLabel(task.destination) {
+            source = a
+            destination = b
+        }
         let when: String
         switch task.schedule {
         case .manual:
@@ -54,6 +59,14 @@ public struct TaskSummaryText {
         case .mirror, .bidirectional, .move: break
         }
         return text
+    }
+
+    /// « NAS/Photos » : les deux derniers dossiers d'un chemin.
+    func parentLabel(_ endpoint: Endpoint) -> String? {
+        guard let path = endpoint.filesystemPath else { return nil }
+        let parts = URL(fileURLWithPath: path).pathComponents.filter { $0 != "/" }
+        guard parts.count >= 2 else { return nil }
+        return parts.suffix(2).joined(separator: "/")
     }
 
     public func warnings(for task: SyncTask) -> [String] {

@@ -82,4 +82,10 @@ final class TaskSummaryTextTests: XCTestCase {
         XCTAssertNotNil(text("fr").modeNote(.versioned))
         XCTAssertNil(text("fr").modeNote(.mirror))
     }
+
+    func testFoldersWithTheSameNameAreShownWithTheirParent() {
+        let same = SyncTask(name: "n", source: .local(path: "/Users/moi/Photos"), destination: .local(path: "/Volumes/NAS/Photos"),
+                            mode: .mirror, schedule: .manual)
+        XCTAssertEqual(text("fr").sentence(for: same), "Rend « NAS/Photos » identique à « moi/Photos », à la demande.")
+    }
 }
