@@ -90,3 +90,9 @@ Nettoyage à la fin : `syncmacpro-ctl agent uninstall`, supprimer `~/Application
 - [ ] Mac Intel (ou Rosetta) : l'app et l'agent démarrent.
 - [ ] Réglages › À propos : version, Vérifier maintenant (« à jour » ou nouvelle version), Licences ouvre le fichier.
 - [ ] Une publication plus récente sur GitHub fait apparaître le bandeau au tableau de bord.
+
+## Thème verre (1.1)
+- [ ] Réglages › Apparence › Style : passer de « Verre intense » à « Verre léger » s'applique tout de suite à la fenêtre et aux feuilles ouvertes ensuite.
+- [ ] Clair, sombre et automatique : textes lisibles partout (tableau de bord, éditeur, historique, copie, connexions, réglages).
+- [ ] Réglages Système › Accessibilité › Affichage › « Réduire la transparence » : panneaux opaques, sans halo.
+- [ ] Barre de menus : barres de progression du même style.

@@ -109,12 +109,14 @@ struct CopyConfirmationView: View {
                     Button(localizer.text("confirm.simulate")) { Task { await simulate() } }.disabled(offline || invalid)
                 }
                 Button(localizer.text("confirm.launch")) { Task { await launch() } }
-                    .keyboardShortcut(.defaultAction)
+                    .keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true))
                     .disabled(offline || launching || invalid)
             }
         }
         .padding(20)
         .frame(width: 540, height: 380)
+        .background(GlassBackdrop())
+        .glassThemed()
         .task { if session.simulateAtOnce && !invalid { await simulate() } }
         .onDisappear { cancelSimulations() }
     }

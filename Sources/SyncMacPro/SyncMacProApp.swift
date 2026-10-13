@@ -42,6 +42,7 @@ struct SyncMacProApp: App {
 
         MenuBarExtra {
             MenuBarContent(model: model, localizer: localizer)
+                .glassThemed()
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
         } label: {
             MenuBarIcon(model: model, localizer: localizer)

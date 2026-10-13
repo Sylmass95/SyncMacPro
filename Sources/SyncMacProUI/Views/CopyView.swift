@@ -61,6 +61,7 @@ struct CopyView: View {
         VStack(spacing: 10) {
             Spacer()
             Button { copy(simulate: false) } label: { Label(localizer.text("copy.action.copy"), systemImage: "arrow.right") }
+                .buttonStyle(GlassButtonStyle(prominent: true))
                 .disabled(selected.isEmpty || offline)
                 .help(localizer.text("copy.action.copy.help"))
             Button { session = CopySession(request: .sync(from: left.folder, to: right.folder), simulateAtOnce: false) } label: {
@@ -81,6 +82,7 @@ struct CopyView: View {
             Spacer()
         }
         .labelStyle(.titleAndIcon)
+        .buttonStyle(GlassButtonStyle(prominent: false))
         .frame(width: 140)
     }
 

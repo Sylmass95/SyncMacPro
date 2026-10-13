@@ -414,3 +414,6 @@
 "onboarding.location.diskImage" = "SyncMacPro est ouverte depuis l’image disque : glissez-la dans le dossier Applications, puis rouvrez-la depuis là.";
 "onboarding.location.translocated" = "macOS a lancé une copie temporaire de SyncMacPro : déplacez l’app dans le dossier Applications (avec le Finder), puis rouvrez-la.";
 "onboarding.location.reveal" = "Afficher dans le Finder";
+"settings.style" = "Style";
+"settings.style.vivid" = "Verre intense";
+"settings.style.soft" = "Verre léger";

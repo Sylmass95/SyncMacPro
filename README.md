@@ -11,6 +11,9 @@ Conception : [`docs/superpowers/specs/2026-10-12-syncmacpro-design.md`](docs/sup
 Les cinq sous-projets sont livrés : cœur (`SyncKit`), agent d'arrière-plan, interface (tableau de bord, tâches, copie
 à deux panneaux, historique, réglages), connexions aux services en ligne et distribution.
 
+L'interface utilise un thème verre (fond coloré, panneaux en verre dépoli) en clair ou en sombre, avec deux styles au
+choix dans Réglages › Apparence : « Verre intense » (par défaut) et « Verre léger ».
+
 ## Installer
 
 1. Téléchargez `SyncMacPro-<version>.dmg` depuis les [publications](https://github.com/Sylmass95/SyncMacPro/releases).

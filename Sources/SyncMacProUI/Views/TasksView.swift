@@ -28,7 +28,7 @@ public struct TasksView: View {
                 Spacer()
                 TemplatesMenu(localizer: localizer) { onEdit(.template($0), true) }
                 Button { onEdit(TaskDraft(), true) } label: { Label(localizer.text("tasks.new"), systemImage: "plus") }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(GlassButtonStyle(prominent: true))
                     .disabled(model.connection != .connected)
             }
             .padding(20)
@@ -48,6 +48,9 @@ public struct TasksView: View {
                         onSelect: { selection = $0 }
                     )
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .glassCard(cornerRadius: 12, dense: true)
+                .padding(12)
             }
         }
         .confirmationDialog(

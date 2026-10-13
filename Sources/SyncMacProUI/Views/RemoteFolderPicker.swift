@@ -97,11 +97,13 @@ struct RemoteFolderPicker: View {
                     let extra = RemotePath.components(newFolder)
                     onChoose(RemotePath.join(RemotePath.components(path) + extra))
                 }
-                .keyboardShortcut(.defaultAction)
+                .keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true))
             }
         }
         .padding(20)
         .frame(width: 520, height: 460)
+        .background(GlassBackdrop())
+        .glassThemed()
         .task(id: path) { listing = nil; listing = await browse(remote, path) }
         .onAppear { path = RemotePath.join(RemotePath.components(startPath)) }
     }

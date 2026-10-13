@@ -61,6 +61,8 @@ public struct TaskEditorView: View {
             footer
         }
         .frame(width: 740, height: 620)
+        .background(GlassBackdrop())
+        .glassThemed()
         .onChange(of: draft) { _, _ in
             // Une simulation ne vaut que pour la version simulée (un renommage ne compte pas).
             if let key = simulatedKey, draft.simulationKey(resolver: resolver) != key {
@@ -119,7 +121,7 @@ public struct TaskEditorView: View {
                 Button(saving ? localizer.text("editor.saving") : localizer.text("editor.save")) {
                     Task { await save() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(GlassButtonStyle(prominent: true))
                 .keyboardShortcut(.defaultAction)
                 .disabled(saving || offline || !draft.problems(resolver: resolver).isEmpty)
             } else {

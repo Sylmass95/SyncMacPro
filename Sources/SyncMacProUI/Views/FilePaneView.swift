@@ -145,10 +145,10 @@ struct FilePaneView: View {
                 .onAppear { width = geometry.size.width }
                 .onChange(of: geometry.size.width) { _, new in width = new }
         })
-        .background(.background)
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(targeted ? Color.accentColor : Color.secondary.opacity(0.25),
+        .glassCard(cornerRadius: 10, dense: true)
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(targeted ? Color.accentColor : Color.secondary.opacity(0.25),
                                                                 lineWidth: targeted ? 2 : 1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private var header: some View {

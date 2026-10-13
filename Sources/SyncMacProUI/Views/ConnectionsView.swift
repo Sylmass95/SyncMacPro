@@ -72,7 +72,7 @@ struct ConnectionsListBody: View {
         }
         .controlSize(.small)
         .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassCard(cornerRadius: 14)
         .accessibilityElement(children: .contain)
     }
 
