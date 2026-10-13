@@ -57,10 +57,31 @@ public final class AgentInstaller {
 
     public func refresh() { state = service.status() }
 
-    public func install() {
+    /// Version de l'app qui a enregistré l'agent (clé de `UserDefaults`).
+    public static let registeredBuildKey = "agentRegisteredBuild"
+
+    public func install(currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard) {
         errorMessage = nil
         if service.status() != .enabled {
             do { try service.register() } catch { errorMessage = Self.describe(error) }
+        }
+        refresh()
+        if state == .enabled { defaults.set(currentBuild, forKey: Self.registeredBuildKey) }
+        if state == .requiresApproval { service.openSystemSettings() }
+    }
+
+    /// Après une mise à jour (app remplacée), launchd refuse de lancer l'agent enregistré avec l'ancienne signature ad hoc
+    /// (code 78) : on le désenregistre puis on le réenregistre. Rien si l'agent n'est pas installé ou hors bundle (« dev »).
+    public func reRegisterAfterUpdate(currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard) {
+        guard currentBuild != "dev", service.status() == .enabled,
+              defaults.string(forKey: Self.registeredBuildKey) != currentBuild else { return }
+        errorMessage = nil
+        do {
+            try service.unregister()
+            try service.register()
+            defaults.set(currentBuild, forKey: Self.registeredBuildKey)
+        } catch {
+            errorMessage = Self.describe(error)
         }
         refresh()
         if state == .requiresApproval { service.openSystemSettings() }
