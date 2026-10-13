@@ -6,6 +6,12 @@ import SyncMacProUI
 /// Fermer la dernière fenêtre ne quitte pas l'app : elle reste dans la barre de menus. Quitter n'arrête pas l'agent.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// Dock, Finder, `open` : sans fenêtre visible, on rouvre la fenêtre principale.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        WindowReopener.shared.handleReopen(hasVisibleWindows: flag)
+        return true
+    }
 }
 
 @main
@@ -54,8 +60,10 @@ struct SyncMacProApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView(installer: installer, loginItem: loginItem, localizer: localizer)
+            SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
                 .frame(width: 520, height: 520)
+                .background(GlassBackdrop())
+                .glassThemed()
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
         }
     }
@@ -64,6 +72,7 @@ struct SyncMacProApp: App {
 /// L'icône reflète l'état en direct, même fenêtre fermée.
 @MainActor
 private struct MenuBarIcon: View {
+    @Environment(\.openWindow) private var openWindow
     let model: AgentModel
     let localizer: Localizer
 
@@ -72,6 +81,14 @@ private struct MenuBarIcon: View {
             state: MenuBarState.make(connection: model.connection, status: model.status, progress: model.progress),
             localizer: localizer
         )
+        // L'icône est toujours là : c'est elle qui sait rouvrir la fenêtre quand on relance l'app.
+        .onAppear {
+            let open = openWindow
+            WindowReopener.shared.register {
+                open(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
     }
 }
 

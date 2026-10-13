@@ -69,7 +69,7 @@ struct DashboardBody: View {
                     Text(l.text("dashboard.pause.on")).font(.caption.bold()).foregroundStyle(.orange)
                 }
                 Text(l.text("dashboard.pause.help"))
-                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+                    .font(.caption).foregroundStyle(.primary.opacity(0.7)).multilineTextAlignment(.trailing)
             }
             .frame(maxWidth: 260, alignment: .trailing)
         }

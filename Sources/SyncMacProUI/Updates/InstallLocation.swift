@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public enum InstallLocationProblem: Equatable, Sendable {
     /// Gatekeeper a lancé une copie temporaire : l'agent installé disparaîtrait avec elle.
@@ -21,5 +22,19 @@ public enum InstallLocation {
 
     public static func isReadOnlyVolume(_ path: String) -> Bool {
         (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.volumeIsReadOnlyKey]).volumeIsReadOnly) ?? false
+    }
+}
+
+extension InstallLocation {
+    /// L'emplacement d'origine d'une app translocalisée (le fichier que l'utilisateur doit déplacer), sinon `nil`.
+    /// `SecTranslocateCreateOriginalPathForURL` existe dans Security depuis macOS 10.12 sans être dans le SDK public.
+    public static func originalURL(ofTranslocated url: URL) -> URL? {
+        guard url.path.contains("/AppTranslocation/"),
+              let handle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY),
+              let symbol = dlsym(handle, "SecTranslocateCreateOriginalPathForURL")
+        else { return nil }
+        typealias Function = @convention(c) (CFURL, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFURL>?
+        let original = unsafeBitCast(symbol, to: Function.self)
+        return original(url as CFURL, nil)?.takeRetainedValue() as URL?
     }
 }

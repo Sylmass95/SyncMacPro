@@ -17,6 +17,7 @@ for exe in "$APP"/Contents/MacOS/* "$APP"/Contents/Resources/bin/*; do
   lipo "$exe" -verify_arch arm64 x86_64 || { echo "$exe n'est pas universel" >&2; exit 1; }
 done
 codesign --verify --deep --strict "$APP"
+cp .build/vendor/src/rsync-*.tar.gz "$OUT/"   # source de rsync (GPL), publiée avec le DMG
 ln -s /Applications "$OUT/stage/Applications"
 cp scripts/dmg-readme.txt "$OUT/stage/Lisez-moi - Read me.txt"
 hdiutil create -volname "SyncMacPro $VERSION" -srcfolder "$OUT/stage" -ov -format UDZO "$DMG" >/dev/null

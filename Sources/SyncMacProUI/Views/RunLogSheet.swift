@@ -15,7 +15,8 @@ struct RunLogSheet: View {
             Text(localizer.format("log.title", record.taskName)).font(.headline)
             ScrollView { RunLogContent(outcome: outcome, localizer: localizer) }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .glassCard(cornerRadius: 10, dense: true)
             HStack {
                 Button(localizer.text("log.copy")) {
                     if case .loaded(let log) = outcome {

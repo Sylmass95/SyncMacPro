@@ -124,6 +124,52 @@ final class RcloneRunnerTests: IntegrationTestCase {
 
     // MARK: bisync
 
+    // Essai réel 1.1.1 : rclone nomme son verrou d'après les deux chemins ; au-delà de 255 caractères, bisync échouait.
+    // Relecture 1.2.0 : une simulation (ou un premier essai raté) ne doit pas faire croire que l'état est migré.
+    func testOldBisyncStateIsResyncedEvenAfterASimulation() async throws {
+        let one = try folder("one"), two = try folder("two")
+        for index in 1...8 { try write("\(one)/f\(index).txt", "x") }
+        let runner = try makeRunner(rclone: true)
+        let sync = rcloneTask(one, two, mode: .bidirectional)
+        // Des listes d'avant 1.2.0 (nommées d'après les chemins réels) restent dans le dossier d'état.
+        let state = sandbox.appendingPathComponent("work/bisync/\(sync.id.uuidString)")
+        try FileManager.default.createDirectory(at: state, withIntermediateDirectories: true)
+        try "ancienne".write(to: state.appendingPathComponent("vieux..chemins.path1.lst"), atomically: true, encoding: .utf8)
+        _ = try await runner.run(sync, dryRun: true, onUpdate: { _ in })
+        let real = try await runner.run(sync)
+        XCTAssertEqual(real.status, .succeeded, real.summary.message ?? "")
+        XCTAssertEqual(names(in: two).filter { $0.hasPrefix("f") }.count, 8)
+    }
+
+    func testBisyncLinksAreKeptWhenUnchanged() throws {
+        let one = try folder("one"), two = try folder("two")
+        let sync = rcloneTask(one, two, mode: .bidirectional)
+        let work = sandbox.appendingPathComponent("work")
+        let first = try TaskRunner.bisyncLinks(for: sync, in: work)
+        let created = try FileManager.default.attributesOfItem(atPath: try XCTUnwrap(first.0))[.creationDate] as? Date
+        Thread.sleep(forTimeInterval: 1.1)
+        _ = try TaskRunner.bisyncLinks(for: sync, in: work)
+        let again = try FileManager.default.attributesOfItem(atPath: try XCTUnwrap(first.0))[.creationDate] as? Date
+        XCTAssertEqual(created, again, "un lien qui pointe déjà au bon endroit n'est pas recréé")
+        XCTAssertTrue(try XCTUnwrap(first.0).contains("/bl/\(sync.id.uuidString.prefix(12))/"))
+    }
+
+    func testBisyncWorksWithLongPaths() async throws {
+        let long = String(repeating: "dossier-au-nom-tres-long-", count: 6)    // 150 caractères par niveau
+        let one = try folder("\(long)/un/\(long)"), two = try folder("\(long)/deux/\(long)")
+        XCTAssertGreaterThan(one.count + two.count, 400)
+        for index in 1...8 { try write("\(one)/f\(index).txt", "x") }
+        let runner = try makeRunner(rclone: true)
+        let sync = rcloneTask(one, two, mode: .bidirectional)
+        let first = try await runner.run(sync)
+        XCTAssertEqual(first.status, .succeeded, first.summary.message ?? "")
+        try write("\(two)/nouveau.txt", "depuis deux")
+        let second = try await runner.run(sync)
+        XCTAssertEqual(second.status, .succeeded, second.summary.message ?? "")
+        XCTAssertEqual(read("\(one)/nouveau.txt"), "depuis deux")
+        XCTAssertFalse((second.summary.message ?? "").contains("\u{1B}["), "pas de codes couleur dans les messages")
+    }
+
     func testBisyncInitializesThenPropagatesChangesAndDeletions() async throws {
         let one = try folder("one"), two = try folder("two")
         try write("\(one)/a.txt", "from-one")

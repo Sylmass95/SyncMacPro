@@ -45,7 +45,9 @@ final class AgentRemotesTests: XCTestCase {
         let core = h.makeCore(remotes: remotes)
         _ = try await core.configureRemote(.start(name: "Dropbox", type: "dropbox", parameters: [:]))
         await core.cancelRemoteConfiguration("Dropbox")
-        XCTAssertEqual(remotes.cancelled.get(), ["Dropbox"])
+        // Aucune étape ne tourne (on attend la réponse à une question) : rien à arrêter côté rclone (1.2.0),
+        // mais la connexion à moitié créée est supprimée.
+        XCTAssertTrue(remotes.cancelled.get().isEmpty)
         XCTAssertEqual(remotes.deleted.get(), ["Dropbox"])
         // Une reconnexion annulée ne supprime pas la connexion existante.
         remotes.outcomes.set([.success(.question(RemoteQuestion(state: "s", option: "config_is_local")))])

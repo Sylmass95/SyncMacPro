@@ -37,11 +37,15 @@ public struct RemoteQuestion: Codable, Equatable, Sendable {
     public var exclusive: Bool
     public var required: Bool
     public var isPassword: Bool
+    /// rclone a refusé la réponse précédente et repose la question avec ce message.
+    public var error: String?
 
     public init(
         state: String, option: String, help: String = "", kind: String = "string", defaultValue: String = "",
-        choices: [RemoteChoice] = [], exclusive: Bool = false, required: Bool = false, isPassword: Bool = false
+        choices: [RemoteChoice] = [], exclusive: Bool = false, required: Bool = false, isPassword: Bool = false,
+        error: String? = nil
     ) {
+        self.error = error
         self.state = state
         self.option = option
         self.help = help
@@ -129,15 +133,19 @@ public enum RcloneConfigReply {
 
     public static func outcome(from data: Data) throws -> RemoteConfigOutcome {
         guard let reply = try? JSONDecoder().decode(Reply.self, from: data) else { throw RemoteConfigError.unreadable }
-        if let error = reply.Error, !error.isEmpty { throw RemoteConfigError.rclone(error) }
-        guard let option = reply.Option, let name = option.Name else { return .done }
+        let error = reply.Error.flatMap { $0.isEmpty ? nil : $0 }
+        guard let option = reply.Option, let name = option.Name else {
+            if let error { throw RemoteConfigError.rclone(error) }
+            return .done
+        }
         return .question(RemoteQuestion(
             state: reply.State ?? "", option: name, help: option.Help ?? "", kind: option.Type ?? "string",
             defaultValue: option.DefaultStr ?? "",
             choices: (option.Examples ?? []).compactMap { example in
                 example.Value.map { RemoteChoice(value: $0, help: example.Help ?? "") }
             },
-            exclusive: option.Exclusive ?? false, required: option.Required ?? false, isPassword: option.IsPassword ?? false
+            exclusive: option.Exclusive ?? false, required: option.Required ?? false, isPassword: option.IsPassword ?? false,
+            error: error
         ))
     }
 

@@ -21,26 +21,33 @@ final class PaneModelTests: XCTestCase {
 
     func url(_ name: String) -> URL { root.appendingPathComponent(name) }
 
-    func testOpensAndGoesUp() {
+    func testOpensAndGoesUp() async {
         let pane = PaneModel(folder: root)
+        await pane.settled()
         XCTAssertEqual(pane.items.map(\.name), ["Sub", "a.txt", "b.txt", "c.txt", "d.txt"])
         pane.open(url("Sub"))
+        await pane.settled()
         XCTAssertEqual(pane.items.map(\.name), ["Deep"])
         pane.goUp()
+        await pane.settled()
         XCTAssertEqual(pane.folder.standardizedFileURL.path, root.standardizedFileURL.path)
         XCTAssertNil(pane.problem)
     }
 
-    func testHiddenFilesToggle() {
+    func testHiddenFilesToggle() async {
         let pane = PaneModel(folder: root)
+        await pane.settled()
         pane.showHidden = true
+        await pane.settled()
         XCTAssertTrue(pane.items.contains { $0.name == ".hidden" })
         pane.showHidden = false
+        await pane.settled()
         XCTAssertFalse(pane.items.contains { $0.name == ".hidden" })
     }
 
-    func testClickSelectionWithCommandAndShift() {
+    func testClickSelectionWithCommandAndShift() async {
         let pane = PaneModel(folder: root)
+        await pane.settled()
         pane.click(url("a.txt"), command: false, shift: false)
         XCTAssertEqual(pane.selection, [url("a.txt")])
         pane.click(url("c.txt"), command: true, shift: false)
@@ -55,37 +62,46 @@ final class PaneModelTests: XCTestCase {
         XCTAssertEqual(pane.selectedItems.map(\.name), ["Sub", "a.txt", "b.txt", "c.txt", "d.txt"])
     }
 
-    func testOpeningAFolderClearsTheSelection() {
+    func testOpeningAFolderClearsTheSelection() async {
         let pane = PaneModel(folder: root)
+        await pane.settled()
         pane.click(url("a.txt"), command: false, shift: false)
         pane.open(url("Sub"))
+        await pane.settled()
         XCTAssertTrue(pane.selection.isEmpty)
     }
 
-    func testSelectionKeepsOnlyExistingItemsAfterReload() throws {
+    func testSelectionKeepsOnlyExistingItemsAfterReload() async throws {
         let pane = PaneModel(folder: root)
+        await pane.settled()
         pane.click(url("a.txt"), command: false, shift: false)
         pane.click(url("b.txt"), command: true, shift: false)
         try FileManager.default.removeItem(at: url("a.txt"))
         pane.reload()
+        await pane.settled()
         XCTAssertEqual(pane.selection, [url("b.txt")])
     }
 
-    func testUnreadableFolder() throws {
+    func testUnreadableFolder() async throws {
         let locked = url("Locked")
         try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
         try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: locked.path)
         let pane = PaneModel(folder: root)
+        await pane.settled()
         pane.open(locked)
+        await pane.settled()
         XCTAssertEqual(pane.problem, .unreadable)
         XCTAssertTrue(pane.items.isEmpty)
     }
 
-    func testVanishedFolderClimbsToTheFirstExistingParent() throws {
+    func testVanishedFolderClimbsToTheFirstExistingParent() async throws {
         let pane = PaneModel(folder: root)
+        await pane.settled()
         pane.open(url("Sub/Deep"))
+        await pane.settled()
         try FileManager.default.removeItem(at: url("Sub"))
         pane.reload()
+        await pane.settled()
         XCTAssertEqual(pane.problem, .vanished)
         XCTAssertEqual(pane.folder.standardizedFileURL.path, root.standardizedFileURL.path)
         XCTAssertFalse(pane.items.isEmpty)

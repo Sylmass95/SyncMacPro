@@ -19,6 +19,11 @@ extension AgentCore {
         guard tasks.contains(where: { $0.id == id }) else { throw AgentError.unknownTask }
         guard jobs[id] == nil, !queue.contains(where: { $0.id == id }) else { throw AgentError.alreadyRunning }
         do { try taskStore.remove(id: id) } catch { throw AgentError.internalFailure("tasks.json non enregistré : \(error)") }
+        if let work = configuration.workDirectory {
+            for folder in ["bisync/\(id.uuidString)", "bl/\(id.uuidString.prefix(12))"] {
+                try? FileManager.default.removeItem(at: work.appendingPathComponent(folder))
+            }
+        }
         loadTasks()
         persist()
         emit(.stateChanged)

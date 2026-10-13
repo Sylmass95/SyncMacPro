@@ -145,10 +145,14 @@ struct FilePaneView: View {
                 .onAppear { width = geometry.size.width }
                 .onChange(of: geometry.size.width) { _, new in width = new }
         })
+        // Le contenu est découpé aux coins ; la carte (et son ombre) ne l'est pas. Bordure d'accent seulement au survol d'un dépôt.
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .glassCard(cornerRadius: 10, dense: true)
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(targeted ? Color.accentColor : Color.secondary.opacity(0.25),
-                                                                lineWidth: targeted ? 2 : 1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            if targeted {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2)
+            }
+        }
     }
 
     private var header: some View {

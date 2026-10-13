@@ -417,3 +417,9 @@
 "settings.style" = "Style";
 "settings.style.vivid" = "Vivid glass";
 "settings.style.soft" = "Soft glass";
+"copy.drop.refused.title" = "Nothing to copy here";
+"copy.drop.refused.body" = "These items are already in this folder, or it’s this folder itself (or one of its parents): a folder can’t be copied into itself.";
+"wizard.error.loop" = "rclone keeps asking the same question: configuration was stopped. Try again, or create the connection with rclone on the command line.";
+"update.failed.rateLimit" = "too many requests to GitHub, will retry later";
+"update.failed.http" = "GitHub isn’t responding properly";
+"update.failed.unreadable" = "unreadable answer from GitHub";

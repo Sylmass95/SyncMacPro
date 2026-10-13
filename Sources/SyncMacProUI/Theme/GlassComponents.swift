@@ -160,6 +160,7 @@ struct GlowProgressBar: View {
         }
         .frame(height: height)
         .accessibilityElement()
+        .accessibilityAddTraits(.updatesFrequently)
         .accessibilityValue(Text("\(Int((min(1, max(0, value)) * 100).rounded())) %"))
     }
 }

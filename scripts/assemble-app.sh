@@ -7,6 +7,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 BIN="$1"; APP="$2"; VERSION="$3"; BUILD="$4"; VENDOR="${5:-}"
+# Le dossier est supprimé puis recréé : on refuse tout chemin qui ne désigne pas une app.
+case "$APP" in
+  *.app) ;;
+  *) echo "Chemin d'app attendu (…/SyncMacPro.app), reçu : « $APP »" >&2; exit 2 ;;
+esac
 LABEL="com.sylvain.syncmacpro.agent"
 
 rm -rf "$APP"

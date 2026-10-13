@@ -189,6 +189,9 @@ public struct HistoryView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
         .padding(12)
+        // Sur une carte : le texte secondaire reste lisible au-dessus du fond coloré.
+        .glassCard(cornerRadius: 12, dense: true)
+        .padding([.horizontal, .bottom], 12)
     }
 }
 

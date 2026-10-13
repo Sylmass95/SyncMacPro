@@ -14,6 +14,12 @@ public enum TaskReferenceError: Error, Equatable, LocalizedError {
 }
 
 public enum TaskReference {
+    /// La dernière exécution dont le nom commence par `text` : une copie manuelle n'a pas de tâche à retrouver.
+    public static func latestRun(named text: String, in records: [RunRecord]) -> RunRecord? {
+        let wanted = text.lowercased()
+        return records.filter { $0.taskName.lowercased().hasPrefix(wanted) }.max { $0.startedAt < $1.startedAt }
+    }
+
     /// Nom exact, début de nom, identifiant complet ou début d'identifiant (4 caractères au moins).
     public static func resolve(_ text: String, in tasks: [SyncTask]) throws -> SyncTask {
         let wanted = text.lowercased()

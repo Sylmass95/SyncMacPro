@@ -6,6 +6,8 @@ struct RemoteContext {
     var remotes: [RemoteInfo]
     var onAdd: () -> Void
     var browse: (String, String) async -> FolderListing
+    /// Agent injoignable : on ne propose pas d'ajouter une connexion.
+    var offline = false
 
     static let none = RemoteContext(remotes: [], onAdd: {}, browse: { _, _ in .loaded([]) })
 }
@@ -87,8 +89,8 @@ struct RemoteFolderPicker: View {
                 }
             }
             .frame(minHeight: 220)
-            .background(.background)
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .glassCard(cornerRadius: 10, dense: true)
             TextField(localizer.text("remote.newFolder"), text: $newFolder).textFieldStyle(.roundedBorder)
             HStack {
                 Button(localizer.text("confirm.cancel"), role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)
@@ -104,7 +106,12 @@ struct RemoteFolderPicker: View {
         .frame(width: 520, height: 460)
         .background(GlassBackdrop())
         .glassThemed()
-        .task(id: path) { listing = nil; listing = await browse(remote, path) }
+        .task(id: path) {
+            listing = nil
+            let result = await browse(remote, path)
+            guard !Task.isCancelled else { return }   // un autre dossier a été ouvert entre-temps
+            listing = result
+        }
         .onAppear { path = RemotePath.join(RemotePath.components(startPath)) }
     }
 

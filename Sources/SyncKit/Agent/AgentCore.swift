@@ -59,6 +59,8 @@ public actor AgentCore {
     var configuringRemotes: Set<String> = []
     /// Connexions créées par l'assistant et pas encore terminées : supprimées si la création échoue ou est annulée.
     var creatingRemotes: Set<String> = []
+    /// Annulations reçues pendant une étape (avant que rclone soit lancé).
+    var cancelledRemotes: Set<String> = []
 
     public init(
         configuration: AgentConfiguration, taskStore: TaskStore, stateStore: SchedulerStateStore,
@@ -354,6 +356,10 @@ public actor AgentCore {
         switch status {
         case .succeeded:
             entry.lastSuccess = now
+            entry.attempts = 0
+            entry.retryAt = nil
+        case .failed where job.task.mode == .verify:
+            // Des différences trouvées ne sont pas une panne passagère : relancer ne changerait rien.
             entry.attempts = 0
             entry.retryAt = nil
         case .failed, .quotaReached:

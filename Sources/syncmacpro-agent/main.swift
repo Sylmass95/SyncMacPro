@@ -35,6 +35,7 @@ let runnerConfiguration = RunnerConfiguration(
     rsyncPath: BinaryLocator.locateForProcess(.rsync), rclonePath: rclonePath, rcloneConfigPath: rcloneConfig, workDirectory: paths.work
 )
 var agentConfiguration = AgentConfiguration()
+agentConfiguration.workDirectory = paths.work
 if let hold = option("--startup-hold").flatMap(Double.init) { agentConfiguration.startupHold = hold }
 
 let core = AgentCore(
@@ -84,7 +85,9 @@ func evaluate() async {
 }
 
 await evaluate()
-let timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in Task.detached { await evaluate() } }
+// Toutes les 15 s : une tâche « toutes les 2 min » part au plus 15 s après son heure (une fois par minute, elle
+// partait jusqu'à 59 s en retard et l'intervalle réel devenait 3 min).
+let timer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in Task.detached { await evaluate() } }
 
 // Arrêt propre : les copies en cours sont arrêtées, marquées « interrompues » et rattrapées au prochain démarrage.
 signal(SIGTERM, SIG_IGN)

@@ -101,6 +101,7 @@ public struct MenuBarPanel: View {
             }
             if let progress {
                 GlowProgressBar(value: Double(progress.overallPercent ?? 0) / 100, height: 5)
+                    .accessibilityLabel(info.name)
                 Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
         }

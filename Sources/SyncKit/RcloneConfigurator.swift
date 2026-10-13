@@ -6,6 +6,8 @@ public protocol RemoteConfiguring: Sendable {
     func configure(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome
     func cancelConfiguration(_ name: String)
     func cancelAll()
+    /// Oublie une annulation demandée avant le démarrage de rclone (l'étape est terminée).
+    func forgetCancellation(_ name: String)
     /// Attend que plus aucune configuration ne tourne (arrêt de l'agent).
     func waitForIdle() async
     func delete(_ name: String) async throws
@@ -26,6 +28,8 @@ public final class RcloneConfigurator: RemoteConfiguring, @unchecked Sendable {
     private let lock = NSLock()
     private var running: [String: RunningProcess] = [:]
     private var cancelled: Set<String> = []
+    /// Annulations reçues avant que rclone soit lancé : appliquées dès son lancement.
+    private var pendingCancels: Set<String> = []
 
     public init(
         rclonePath: String, configPath: String?, configureTimeout: TimeInterval = 600, listTimeout: TimeInterval = 30, testTimeout: TimeInterval = 60,
@@ -64,10 +68,14 @@ public final class RcloneConfigurator: RemoteConfiguring, @unchecked Sendable {
             }
         }
         if let key {
-            lock.withLock {
+            let cancelNow: Bool = lock.withLock {
                 running[key] = process
                 cancelled.remove(key)
+                guard pendingCancels.remove(key) != nil else { return false }
+                cancelled.insert(key)
+                return true
             }
+            if cancelNow { process.terminate(killAfter: 2) }
         }
         let timedOut = Locked(false)
         let timer = DispatchWorkItem {
@@ -119,11 +127,18 @@ public final class RcloneConfigurator: RemoteConfiguring, @unchecked Sendable {
 
     public func cancelConfiguration(_ name: String) {
         let process: RunningProcess? = lock.withLock {
-            guard let process = running[name] else { return nil }
+            guard let process = running[name] else {
+                pendingCancels.insert(name)   // rclone pas encore lancé : on l'arrêtera dès son lancement
+                return nil
+            }
             cancelled.insert(name)
             return process
         }
         process?.terminate(killAfter: 2)
+    }
+
+    public func forgetCancellation(_ name: String) {
+        _ = lock.withLock { pendingCancels.remove(name) }
     }
 
     public func cancelAll() {

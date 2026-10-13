@@ -20,6 +20,9 @@ public struct RunOptions: Equatable, Sendable {
     public var rcloneConfigPath: String?
     /// rclone : nombre maximum de suppressions autorisées pour cette exécution.
     public var maxDeleteCount: Int?
+    /// bisync : liens courts vers chaque côté sur le disque (bisync nomme ses fichiers d'état d'après les chemins).
+    public var bisyncPath1: String?
+    public var bisyncPath2: String?
 
     public init(
         dryRun: Bool = false,

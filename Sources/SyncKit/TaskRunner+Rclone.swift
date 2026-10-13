@@ -17,6 +17,7 @@ extension TaskRunner {
             let workdir = configuration.workDirectory.appendingPathComponent("bisync/\(task.id.uuidString)")
             try FileManager.default.createDirectory(at: workdir, withIntermediateDirectories: true)
             options.bisyncWorkdir = workdir.path
+            (options.bisyncPath1, options.bisyncPath2) = try Self.bisyncLinks(for: task, in: configuration.workDirectory)
             options.resync = !Self.hasBisyncState(at: workdir)     // première exécution : initialisation
         }
 
@@ -46,7 +47,8 @@ extension TaskRunner {
         onUpdate(.phase(.running))
         let log = RunLog()
         let lastStats = Locked<RcloneStats?>(nil)
-        let process = try ProcessRunner.spawn(executable: rclone, arguments: command.arguments) { output in
+        let process = try ProcessRunner.spawn(
+            executable: rclone, arguments: command.arguments) { output in
             onUpdate(.line(output.text))
             log.noteSignal(in: output.text)
             guard let event = RcloneOutputParser.parse(line: output.text) else { return }
@@ -108,14 +110,41 @@ extension TaskRunner {
         }
         onUpdate(.snapshot(snapshot))
         let stats = lastStats.get()
+        // L'état n'est marqué « liens courts » qu'après une vraie exécution réussie : une simulation ou un premier essai
+        // raté laisserait sinon croire à rclone que les anciennes listes sont les bonnes.
+        if task.mode == .bidirectional, !dryRun, status == .succeeded, let workdir = options.bisyncWorkdir {
+            try? Data().write(to: URL(fileURLWithPath: workdir).appendingPathComponent(Self.bisyncLinksMarker))
+        }
         return result(status: status, engine: .rclone, snapshot: snapshot, started: started,
                       deletions: stats?.deletes ?? 0, errors: max(log.errors, stats?.errors ?? 0), message: message)
     }
 
+    /// Marque d'un dossier d'état créé avec les liens courts (1.2.0) : les listes d'avant portent le nom des chemins
+    /// réels et ne seraient pas retrouvées ; sans cette marque, une resynchronisation les remplace.
+    static let bisyncLinksMarker = "liens-courts"
+
     /// bisync a déjà fait sa première exécution s'il a laissé des listes (`*.lst`) dans son dossier d'état.
     static func hasBisyncState(at directory: URL) -> Bool {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-        return names.contains { $0.hasSuffix(".lst") }
+        return names.contains(bisyncLinksMarker) && names.contains { $0.hasSuffix(".lst") }
+    }
+
+    /// Un lien court par côté sur le disque, dans `work/bl/<12 premiers caractères de la tâche>/1` et `/2`.
+    /// Un lien qui pointe déjà au bon endroit n'est pas recréé. Avec `--links` (`-l`), rclone refuse une racine qui
+    /// est un lien : on garde alors les vrais chemins.
+    static func bisyncLinks(for task: SyncTask, in work: URL) throws -> (String?, String?) {
+        if task.options.extraArguments.contains(where: { $0 == "-l" || $0 == "--links" }) { return (nil, nil) }
+        let folder = work.appendingPathComponent("bl/\(task.id.uuidString.prefix(12))")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        func link(_ name: String, _ endpoint: Endpoint) throws -> String? {
+            guard let target = endpoint.filesystemPath else { return nil }
+            let url = folder.appendingPathComponent(name)
+            if (try? FileManager.default.destinationOfSymbolicLink(atPath: url.path)) == target { return url.path }
+            try? FileManager.default.removeItem(at: url)
+            try FileManager.default.createSymbolicLink(atPath: url.path, withDestinationPath: target)
+            return url.path
+        }
+        return (try link("1", task.source), try link("2", task.destination))
     }
 
     private static func messageText(fromJSONLine line: String) -> String? {

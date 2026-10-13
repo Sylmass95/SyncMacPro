@@ -103,3 +103,16 @@ extension OneOffPlanner {
         return .finished(total)
     }
 }
+
+extension OneOffPlanner {
+    /// Glisser un élément sélectionné emporte toute la sélection du panneau d'origine (SwiftUI ne glisse qu'un élément).
+    public static func expandDrop(_ urls: [URL], selection: Set<URL>) -> [URL] {
+        guard urls.count == 1, let dropped = urls.first, selection.contains(dropped), selection.count > 1 else { return urls }
+        return selection.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+    }
+
+    /// Un dépôt dont rien ne peut être copié (dossier déposé dans lui-même, fichier déjà là) : à expliquer.
+    public static func isRefusedDrop(_ urls: [URL], into folder: URL) -> Bool {
+        !urls.isEmpty && droppable(urls, into: folder).isEmpty
+    }
+}

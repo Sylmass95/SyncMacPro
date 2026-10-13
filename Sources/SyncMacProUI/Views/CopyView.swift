@@ -13,6 +13,7 @@ struct CopyView: View {
     @State private var favorites = FavoritesModel()
     @State private var size: SizeState = .none
     @State private var session: CopySession?
+    @State private var dropRefused = false
 
     private var offline: Bool { model.connection != .connected }
     private var selected: [URL] { left.selectedItems.map(\.url) }
@@ -31,6 +32,16 @@ struct CopyView: View {
         .navigationTitle(localizer.text("sidebar.copy"))
         // La taille de la sélection est recalculée (et l'ancien calcul annulé) dès qu'elle change.
         .task(id: left.selection) { await computeSize() }
+        // Un disque démonté pendant la navigation : les panneaux remontent au premier dossier existant.
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
+            left.reload()
+            right.reload()
+        }
+        .alert(localizer.text("copy.drop.refused.title"), isPresented: $dropRefused) {
+            Button(localizer.text("alert.ok")) {}
+        } message: {
+            Text(localizer.text("copy.drop.refused.body"))
+        }
         .sheet(item: $session) { current in
             CopyConfirmationView(model: model, session: current, localizer: localizer) { session = nil }
         }
@@ -39,9 +50,13 @@ struct CopyView: View {
     private func pane(_ pane: PaneModel, other: PaneModel) -> some View {
         FilePaneView(
             pane: pane, favorites: favorites, localizer: localizer,
-            onDrop: { urls in
+            onDrop: { dropped in
+                let urls = OneOffPlanner.expandDrop(dropped, selection: other.selection)
                 let accepted = OneOffPlanner.droppable(urls, into: pane.folder)
-                guard !accepted.isEmpty else { return }
+                guard !accepted.isEmpty else {
+                    if OneOffPlanner.isRefusedDrop(urls, into: pane.folder) { dropRefused = true }
+                    return
+                }
                 session = CopySession(request: .copy(items: accepted, to: pane.folder), simulateAtOnce: false)
             },
             menu: { item in
@@ -83,7 +98,7 @@ struct CopyView: View {
         }
         .labelStyle(.titleAndIcon)
         .buttonStyle(GlassButtonStyle(prominent: false))
-        .frame(width: 140)
+        .frame(width: 172)
     }
 
     private func copy(simulate: Bool) {
