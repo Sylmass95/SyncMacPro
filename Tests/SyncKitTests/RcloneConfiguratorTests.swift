@@ -98,4 +98,13 @@ final class RcloneConfiguratorTests: XCTestCase {
             XCTAssertEqual(error as? RemoteConfigError, .cancelled)
         }
     }
+
+    // Les deux sorties sont lues par deux fils : aucune ligne ne doit se perdre.
+    func testNoOutputLineIsLost() async throws {
+        let shell = RcloneConfigurator(rclonePath: "/bin/sh", configPath: nil)
+        let script = "i=0; while [ $i -lt 2000 ]; do echo o$i; echo e$i >&2; i=$((i+1)); done"
+        let output = try await shell.run(["-c", script], timeout: 30)
+        XCTAssertEqual(output.stdout.split(separator: "\n").count, 2000)
+        XCTAssertEqual(output.stderr.split(separator: "\n").count, 2000)
+    }
 }

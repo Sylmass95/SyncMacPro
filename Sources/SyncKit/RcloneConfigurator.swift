@@ -52,11 +52,9 @@ public final class RcloneConfigurator: RemoteConfiguring, @unchecked Sendable {
             environment = values
         }
         let process = try ProcessRunner.spawn(executable: rclonePath, arguments: arguments, environment: environment) { line in
-            collected.set({
-                var value = collected.get()
+            collected.update { value in
                 if line.stream == .stdout { value.out.append(line.text) } else { value.err.append(line.text) }
-                return value
-            }())
+            }
         }
         if let key {
             lock.withLock {

@@ -95,7 +95,7 @@ final class AgentOneOffTests: XCTestCase {
         let data = await AgentRouter.handle(request, core: core)
         let reply = try JSONDecoder().decode(AgentResponseEnvelope.self, from: data)
         XCTAssertEqual(reply.response, .ok)
-        XCTAssertEqual(reply.version, 3)
+        XCTAssertEqual(reply.version, agentProtocolVersion)
         await core.waitForIdle()
     }
 }

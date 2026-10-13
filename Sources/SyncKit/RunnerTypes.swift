@@ -198,4 +198,6 @@ final class Locked<Value>: @unchecked Sendable {
 
     func get() -> Value { lock.lock(); defer { lock.unlock() }; return stored }
     func set(_ value: Value) { lock.lock(); stored = value; lock.unlock() }
+    /// Lire puis modifier sous le même verrou (un `get` suivi d'un `set` perdrait les écritures concurrentes).
+    func update(_ change: (inout Value) -> Void) { lock.lock(); change(&stored); lock.unlock() }
 }
