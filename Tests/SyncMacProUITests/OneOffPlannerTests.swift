@@ -66,4 +66,30 @@ final class OneOffPlannerTests: XCTestCase {
         ]
         XCTAssertEqual(OneOffPlanner.droppable(dropped, into: folder).map(\.path), ["/a/x.txt"])
     }
+
+    func testSimulationsAreSummed() {
+        let a = SimulationResult(status: .succeeded, filesToTransfer: 2, bytesToTransfer: 100, deletions: 0, message: nil)
+        let b = SimulationResult(status: .succeeded, filesToTransfer: 3, bytesToTransfer: 50, deletions: 1, message: nil)
+        XCTAssertEqual(OneOffPlanner.combine([.finished(a), .finished(b)]),
+                       .finished(SimulationResult(status: .succeeded, filesToTransfer: 5, bytesToTransfer: 150, deletions: 1, message: nil)))
+        XCTAssertEqual(OneOffPlanner.combine([.finished(a), .failed("source introuvable")]), .failed("source introuvable"))
+        let blocked = SimulationResult(status: .blocked, filesToTransfer: 0, bytesToTransfer: 0, deletions: 9, message: "seuil")
+        XCTAssertEqual(OneOffPlanner.combine([.finished(a), .finished(blocked)]).status, .blocked)
+    }
+
+    func testRequestsBecomeTasks() {
+        let copy = CopyRequest.copy(items: [URL(fileURLWithPath: "/a/x.txt")], to: URL(fileURLWithPath: "/b"))
+        XCTAssertEqual(OneOffPlanner.tasks(for: copy, acceptDeletions: false, resolver: .localOnly, localizer: fr).map(\.sourceItems), [["x.txt"]])
+        let sync = CopyRequest.sync(from: URL(fileURLWithPath: "/a"), to: URL(fileURLWithPath: "/b"))
+        let tasks = OneOffPlanner.tasks(for: sync, acceptDeletions: true, resolver: .localOnly, localizer: fr)
+        XCTAssertEqual(tasks.map(\.mode), [.mirror])
+        XCTAssertEqual(tasks.first?.options.deleteThresholdPercent, 100)
+    }
+}
+
+private extension SimulationOutcome {
+    var status: RunStatus? {
+        if case .finished(let result) = self { return result.status }
+        return nil
+    }
 }

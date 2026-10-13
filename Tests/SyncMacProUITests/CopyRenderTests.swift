@@ -64,4 +64,30 @@ final class CopyRenderTests: XCTestCase {
         XCTAssertGreaterThan(FreeSpace.available(at: URL(fileURLWithPath: NSHomeDirectory())) ?? 0, 0)
         XCTAssertNil(FreeSpace.available(at: URL(fileURLWithPath: "/n-existe-pas-\(UUID().uuidString)")))
     }
+
+    func testConfirmationRendersEveryState() throws {
+        let tasks = OneOffPlanner.copyTasks(
+            items: [URL(fileURLWithPath: "/Users/moi/Photos/a.jpg"), URL(fileURLWithPath: "/Users/moi/Photos/b.jpg")],
+            to: URL(fileURLWithPath: "/Volumes/NAS/Photos"), resolver: .localOnly, localizer: fr
+        )
+        let result = SimulationResult(status: .succeeded, filesToTransfer: 2, bytesToTransfer: 4_000_000, deletions: 0, message: nil)
+        let states: [SimulationState] = [.idle, .running, .finished(.finished(result)), .finished(.failed("Source introuvable"))]
+        for (index, state) in states.enumerated() {
+            let view = CopyConfirmationContent(
+                tasks: tasks, isSync: false, simulation: state, error: index == 3 ? "La destination est dans la source." : nil,
+                acceptDeletions: .constant(false), offline: false, localizer: fr
+            )
+            assertNotBlank(try render(view, name: "copy-confirm-\(index)", size: CGSize(width: 520, height: 300), scheme: .light))
+        }
+    }
+
+    func testSyncConfirmationOffersToAcceptDeletionsAfterASimulation() {
+        let task = OneOffPlanner.syncTask(from: URL(fileURLWithPath: "/a"), to: URL(fileURLWithPath: "/b"),
+                                          acceptDeletions: false, resolver: .localOnly, localizer: fr)
+        let deleting = SimulationResult(status: .succeeded, filesToTransfer: 0, bytesToTransfer: 0, deletions: 40, message: nil)
+        XCTAssertTrue(CopyConfirmationContent.offersDeletionApproval(isSync: true, simulation: .finished(.finished(deleting))))
+        XCTAssertFalse(CopyConfirmationContent.offersDeletionApproval(isSync: true, simulation: .idle))
+        XCTAssertFalse(CopyConfirmationContent.offersDeletionApproval(isSync: false, simulation: .finished(.finished(deleting))))
+        _ = task
+    }
 }

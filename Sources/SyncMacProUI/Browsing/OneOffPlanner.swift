@@ -56,3 +56,50 @@ public enum OneOffPlanner {
         }
     }
 }
+
+public enum CopyRequest: Equatable, Sendable {
+    /// Des éléments choisis (ou déposés) vers un dossier.
+    case copy(items: [URL], to: URL)
+    /// Un dossier entier vers un autre, en miroir.
+    case sync(from: URL, to: URL)
+}
+
+public struct CopySession: Identifiable {
+    public let id = UUID()
+    public let request: CopyRequest
+    /// Ouverte depuis « Simuler » : la simulation démarre aussitôt.
+    public let simulateAtOnce: Bool
+}
+
+extension OneOffPlanner {
+    public static func tasks(
+        for request: CopyRequest, acceptDeletions: Bool,
+        resolver: EndpointResolver = .system, localizer: Localizer = .system
+    ) -> [SyncTask] {
+        switch request {
+        case .copy(let items, let destination):
+            return copyTasks(items: items, to: destination, resolver: resolver, localizer: localizer)
+        case .sync(let source, let destination):
+            return [syncTask(from: source, to: destination, acceptDeletions: acceptDeletions, resolver: resolver, localizer: localizer)]
+        }
+    }
+
+    /// Les simulations des copies d'une même demande, additionnées ; le premier échec l'emporte, puis un blocage.
+    public static func combine(_ outcomes: [SimulationOutcome]) -> SimulationOutcome {
+        var total = SimulationResult(status: .succeeded, filesToTransfer: 0, bytesToTransfer: 0, deletions: 0, message: nil)
+        for outcome in outcomes {
+            switch outcome {
+            case .failed(let message): return .failed(message)
+            case .finished(let result):
+                total.filesToTransfer += result.filesToTransfer
+                total.bytesToTransfer += result.bytesToTransfer
+                total.deletions += result.deletions
+                if result.status != .succeeded && total.status == .succeeded {
+                    total.status = result.status
+                    total.message = result.message
+                }
+            }
+        }
+        return .finished(total)
+    }
+}
