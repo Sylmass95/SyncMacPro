@@ -13,9 +13,19 @@ LABEL="com.sylvain.syncmacpro.agent"
 swift build -c release
 BIN="$(swift build -c release --show-bin-path)"
 
+# Un agent resté enregistré avec l'ancienne signature ne démarre plus après une reconstruction du bundle
+# (launchd : « Launch Constraint Violation ») : on le désenregistre avant de remplacer le bundle.
+if [ -x "$APP/Contents/MacOS/syncmacpro-ctl" ]; then
+  "$APP/Contents/MacOS/syncmacpro-ctl" agent uninstall >/dev/null 2>&1 || true
+fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Library/LaunchAgents"
-cp "$BIN/syncmacpro-ctl" "$BIN/syncmacpro-agent" "$APP/Contents/MacOS/"
+cp "$BIN/SyncMacPro" "$BIN/syncmacpro-ctl" "$BIN/syncmacpro-agent" "$APP/Contents/MacOS/"
+# Ressources de l'interface (chaînes fr / en) : SwiftPM les place dans des « .bundle » à côté des exécutables.
+mkdir -p "$APP/Contents/Resources"
+for resources in "$BIN"/*.bundle; do
+  [ -e "$resources" ] && cp -R "$resources" "$APP/Contents/Resources/"
+done
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -23,12 +33,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>com.sylvain.syncmacpro</string>
   <key>CFBundleName</key><string>SyncMacPro</string>
-  <key>CFBundleExecutable</key><string>syncmacpro-ctl</string>
+  <key>CFBundleExecutable</key><string>SyncMacPro</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.2.0</string>
+  <key>CFBundleShortVersionString</key><string>0.3.0</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
-  <key>LSUIElement</key><true/>
+  <key>CFBundleDisplayName</key><string>SyncMacPro</string>
+  <key>CFBundleDevelopmentRegion</key><string>fr</string>
+  <key>CFBundleLocalizations</key><array><string>fr</string><string>en</string></array>
 </dict></plist>
 PLIST
 
@@ -45,9 +57,11 @@ cat > "$APP/Contents/Library/LaunchAgents/$LABEL.plist" <<PLIST
 </dict></plist>
 PLIST
 
+codesign --force --sign - "$APP/Contents/MacOS/SyncMacPro"
 codesign --force --sign - "$APP/Contents/MacOS/syncmacpro-agent"
 codesign --force --sign - "$APP/Contents/MacOS/syncmacpro-ctl"
 codesign --force --sign - "$APP"
 
 echo "Bundle prêt : $APP"
-echo "Installer l'agent : \"$APP/Contents/MacOS/syncmacpro-ctl\" agent install"
+echo "Ouvrir l'app : open \"$APP\""
+echo "Installer l'agent : \"$APP/Contents/MacOS/syncmacpro-ctl\" agent install   (ou Réglages › Agent dans l'app)"

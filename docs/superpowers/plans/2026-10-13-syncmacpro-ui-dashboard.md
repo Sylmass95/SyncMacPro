@@ -4169,15 +4169,15 @@ Cet essai ouvre brièvement une fenêtre et une icône de barre de menus sur ce 
 APP="$HOME/Applications/SyncMacPro.app"; CTL="$APP/Contents/MacOS/syncmacpro-ctl"
 open "$APP"; sleep 6
 echo "--- l'app tourne :"; pgrep -x SyncMacPro | head -1
-echo "--- connexion (agent absent) :"; log show --last 2m --predicate 'subsystem == "com.sylvain.syncmacpro"' --style compact 2>&1 | tail -3
+echo "--- connexion (agent absent) :"; /usr/bin/log show --last 2m --predicate 'subsystem == "com.sylvain.syncmacpro"' --style compact 2>&1 | tail -3
 "$CTL" agent install; sleep 4
-echo "--- connexion (agent installé) :"; log show --last 2m --predicate 'subsystem == "com.sylvain.syncmacpro"' --style compact 2>&1 | tail -3
+echo "--- connexion (agent installé) :"; /usr/bin/log show --last 2m --predicate 'subsystem == "com.sylvain.syncmacpro"' --style compact 2>&1 | tail -3
 ```
 Attendu : un processus `SyncMacPro` ; au premier journal : « connexion : unreachable » ; après l'installation de l'agent : « connexion : connected » (le bouton Réessayer ou la boucle de reconnexion rétablit la connexion ; la boucle réessaie après 1, 2, 4 s : attendre jusqu'à 15 s si besoin).
 
 ```bash
-echo "--- on tue l'agent (KeepAlive le relance) :"; pkill -KILL -f "SyncMacPro.app/Contents/MacOS/syncmacpro-agent"; sleep 16
-log show --last 2m --predicate 'subsystem == "com.sylvain.syncmacpro"' --style compact 2>&1 | tail -4
+echo "--- on tue l'agent (KeepAlive le relance) :"; kill -KILL "$(launchctl print gui/$(id -u)/com.sylvain.syncmacpro.agent | awk '/^\tpid = /{print $3}')"; sleep 16
+/usr/bin/log show --last 2m --predicate 'subsystem == "com.sylvain.syncmacpro"' --style compact 2>&1 | tail -4
 echo "--- on quitte l'app, l'agent doit survivre :"; osascript -e 'quit app "SyncMacPro"'; sleep 2
 pgrep -x SyncMacPro | wc -l; pgrep -f "SyncMacPro.app/Contents/MacOS/syncmacpro-agent" | wc -l
 ```
