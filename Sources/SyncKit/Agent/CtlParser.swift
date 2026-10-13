@@ -12,6 +12,7 @@ public struct NewTask: Equatable, Sendable {
 public enum CtlCommand: Equatable, Sendable {
     case status, list, watch, help
     case run(String), pause(String), resume(String), stop(String), approve(String), remove(String)
+    case simulate(String), log(String)
     case pauseAll, resumeAll
     case history(String?, limit: Int)
     case add(NewTask)
@@ -55,6 +56,8 @@ public enum CtlParser {
       add --name N --source P --dest P [--mode copy|mirror|bidirectional|move|versioned|verify]
           [--every MINUTES | --daily HH:MM] [--ac-power]
       remove <tâche>
+      simulate <tâche>               ce que ferait la tâche, sans rien modifier
+      log <tâche>                    journal de la dernière exécution
       agent install | uninstall | status
 
     Options : --json   --state-dir DOSSIER   --service NOM
@@ -65,6 +68,7 @@ public enum CtlParser {
         "statut": "status", "liste": "list", "lancer": "run", "reprendre": "resume", "arreter": "stop",
         "arrêter": "stop", "historique": "history", "valider": "approve", "pause-tout": "pause-all",
         "reprendre-tout": "resume-all", "ajouter": "add", "supprimer": "remove", "aide": "help",
+        "simuler": "simulate", "journal": "log",
     ]
 
     private static let valued: Set<String> = [
@@ -127,6 +131,8 @@ public enum CtlParser {
         case "stop": return invocation(.stop(try single()))
         case "approve": return invocation(.approve(try single()))
         case "remove": return invocation(.remove(try single()))
+        case "simulate": return invocation(.simulate(try single()))
+        case "log": return invocation(.log(try single()))
         case "history":
             let limit = try values["limit"].map { text -> Int in
                 guard let value = Int(text), value > 0 else { throw CtlParseError.invalid("--limit attend un nombre positif") }
