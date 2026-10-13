@@ -3,6 +3,7 @@ import Foundation
 /// Transforme une tâche en arguments rclone.
 public enum RcloneCommandBuilder {
     private static let loggingFlags = [
+        "--color", "NEVER",   // pas de codes couleur ANSI dans les messages repris par l'app
         "--use-json-log", "--stats", "1s", "--stats-log-level", "NOTICE",
         "--retries", "3", "--low-level-retries", "10",
     ]
@@ -26,12 +27,16 @@ public enum RcloneCommandBuilder {
         case .move:
             args = ["move", source, destination, "--delete-empty-src-dirs"] + loggingFlags
         case .bidirectional:
-            args = ["bisync", source, destination] + loggingFlags + [
+            // bisync nomme son verrou et ses listes d'après les deux chemins : au-delà de 255 caractères il échoue.
+            // Un côté sur le disque passe donc par un lien court (`run.bisyncPath1`, `run.bisyncPath2`), préparé par le runner.
+            let sideA = run.bisyncPath1.map { Endpoint.local(path: $0) } ?? task.source
+            let sideB = run.bisyncPath2.map { Endpoint.local(path: $0) } ?? task.destination
+            args = ["bisync", sideA.rcloneSpec, sideB.rcloneSpec] + loggingFlags + [
                 "--resilient", "--recover",
                 "--conflict-resolve", "newer",
                 "--max-delete", String(task.options.deleteThresholdPercent),
-                "--backup-dir1", archiveRoot(task.source),
-                "--backup-dir2", archiveRoot(task.destination),
+                "--backup-dir1", archiveRoot(sideA),
+                "--backup-dir2", archiveRoot(sideB),
                 "--exclude", archiveFilter,
             ]
             if let workdir = run.bisyncWorkdir { args += ["--workdir", workdir] }
@@ -87,3 +92,4 @@ public enum RcloneCommandBuilder {
         return args
     }
 }
+

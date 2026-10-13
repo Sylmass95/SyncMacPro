@@ -20,6 +20,9 @@ public struct RunOptions: Equatable, Sendable {
     public var rcloneConfigPath: String?
     /// rclone : nombre maximum de suppressions autorisées pour cette exécution.
     public var maxDeleteCount: Int?
+    /// bisync : liens courts vers chaque côté sur le disque (bisync nomme ses fichiers d'état d'après les chemins).
+    public var bisyncPath1: String?
+    public var bisyncPath2: String?
 
     public init(
         dryRun: Bool = false,
@@ -42,10 +45,19 @@ public struct RunOptions: Equatable, Sendable {
 public struct EngineCommand: Equatable, Sendable {
     public let engine: EngineKind
     public let arguments: [String]
+    /// Variables ajoutées à l'environnement du moteur (connexions rclone « alias » de bisync).
+    public let environment: [String: String]
 
-    public init(engine: EngineKind, arguments: [String]) {
+    public init(engine: EngineKind, arguments: [String], environment: [String: String] = [:]) {
         self.engine = engine
         self.arguments = arguments
+        self.environment = environment
+    }
+
+    /// L'environnement complet du processus, ou `nil` (celui de l'agent) s'il n'y a rien à ajouter.
+    var processEnvironment: [String: String]? {
+        guard !environment.isEmpty else { return nil }
+        return ProcessInfo.processInfo.environment.merging(environment) { _, new in new }
     }
 }
 

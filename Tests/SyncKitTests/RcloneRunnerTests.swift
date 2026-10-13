@@ -124,6 +124,23 @@ final class RcloneRunnerTests: IntegrationTestCase {
 
     // MARK: bisync
 
+    // Essai réel 1.1.1 : rclone nomme son verrou d'après les deux chemins ; au-delà de 255 caractères, bisync échouait.
+    func testBisyncWorksWithLongPaths() async throws {
+        let long = String(repeating: "dossier-au-nom-tres-long-", count: 6)    // 150 caractères par niveau
+        let one = try folder("\(long)/un/\(long)"), two = try folder("\(long)/deux/\(long)")
+        XCTAssertGreaterThan(one.count + two.count, 400)
+        for index in 1...8 { try write("\(one)/f\(index).txt", "x") }
+        let runner = try makeRunner(rclone: true)
+        let sync = rcloneTask(one, two, mode: .bidirectional)
+        let first = try await runner.run(sync)
+        XCTAssertEqual(first.status, .succeeded, first.summary.message ?? "")
+        try write("\(two)/nouveau.txt", "depuis deux")
+        let second = try await runner.run(sync)
+        XCTAssertEqual(second.status, .succeeded, second.summary.message ?? "")
+        XCTAssertEqual(read("\(one)/nouveau.txt"), "depuis deux")
+        XCTAssertFalse((second.summary.message ?? "").contains("\u{1B}["), "pas de codes couleur dans les messages")
+    }
+
     func testBisyncInitializesThenPropagatesChangesAndDeletions() async throws {
         let one = try folder("one"), two = try folder("two")
         try write("\(one)/a.txt", "from-one")
