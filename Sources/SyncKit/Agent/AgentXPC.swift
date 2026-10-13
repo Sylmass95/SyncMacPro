@@ -208,9 +208,10 @@ public final class AgentClient: @unchecked Sendable {
         return remotes
     }
 
-    /// Une étape peut attendre la connexion dans le navigateur : 10 minutes et un peu plus.
+    /// Une étape peut attendre la connexion dans le navigateur : au pire, côté agent, 30 s (liste) + 10 min + 2 s
+    /// (arrêt) + 30 s (nettoyage) ; le client attend un peu plus pour recevoir la vraie réponse.
     public func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome {
-        guard case .remoteConfig(let outcome) = try await send(.configureRemote(step), timeout: 630) else {
+        guard case .remoteConfig(let outcome) = try await send(.configureRemote(step), timeout: 700) else {
             throw AgentClientError.badReply
         }
         return outcome

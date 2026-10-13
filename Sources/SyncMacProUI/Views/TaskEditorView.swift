@@ -52,7 +52,8 @@ public struct TaskEditorView: View {
                             remotesBefore = Set(model.remotes.map(\.name))
                             wizard = WizardModel(model: model, localizer: localizer)
                         },
-                        browse: { remote, path in await model.remoteFolders(remote: remote, path: path) }
+                        browse: { remote, path in await model.remoteFolders(remote: remote, path: path) },
+                        offline: offline
                     )
                 )
                 .padding(20)

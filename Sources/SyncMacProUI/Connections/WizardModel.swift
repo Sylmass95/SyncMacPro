@@ -141,6 +141,7 @@ public final class WizardModel {
             waitingForBrowser = false
         }
         var result = await model.configureRemote(first)
+        var automaticAnswers = 0
         while true {
             if cancelled { return }
             switch result {
@@ -155,6 +156,14 @@ public final class WizardModel {
                 guard let automatic = CloudService.autoAnswer(option: next.option) else {
                     question = next
                     answer = next.defaultValue
+                    if let refusal = next.error { error = refusal }   // rclone a refusé la réponse précédente
+                    return
+                }
+                automaticAnswers += 1
+                guard automaticAnswers <= 20 else {
+                    // rclone repose sans cesse une question à réponse automatique : on s'arrête au lieu de boucler.
+                    error = localizer.text("wizard.error.loop")
+                    await model.cancelRemoteConfiguration(name)
                     return
                 }
                 waitingForBrowser = next.option == "config_is_local" && automatic == "true"
@@ -185,7 +194,10 @@ public final class WizardModel {
             step = .connect
             return
         }
-        _ = await model.deleteRemote(name)
+        if let refusal = await model.deleteRemote(name) {
+            error = refusal   // la connexion n'a pas pu être supprimée : on reste sur le test
+            return
+        }
         step = .prepare
     }
 

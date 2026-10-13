@@ -417,3 +417,6 @@
 "settings.style" = "Style";
 "settings.style.vivid" = "Verre intense";
 "settings.style.soft" = "Verre léger";
+"copy.drop.refused.title" = "Rien à copier ici";
+"copy.drop.refused.body" = "Ces éléments sont déjà dans ce dossier, ou c’est ce dossier lui-même (ou un de ses parents) : un dossier ne peut pas être copié dans lui-même.";
+"wizard.error.loop" = "rclone repose sans cesse la même question : la configuration a été arrêtée. Réessayez, ou créez la connexion avec rclone en ligne de commande.";

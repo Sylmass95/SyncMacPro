@@ -90,7 +90,7 @@ struct SideEditor: View {
                         }
                     }
                     .frame(width: 220)
-                    Button(localizer.text("remote.add"), action: remotes.onAdd)
+                    Button(localizer.text("remote.add"), action: remotes.onAdd).disabled(remotes.offline)
                 }
                 HStack {
                     TextField(localizer.text("editor.path"), text: $side.path).textFieldStyle(.roundedBorder)
