@@ -56,6 +56,7 @@ struct GlassCard: ViewModifier {
     }
 }
 
+@MainActor
 extension View {
     func glassCard(cornerRadius: CGFloat = 16, dense: Bool = false) -> some View {
         modifier(GlassCard(cornerRadius: cornerRadius, dense: dense))
@@ -78,6 +79,21 @@ public struct GlassButtonStyle: ButtonStyle {
     }
 }
 
+/// Dimensions d'un bouton de verre selon la taille demandée (`controlSize`).
+struct GlassButtonMetrics: Equatable {
+    let horizontal: CGFloat
+    let vertical: CGFloat
+    let font: Font
+
+    init(_ size: ControlSize) {
+        switch size {
+        case .mini, .small: (horizontal, vertical, font) = (10, 3, .caption.weight(.semibold))
+        case .large, .extraLarge: (horizontal, vertical, font) = (20, 9, .body.weight(.semibold))
+        default: (horizontal, vertical, font) = (14, 6, .callout.weight(.semibold))
+        }
+    }
+}
+
 @MainActor
 private struct GlassButtonBody: View {
     let configuration: ButtonStyleConfiguration
@@ -85,14 +101,16 @@ private struct GlassButtonBody: View {
     let color: Color
     @Environment(\.glassTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.controlSize) private var controlSize
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+        let metrics = GlassButtonMetrics(controlSize)
         configuration.label
-            .font(.callout.weight(.semibold))
+            .font(metrics.font)
             .lineLimit(1)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
+            .padding(.horizontal, metrics.horizontal)
+            .padding(.vertical, metrics.vertical)
             .foregroundStyle(prominent ? Color.white : Color.primary)
             .background {
                 if prominent {

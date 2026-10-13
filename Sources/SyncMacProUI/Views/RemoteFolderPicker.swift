@@ -97,7 +97,7 @@ struct RemoteFolderPicker: View {
                     let extra = RemotePath.components(newFolder)
                     onChoose(RemotePath.join(RemotePath.components(path) + extra))
                 }
-                .keyboardShortcut(.defaultAction)
+                .keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true))
             }
         }
         .padding(20)

@@ -48,6 +48,7 @@ public struct TasksView: View {
                         onSelect: { selection = $0 }
                     )
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .glassCard(cornerRadius: 12, dense: true)
                 .padding(12)
             }

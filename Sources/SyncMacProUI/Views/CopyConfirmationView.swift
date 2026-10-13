@@ -109,7 +109,7 @@ struct CopyConfirmationView: View {
                     Button(localizer.text("confirm.simulate")) { Task { await simulate() } }.disabled(offline || invalid)
                 }
                 Button(localizer.text("confirm.launch")) { Task { await launch() } }
-                    .keyboardShortcut(.defaultAction)
+                    .keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true))
                     .disabled(offline || launching || invalid)
             }
         }

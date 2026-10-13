@@ -112,6 +112,7 @@ struct GlassThemed: ViewModifier {
     }
 }
 
+@MainActor
 extension View {
     public func glassThemed() -> some View { modifier(GlassThemed()) }
 }

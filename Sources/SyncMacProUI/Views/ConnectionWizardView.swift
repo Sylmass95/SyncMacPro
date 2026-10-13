@@ -213,24 +213,24 @@ struct ConnectionWizardView: View {
         switch wizard.step {
         case .service: EmptyView()
         case .prepare, .name:
-            Button(localizer.text("editor.next")) { wizard.next() }.keyboardShortcut(.defaultAction).disabled(!wizard.canContinue)
+            Button(localizer.text("editor.next")) { wizard.next() }.keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true)).disabled(!wizard.canContinue)
         case .connect:
             if wizard.question != nil {
                 Button(localizer.text("wizard.question.continue")) { Task { await wizard.submitAnswer() } }
-                    .keyboardShortcut(.defaultAction).disabled(!wizard.canContinue)
+                    .keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true)).disabled(!wizard.canContinue)
             } else {
                 Button(localizer.text(wizard.service.usesBrowser ? "wizard.connect.go.browser" : "wizard.connect.go.keys")) {
                     Task { await wizard.connect() }
                 }
-                .keyboardShortcut(.defaultAction).disabled(wizard.busy)
+                .keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true)).disabled(wizard.busy)
             }
         case .test:
             if let result = wizard.testResult, !result.ok {
                 Button(localizer.text("wizard.test.keep")) { wizard.keepAnyway() }
-                Button(localizer.text("wizard.test.fix")) { Task { await wizard.fix() } }.keyboardShortcut(.defaultAction)
+                Button(localizer.text("wizard.test.fix")) { Task { await wizard.fix() } }.keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true))
             }
         case .done:
-            Button(localizer.text("wizard.done.close")) { onClose() }.keyboardShortcut(.defaultAction)
+            Button(localizer.text("wizard.done.close")) { onClose() }.keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true))
         }
     }
 }
