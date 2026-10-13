@@ -16,6 +16,12 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
     private var _watchCancels = 0
     private var _performed: [AgentRequest] = []
     private var _holdNextStatus: TestGate?
+    private var _simulation: Result<SimulationResult, Error> = .success(
+        SimulationResult(status: .succeeded, filesToTransfer: 3, bytesToTransfer: 1_000, deletions: 0, message: nil)
+    )
+    private var _log: Result<RunLogText, Error> = .success(RunLogText(text: "ligne\n", truncated: false))
+    private var _simulated: [SyncTask] = []
+    private var _logRequests: [UUID] = []
     private var onEvent: (@Sendable (AgentEvent) -> Void)?
     private var onEnd: (@Sendable () -> Void)?
 
@@ -26,6 +32,26 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
     func setHistory(_ result: Result<[RunRecord], Error>) { locked { _history = result } }
     func setPerformError(_ error: Error?) { locked { _performError = error } }
     func setWatchError(_ error: Error?) { locked { _watchError = error } }
+    func setSimulation(_ result: Result<SimulationResult, Error>) { locked { _simulation = result } }
+    func setLog(_ result: Result<RunLogText, Error>) { locked { _log = result } }
+    var simulated: [SyncTask] { locked { _simulated } }
+    var logRequests: [UUID] { locked { _logRequests } }
+
+    func simulate(_ task: SyncTask) async throws -> SimulationResult {
+        let result = locked { () -> Result<SimulationResult, Error> in
+            _simulated.append(task)
+            return _simulation
+        }
+        return try result.get()
+    }
+
+    func runLog(runID: UUID) async throws -> RunLogText {
+        let result = locked { () -> Result<RunLogText, Error> in
+            _logRequests.append(runID)
+            return _log
+        }
+        return try result.get()
+    }
 
     // MARK: observation
 

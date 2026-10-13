@@ -279,6 +279,47 @@ public final class AgentModel {
         }
     }
 
+    // MARK: tâches
+
+    /// `nil` si l'agent a enregistré la tâche ; sinon le message, affiché dans l'éditeur (qui reste ouvert).
+    public func saveTask(_ task: SyncTask) async -> String? {
+        do {
+            try await agent.perform(.saveTask(task))
+            await refreshNow()
+            return nil
+        } catch {
+            return Self.describe(error)
+        }
+    }
+
+    public func setEnabled(_ id: UUID, _ enabled: Bool) async {
+        guard var task = tasks[id], task.isEnabled != enabled else { return }
+        task.isEnabled = enabled
+        if let message = await saveTask(task) { alertMessage = message }
+    }
+
+    public func removeTask(_ id: UUID) async {
+        await act(on: id) { try await $0.perform(.removeTask(id)) }
+    }
+
+    public func simulate(_ task: SyncTask) async -> SimulationOutcome {
+        do { return .finished(try await agent.simulate(task)) } catch { return .failed(Self.describe(error)) }
+    }
+
+    public func cancelSimulation(_ id: UUID) async {
+        try? await agent.perform(.cancelSimulation(id))
+    }
+
+    public func runLog(_ runID: UUID) async -> LogOutcome {
+        do {
+            return .loaded(try await agent.runLog(runID: runID))
+        } catch AgentClientError.agent(.unknownRun) {
+            return .missing
+        } catch {
+            return .failed(Self.describe(error))
+        }
+    }
+
     static func describe(_ error: Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? "\(error)"
     }
