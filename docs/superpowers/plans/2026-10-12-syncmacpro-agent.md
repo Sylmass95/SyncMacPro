@@ -3995,7 +3995,9 @@ final class AgentIntegrationTests: IntegrationTestCase {
         await first.shutdown()
         XCTAssertEqual(try h.history.list(taskID: task.id).first?.status, .interrupted)
 
-        // L'agent redémarre, sans limite de débit cette fois : la copie est rattrapée et se termine.
+        // L'agent redémarre quelques secondes plus tard (l'historique trie par heure de début), sans limite de débit :
+        // la copie est rattrapée et se termine.
+        h.clock.advance(5)
         task.options.bandwidthLimitKBps = nil
         try h.save([task])
         let second = h.makeCore(runner: { TaskRunner(configuration: configuration) })
