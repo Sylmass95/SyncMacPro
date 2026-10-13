@@ -34,7 +34,8 @@ final class ReviewFixTests: XCTestCase {
     }
 
     func testOutsideTheAppTheModuleBundleIsUsed() {
-        XCTAssertEqual(Localizer.resourcesURL(in: .main), Bundle.module.bundleURL)
+        // (Dans les tests, `Bundle.module` désigne le bundle de ressources des tests : on compare au bundle de l'interface.)
+        XCTAssertEqual(Localizer.resourcesURL(in: .main).lastPathComponent, "SyncMacPro_SyncMacProUI.bundle")
     }
 
     // I2 : une tentative ancienne qui aboutit après « Réessayer » ne doit rien écraser.
