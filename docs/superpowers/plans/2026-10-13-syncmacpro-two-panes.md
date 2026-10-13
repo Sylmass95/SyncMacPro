@@ -454,8 +454,10 @@ public enum DirectoryLister {
         let urls = try FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: keys, options: showHidden ? [] : [.skipsHiddenFiles]
         )
-        let items = urls.map { url -> DirectoryItem in
-            let values = try? url.resourceValues(forKeys: Set(keys))
+        let items = urls.map { found -> DirectoryItem in
+            // Les URL suivent la forme du dossier ouvert (« /var » et non « /private/var ») : la sélection les compare.
+            let url = folder.appendingPathComponent(found.lastPathComponent)
+            let values = try? found.resourceValues(forKeys: Set(keys))
             let isDirectory = (values?.isDirectory ?? false) && !(values?.isPackage ?? false)
             return DirectoryItem(
                 url: url, name: url.lastPathComponent, isDirectory: isDirectory,
