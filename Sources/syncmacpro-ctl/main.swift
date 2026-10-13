@@ -116,6 +116,19 @@ do {
         try await client.perform(.runOnce(task))
         print("« \(task.name) » lancée (suivre avec : syncmacpro-ctl watch).")
 
+    case .remotes:
+        let remotes = try await client.listRemotes()
+        show(remotes, lines: remotes.isEmpty ? ["Aucune connexion."] : remotes.map { "\($0.name)  (\($0.type))" })
+
+    case .remoteTest(let name):
+        let result = try await client.testRemote(name)
+        print(result.ok ? "« \(name) » répond." : "« \(name) » ne répond pas : \(result.message ?? "")")
+        if !result.ok { exit(1) }
+
+    case .remoteDelete(let name):
+        try await client.perform(.deleteRemote(name))
+        print("Connexion « \(name) » supprimée.")
+
     case .remove(let text):
         do {
             let task = try await resolve(text)
