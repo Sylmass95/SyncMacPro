@@ -13,6 +13,10 @@ public protocol AgentConnecting: Sendable {
     func perform(_ request: AgentRequest) async throws
     func simulate(_ task: SyncTask) async throws -> SimulationResult
     func runLog(runID: UUID) async throws -> RunLogText
+    func listRemotes() async throws -> [RemoteInfo]
+    func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome
+    func testRemote(_ name: String) async throws -> RemoteTestResult
+    func remoteFolders(remote: String, path: String) async throws -> [String]
     func startWatching(
         onEvent: @escaping @Sendable (AgentEvent) -> Void, onEnd: @escaping @Sendable () -> Void
     ) async throws -> any AgentWatching
@@ -41,6 +45,10 @@ public struct UnavailableAgent: AgentConnecting {
     public func perform(_ request: AgentRequest) async throws { throw AgentClientError.unreachable }
     public func simulate(_ task: SyncTask) async throws -> SimulationResult { throw AgentClientError.unreachable }
     public func runLog(runID: UUID) async throws -> RunLogText { throw AgentClientError.unreachable }
+    public func listRemotes() async throws -> [RemoteInfo] { throw AgentClientError.unreachable }
+    public func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome { throw AgentClientError.unreachable }
+    public func testRemote(_ name: String) async throws -> RemoteTestResult { throw AgentClientError.unreachable }
+    public func remoteFolders(remote: String, path: String) async throws -> [String] { throw AgentClientError.unreachable }
     public func startWatching(
         onEvent: @escaping @Sendable (AgentEvent) -> Void, onEnd: @escaping @Sendable () -> Void
     ) async throws -> any AgentWatching { throw AgentClientError.unreachable }
@@ -55,5 +63,16 @@ public enum LogOutcome: Equatable, Sendable {
     case loaded(RunLogText)
     /// Exécution antérieure au journal, ou fichier purgé.
     case missing
+    case failed(String)
+}
+
+public enum RemoteStepResult: Equatable, Sendable {
+    case question(RemoteQuestion)
+    case done
+    case failed(String)
+}
+
+public enum FolderListing: Equatable, Sendable {
+    case loaded([String])
     case failed(String)
 }

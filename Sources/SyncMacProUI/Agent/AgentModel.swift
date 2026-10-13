@@ -23,6 +23,8 @@ public final class AgentModel {
     public private(set) var history: [RunRecord] = []
     public private(set) var historyError: String?
     public private(set) var busyTasks: Set<UUID> = []
+    public private(set) var remotes: [RemoteInfo] = []
+    public private(set) var remotesError: String?
     public private(set) var globalPauseBusy = false
     public var alertMessage: String?
 
@@ -338,6 +340,62 @@ public final class AgentModel {
         } catch {
             return .failed(Self.describe(error))
         }
+    }
+
+    // MARK: connexions
+
+    public func reloadRemotes() async {
+        do {
+            remotes = try await agent.listRemotes()
+            remotesError = nil
+        } catch {
+            remotesError = Self.describe(error)
+        }
+    }
+
+    public func configureRemote(_ step: RemoteConfigStep) async -> RemoteStepResult {
+        do {
+            switch try await agent.configureRemote(step) {
+            case .question(let question): return .question(question)
+            case .done:
+                await reloadRemotes()
+                return .done
+            }
+        } catch {
+            // Délai dépassé côté app : l'agent attend peut-être encore le navigateur.
+            if case .unreachable? = error as? AgentClientError { try? await agent.perform(.cancelRemoteConfiguration(step.name)) }
+            return .failed(Self.describe(error))
+        }
+    }
+
+    public func cancelRemoteConfiguration(_ name: String) async {
+        try? await agent.perform(.cancelRemoteConfiguration(name))
+        await reloadRemotes()
+    }
+
+    /// `nil` si la connexion est supprimée, sinon la raison du refus.
+    public func deleteRemote(_ name: String) async -> String? {
+        do {
+            try await agent.perform(.deleteRemote(name))
+            await reloadRemotes()
+            return nil
+        } catch {
+            return Self.describe(error)
+        }
+    }
+
+    public func testRemote(_ name: String) async -> RemoteTestResult {
+        do { return try await agent.testRemote(name) } catch { return RemoteTestResult(ok: false, message: Self.describe(error)) }
+    }
+
+    public func remoteFolders(remote: String, path: String) async -> FolderListing {
+        do { return .loaded(try await agent.remoteFolders(remote: remote, path: path)) } catch { return .failed(Self.describe(error)) }
+    }
+
+    /// Les tâches qui passent par cette connexion (source ou destination).
+    public func tasks(usingRemote name: String) -> [SyncTask] {
+        tasks.values.filter { $0.remoteNames.contains(name) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     static func describe(_ error: Error) -> String {

@@ -24,6 +24,13 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
     private var _logRequests: [UUID] = []
     private var onEvent: (@Sendable (AgentEvent) -> Void)?
     private var onEnd: (@Sendable () -> Void)?
+    private var _remotes: Result<[RemoteInfo], Error> = .success([])
+    private var _configOutcomes: [Result<RemoteConfigOutcome, Error>] = []
+    private var _configured: [RemoteConfigStep] = []
+    private var _remoteTest = RemoteTestResult(ok: true)
+    private var _folders: Result<[String], Error> = .success([])
+    private var _folderRequests: [String] = []
+    private var _holdConfiguration: TestGate?
 
     // MARK: réglages
 
@@ -51,6 +58,42 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
             return _log
         }
         return try result.get()
+    }
+
+    // MARK: connexions
+
+    func setRemotes(_ result: Result<[RemoteInfo], Error>) { locked { _remotes = result } }
+    func setConfigOutcomes(_ outcomes: [Result<RemoteConfigOutcome, Error>]) { locked { _configOutcomes = outcomes } }
+    func setRemoteTest(_ result: RemoteTestResult) { locked { _remoteTest = result } }
+    func setFolders(_ result: Result<[String], Error>) { locked { _folders = result } }
+    var configured: [RemoteConfigStep] { locked { _configured } }
+    var folderRequests: [String] { locked { _folderRequests } }
+    /// Toute étape autre que `.start` attend cette porte (attente du navigateur).
+    var holdConfiguration: TestGate? {
+        get { locked { _holdConfiguration } }
+        set { locked { _holdConfiguration = newValue } }
+    }
+
+    func listRemotes() async throws -> [RemoteInfo] { try locked { _remotes }.get() }
+
+    func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome {
+        let (next, gate): (Result<RemoteConfigOutcome, Error>, TestGate?) = locked {
+            _configured.append(step)
+            let next = _configOutcomes.isEmpty ? .success(.done) : _configOutcomes.removeFirst()
+            if case .start = step { return (next, nil) }
+            return (next, _holdConfiguration)
+        }
+        if let gate { await gate.wait() }
+        return try next.get()
+    }
+
+    func testRemote(_ name: String) async throws -> RemoteTestResult { locked { _remoteTest } }
+
+    func remoteFolders(remote: String, path: String) async throws -> [String] {
+        try locked { () -> Result<[String], Error> in
+            _folderRequests.append("\(remote):\(path)")
+            return _folders
+        }.get()
     }
 
     // MARK: observation
