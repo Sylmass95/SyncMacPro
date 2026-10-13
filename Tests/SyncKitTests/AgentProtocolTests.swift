@@ -12,6 +12,7 @@ final class AgentProtocolTests: XCTestCase {
         let requests: [AgentRequest] = [
             .status, .listTasks, .history(taskID: id, limit: 5), .history(taskID: nil, limit: 20),
             .runNow(id), .pause(id), .resume(id), .stop(id), .setGlobalPause(true), .approveDeletion(id), .reloadTasks,
+            .saveTask(makeTask("x")), .removeTask(id),
         ]
         for request in requests { XCTAssertEqual(try roundTrip(request), request) }
     }
@@ -20,6 +21,7 @@ final class AgentProtocolTests: XCTestCase {
         let task = makeTask("a")
         let responses: [AgentResponse] = [
             .ok, .tasks([task]), .error(.versionMismatch(agent: 1, client: 2)), .error(.unknownTask),
+            .error(.invalidTask("raison")), .error(.unknownRun),
             .status(AgentStatus(
                 globalPause: true, stateRecovered: false, taskLoadError: nil,
                 tasks: [AgentTaskInfo(id: task.id, name: "a", state: .waiting(reason: "réseau"))]
@@ -46,15 +48,15 @@ final class AgentProtocolTests: XCTestCase {
         let core = h.makeCore()
         await core.start()
 
-        let status = try decode(await AgentRouter.handle(encode(version: 1, .status), core: core))
+        let status = try decode(await AgentRouter.handle(encode(version: agentProtocolVersion, .status), core: core))
         guard case .status(let info) = status.response else { return XCTFail("attendu : status") }
         XCTAssertEqual(info.tasks.map(\.name), ["tâche"])
         XCTAssertEqual(status.version, agentProtocolVersion)
 
-        let ran = try decode(await AgentRouter.handle(encode(version: 1, .runNow(task.id)), core: core))
+        let ran = try decode(await AgentRouter.handle(encode(version: agentProtocolVersion, .runNow(task.id)), core: core))
         XCTAssertEqual(ran.response, .ok)
         await core.waitForIdle()
-        let history = try decode(await AgentRouter.handle(encode(version: 1, .history(taskID: task.id, limit: 5)), core: core))
+        let history = try decode(await AgentRouter.handle(encode(version: agentProtocolVersion, .history(taskID: task.id, limit: 5)), core: core))
         guard case .history(let records) = history.response else { return XCTFail("attendu : history") }
         XCTAssertEqual(records.map(\.status), [.succeeded])
     }
@@ -63,7 +65,7 @@ final class AgentProtocolTests: XCTestCase {
         let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
         let core = h.makeCore()
         await core.start()
-        let reply = try decode(await AgentRouter.handle(encode(version: 1, .pause(UUID())), core: core))
+        let reply = try decode(await AgentRouter.handle(encode(version: agentProtocolVersion, .pause(UUID())), core: core))
         XCTAssertEqual(reply.response, .error(.notRunning))
     }
 

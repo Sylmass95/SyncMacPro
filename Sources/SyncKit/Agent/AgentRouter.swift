@@ -30,6 +30,8 @@ public enum AgentRouter {
             case .setGlobalPause(let paused): await core.setGlobalPause(paused)
             case .approveDeletion(let id): try await core.approveDeletion(id)
             case .reloadTasks: await core.reloadTasks()
+            case .saveTask(let task): try await core.saveTask(task)
+            case .removeTask(let id): try await core.removeTask(id)
             }
             return .ok
         } catch let error as AgentError {
@@ -42,6 +44,6 @@ public enum AgentRouter {
     private static func reply(_ response: AgentResponse) -> Data {
         let envelope = AgentResponseEnvelope(response: response)
         return (try? JSONEncoder().encode(envelope))
-            ?? Data(#"{"version":1,"response":{"error":{"internalFailure":{"_0":"réponse non encodable"}}}}"#.utf8)
+            ?? Data("{\"version\":\(agentProtocolVersion),\"response\":{\"error\":{\"internalFailure\":{\"_0\":\"réponse non encodable\"}}}}".utf8)
     }
 }

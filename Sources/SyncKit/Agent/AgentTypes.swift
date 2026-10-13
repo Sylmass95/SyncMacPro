@@ -41,6 +41,8 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case notAwaitingApproval
     case versionMismatch(agent: Int, client: Int)
     case internalFailure(String)
+    case invalidTask(String)
+    case unknownRun
 
     public var errorDescription: String? {
         switch self {
@@ -52,6 +54,8 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .versionMismatch(let agent, let client):
             return "Versions incompatibles (agent \(agent), outil \(client)) : mettez à jour l'agent ou l'application."
         case .internalFailure(let message): return "Erreur interne de l'agent : \(message)"
+        case .invalidTask(let reason): return reason
+        case .unknownRun: return "Exécution inconnue."
         }
     }
 }
