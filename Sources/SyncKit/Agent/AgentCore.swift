@@ -382,7 +382,10 @@ public actor AgentCore {
             }
             let next = task.isEnabled ? entry.flatMap { dueDate(task, $0, now) } : nil
             let last = (try? history.list(taskID: task.id, limit: 1))?.first
-            return AgentTaskInfo(id: task.id, name: task.name, state: runState, nextDue: next, lastRun: last)
+            return AgentTaskInfo(
+                id: task.id, name: task.name, state: runState, nextDue: next, lastRun: last,
+                progress: jobs[task.id]?.latest
+            )
         }
         return AgentStatus(
             globalPause: state.paused, stateRecovered: stateRecovered, taskLoadError: taskLoadError, tasks: infos
@@ -403,6 +406,8 @@ public actor AgentCore {
     }
 
     public func removeObserver(_ token: UUID) { observers[token] = nil }
+
+    var observerCount: Int { observers.count }
 
     func emit(_ event: AgentEvent) {
         for handler in observers.values { handler(event) }
