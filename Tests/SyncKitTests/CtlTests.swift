@@ -4,6 +4,14 @@ import XCTest
 final class CtlParserTests: XCTestCase {
     func parse(_ arguments: String...) throws -> CtlInvocation { try CtlParser.parse(arguments) }
 
+    func testCopyCommand() throws {
+        let invocation = try parse("copy", "--source", "/a", "--dest", "/b", "--item", "x.txt", "--item", "photos")
+        XCTAssertEqual(invocation.command, .copy(OneOffRequest(source: "/a", destination: "/b", items: ["x.txt", "photos"], mirror: false)))
+        let mirror = try parse("copier", "--source", "/a", "--dest", "/b", "--mirror").command
+        XCTAssertEqual(mirror, .copy(OneOffRequest(source: "/a", destination: "/b", items: [], mirror: true)))
+        XCTAssertThrowsError(try parse("copy", "--source", "/a"))
+    }
+
     func testSimpleCommandsAndGlobalOptionsAnywhere() throws {
         let invocation = try parse("--json", "status", "--state-dir", "/tmp/x", "--service", "svc")
         XCTAssertEqual(invocation.command, .status)

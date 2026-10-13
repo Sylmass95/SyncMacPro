@@ -282,6 +282,20 @@ public final class AgentModel {
     // MARK: tâches
 
     /// `nil` si l'agent a enregistré la tâche ; sinon le message, affiché dans l'éditeur (qui reste ouvert).
+    /// Copies ponctuelles : `nil` si l'agent les a toutes prises en charge, sinon le premier refus.
+    public func runOnce(_ tasks: [SyncTask]) async -> String? {
+        for (index, task) in tasks.enumerated() {
+            do {
+                try await agent.perform(.runOnce(task))
+            } catch {
+                if index > 0 { await refreshNow() }   // les copies déjà acceptées doivent apparaître
+                return Self.describe(error)
+            }
+        }
+        await refreshNow()
+        return nil
+    }
+
     public func saveTask(_ task: SyncTask) async -> String? {
         do {
             try await agent.perform(.saveTask(task))

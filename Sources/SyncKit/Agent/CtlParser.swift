@@ -9,6 +9,21 @@ public struct NewTask: Equatable, Sendable {
     public var requiresACPower: Bool
 }
 
+/// Une copie ponctuelle demandée en ligne de commande.
+public struct OneOffRequest: Equatable, Sendable {
+    public var source: String
+    public var destination: String
+    public var items: [String]
+    public var mirror: Bool
+
+    public init(source: String, destination: String, items: [String], mirror: Bool) {
+        self.source = source
+        self.destination = destination
+        self.items = items
+        self.mirror = mirror
+    }
+}
+
 public enum CtlCommand: Equatable, Sendable {
     case status, list, watch, help
     case run(String), pause(String), resume(String), stop(String), approve(String), remove(String)
@@ -16,6 +31,7 @@ public enum CtlCommand: Equatable, Sendable {
     case pauseAll, resumeAll
     case history(String?, limit: Int)
     case add(NewTask)
+    case copy(OneOffRequest)
     case agentInstall, agentUninstall, agentStatus
 }
 
@@ -56,6 +72,8 @@ public enum CtlParser {
       add --name N --source P --dest P [--mode copy|mirror|bidirectional|move|versioned|verify]
           [--every MINUTES | --daily HH:MM] [--ac-power]
       remove <tâche>
+      copy --source DOSSIER --dest DOSSIER [--item NOM]... [--mirror]
+                                     copie ponctuelle par l'agent (sans créer de tâche)
       simulate <tâche>               ce que ferait la tâche, sans rien modifier
       log <tâche>                    journal de la dernière exécution
       agent install | uninstall | status
@@ -68,13 +86,13 @@ public enum CtlParser {
         "statut": "status", "liste": "list", "lancer": "run", "reprendre": "resume", "arreter": "stop",
         "arrêter": "stop", "historique": "history", "valider": "approve", "pause-tout": "pause-all",
         "reprendre-tout": "resume-all", "ajouter": "add", "supprimer": "remove", "aide": "help",
-        "simuler": "simulate", "journal": "log",
+        "simuler": "simulate", "journal": "log", "copier": "copy",
     ]
 
     private static let valued: Set<String> = [
-        "state-dir", "service", "name", "source", "dest", "mode", "every", "daily", "limit",
+        "state-dir", "service", "name", "source", "dest", "mode", "every", "daily", "limit", "item",
     ]
-    private static let flags: Set<String> = ["json", "ac-power", "help"]
+    private static let flags: Set<String> = ["json", "ac-power", "help", "mirror"]
 
     public static func parse(_ arguments: [String]) throws -> CtlInvocation {
         var json = false
@@ -83,6 +101,7 @@ public enum CtlParser {
         var positional: [String] = []
         var values: [String: String] = [:]
         var flagged: Set<String> = []
+        var items: [String] = []
 
         var index = 0
         while index < arguments.count {
@@ -95,7 +114,7 @@ public enum CtlParser {
                 flagged.insert(name)
             } else if valued.contains(name) {
                 guard index < arguments.count else { throw CtlParseError.missingValue("--\(name)") }
-                values[name] = arguments[index]
+                if name == "item" { items.append(arguments[index]) } else { values[name] = arguments[index] }
                 index += 1
             } else {
                 throw CtlParseError.invalid("Option inconnue : --\(name)")
@@ -147,6 +166,14 @@ public enum CtlParser {
             default: throw CtlParseError.invalid("agent attend : install, uninstall ou status")
             }
         case "add": return invocation(.add(try newTask(values, flagged)))
+        case "copy":
+            guard let source = values["source"] else { throw CtlParseError.missingValue("--source") }
+            guard let destination = values["dest"] else { throw CtlParseError.missingValue("--dest") }
+            return invocation(.copy(OneOffRequest(
+                source: (source as NSString).expandingTildeInPath,
+                destination: (destination as NSString).expandingTildeInPath,
+                items: items, mirror: flagged.contains("mirror")
+            )))
         default: throw CtlParseError.unknownCommand(first)
         }
     }
