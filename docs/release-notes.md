@@ -1,8 +1,13 @@
-SyncMacPro 1.1.0 — nouvelle apparence en verre.
+SyncMacPro 1.1.1 — mises à jour sans perdre l'agent.
 
-**Nouveau** : thème verre inspiré de Rsync-GUI — fond aux dégradés colorés, panneaux en verre dépoli, boutons et barres de
-progression lumineux, en clair comme en sombre. Deux styles au choix dans Réglages › Apparence : « Verre intense » (par
-défaut) et « Verre léger ». L'option « Réduire la transparence » de macOS rend les panneaux opaques.
+**Corrections**
+- Après le remplacement de l'app par une nouvelle version, l'agent d'arrière-plan ne redémarrait plus (macOS refusait de
+  lancer l'agent enregistré par l'ancienne version). L'app le réenregistre désormais elle-même au premier lancement.
+- Test d'une connexion : jusqu'à 60 s (le premier appel à Google Drive peut être lent) et message clair si le service ne
+  répond pas.
+- Règles de confidentialité publiées (`PRIVACY.md`).
+
+Inclut la nouvelle apparence de la 1.1.0 (thème verre, styles « intense » et « léger »).
 
 **Installation** : ouvrez le DMG et glissez SyncMacPro dans Applications (remplace la version précédente). L'app est signée
 « ad hoc » : au premier lancement, autorisez-la dans Réglages Système › Confidentialité et sécurité › « Ouvrir quand même »
