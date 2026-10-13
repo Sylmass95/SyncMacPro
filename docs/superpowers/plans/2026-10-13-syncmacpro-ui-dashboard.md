@@ -3178,6 +3178,7 @@ git commit -m "Interface : tableau de bord (cartes, bandeaux, pause globale) et 
 
 ```swift
 import SwiftUI
+import SyncKit
 import XCTest
 @testable import SyncMacProUI
 
