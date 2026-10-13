@@ -20,10 +20,11 @@ struct EditorStepContent: View {
     let offline: Bool
     let onSimulate: () -> Void
     let onCancelSimulation: () -> Void
+    var remotes: RemoteContext = .none
 
     var body: some View {
         switch step {
-        case .endpoints: EndpointsStepView(draft: $draft, localizer: text.localizer)
+        case .endpoints: EndpointsStepView(draft: $draft, localizer: text.localizer, remotes: remotes)
         case .mode: ModeStepView(draft: $draft, text: text)
         case .options: OptionsStepView(draft: $draft, text: text)
         case .schedule: ScheduleStepView(draft: $draft, text: text, resolver: resolver)
@@ -42,11 +43,12 @@ struct EditorStepContent: View {
 struct EndpointsStepView: View {
     @Binding var draft: TaskDraft
     let localizer: Localizer
+    var remotes: RemoteContext = .none
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            SideEditor(title: localizer.text("editor.source"), side: $draft.source, localizer: localizer)
-            SideEditor(title: localizer.text("editor.destination"), side: $draft.destination, localizer: localizer)
+            SideEditor(title: localizer.text("editor.source"), side: $draft.source, localizer: localizer, remotes: remotes)
+            SideEditor(title: localizer.text("editor.destination"), side: $draft.destination, localizer: localizer, remotes: remotes)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -57,6 +59,8 @@ struct SideEditor: View {
     let title: String
     @Binding var side: SideDraft
     let localizer: Localizer
+    var remotes: RemoteContext = .none
+    @State private var browsing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -77,13 +81,29 @@ struct SideEditor: View {
                 }
             } else {
                 HStack {
-                    TextField(localizer.text("editor.remote"), text: $side.remote)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 160)
+                    Picker(localizer.text("editor.remote"), selection: $side.remote) {
+                        if side.remote.isEmpty { Text(localizer.text("remote.pick")).tag("") }
+                        ForEach(remotes.remotes) { remote in Text(remote.name).tag(remote.name) }
+                        // Une connexion inconnue (supprimée, ou tapée avant 4) reste affichée telle quelle.
+                        if !side.remote.isEmpty && !remotes.remotes.contains(where: { $0.name == side.remote }) {
+                            Text(side.remote).tag(side.remote)
+                        }
+                    }
+                    .frame(width: 220)
+                    Button(localizer.text("remote.add"), action: remotes.onAdd)
+                }
+                HStack {
                     TextField(localizer.text("editor.path"), text: $side.path).textFieldStyle(.roundedBorder)
+                    Button(localizer.text("editor.choose")) { browsing = true }.disabled(side.remote.isEmpty)
                 }
                 Text(localizer.text("editor.remote.help")).font(.caption).foregroundStyle(.secondary)
             }
+        }
+        .sheet(isPresented: $browsing) {
+            RemoteFolderPicker(
+                remote: side.remote, startPath: side.path, localizer: localizer, browse: remotes.browse,
+                onChoose: { side.path = $0; browsing = false }, onCancel: { browsing = false }
+            )
         }
     }
 }

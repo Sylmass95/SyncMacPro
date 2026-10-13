@@ -193,7 +193,7 @@
 "editor.path" = "Path";
 "editor.choose" = "Choose…";
 "editor.remote" = "Service";
-"editor.remote.help" = "The service name in rclone, for example “drive”. The connection assistant is coming soon.";
+"editor.remote.help" = "Pick a connection (Connections screen), then the folder; a new folder name will be created.";
 "editor.name" = "Task name";
 "editor.next.run" = "Next run: %@";
 "editor.simulate" = "Simulate";
@@ -393,3 +393,11 @@
 "wizard.done.title" = "“%@” is ready";
 "wizard.done.body" = "You can pick it as a source or destination in your tasks (“Online service” side).";
 "wizard.done.close" = "Done";
+"remote.loading" = "Reading the folder…";
+"remote.failed" = "Can’t read: %@";
+"remote.empty" = "No subfolders";
+"remote.title" = "Choose a folder in “%@”";
+"remote.newFolder" = "New folder at the end of the path (optional)";
+"remote.choose" = "Choose this folder";
+"remote.pick" = "Choose…";
+"remote.add" = "Add a connection…";

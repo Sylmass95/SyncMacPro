@@ -193,7 +193,7 @@
 "editor.path" = "Chemin";
 "editor.choose" = "Choisir…";
 "editor.remote" = "Service";
-"editor.remote.help" = "Le nom du service dans rclone, par exemple « drive ». L’assistant de connexion arrive bientôt.";
+"editor.remote.help" = "Choisissez une connexion (écran Connexions) puis le dossier ; un nom de dossier nouveau sera créé.";
 "editor.name" = "Nom de la tâche";
 "editor.next.run" = "Prochaine exécution : %@";
 "editor.simulate" = "Simuler";
@@ -393,3 +393,11 @@
 "wizard.done.title" = "« %@ » est prête";
 "wizard.done.body" = "Vous pouvez la choisir comme source ou destination dans vos tâches (côté « Service en ligne »).";
 "wizard.done.close" = "Terminé";
+"remote.loading" = "Lecture du dossier…";
+"remote.failed" = "Lecture impossible : %@";
+"remote.empty" = "Aucun sous-dossier";
+"remote.title" = "Choisir un dossier dans « %@ »";
+"remote.newFolder" = "Nouveau dossier au bout du chemin (facultatif)";
+"remote.choose" = "Choisir ce dossier";
+"remote.pick" = "Choisir…";
+"remote.add" = "Ajouter une connexion…";
