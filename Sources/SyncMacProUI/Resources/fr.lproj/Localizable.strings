@@ -77,7 +77,7 @@
 "dashboard.pause.help" = "Rien ne démarre et les copies en cours sont figées.";
 "dashboard.resume" = "Reprendre";
 "dashboard.empty.title" = "Aucune tâche";
-"dashboard.empty.body" = "La création de tâches arrive bientôt. D’ici là, utilisez la commande : syncmacpro-ctl add";
+"dashboard.empty.body" = "Créez votre première tâche, ou partez d’un modèle.";
 
 "card.run" = "Lancer";
 "card.pause" = "Pause";
@@ -150,3 +150,131 @@
 
 "alert.title" = "Action impossible";
 "alert.ok" = "OK";
+
+"sidebar.tasks" = "Tâches";
+"dashboard.create" = "Créer une tâche";
+
+"tasks.title" = "Tâches";
+"tasks.new" = "Nouvelle tâche";
+"tasks.templates" = "Modèles";
+"tasks.edit" = "Modifier";
+"tasks.duplicate" = "Dupliquer";
+"tasks.delete" = "Supprimer";
+"tasks.enabled" = "Activée";
+"tasks.copy.suffix" = "(copie)";
+"tasks.delete.confirm" = "Supprimer la tâche « %@ » ?";
+"tasks.delete.body" = "Les fichiers déjà copiés ne sont pas touchés et l’historique est conservé.";
+"tasks.empty" = "Aucune tâche. Créez-en une, ou partez d’un modèle.";
+
+"template.copyToNAS.title" = "Copier vers un NAS";
+"template.copyToNAS.description" = "Chaque nuit, ajoute vos nouveaux fichiers sur le NAS, sans rien y supprimer.";
+"template.syncTwoFolders.title" = "Synchroniser deux dossiers";
+"template.syncTwoFolders.description" = "Garde deux dossiers identiques dans les deux sens, toutes les heures.";
+"template.backupToDrive.title" = "Sauvegarder vers Google Drive";
+"template.backupToDrive.description" = "Chaque nuit, copie un dossier vers Google Drive (remote rclone « drive »).";
+
+"editor.title.new" = "Nouvelle tâche";
+"editor.title.edit" = "Modifier la tâche";
+"editor.step.endpoints" = "Source et destination";
+"editor.step.mode" = "Mode";
+"editor.step.options" = "Options";
+"editor.step.schedule" = "Planification";
+"editor.step.summary" = "Résumé";
+"editor.cancel" = "Annuler";
+"editor.back" = "Précédent";
+"editor.next" = "Suivant";
+"editor.save" = "Enregistrer";
+"editor.saving" = "Enregistrement…";
+"editor.offline" = "L’agent ne répond pas : impossible d’enregistrer ou de simuler pour l’instant.";
+"editor.source" = "Source";
+"editor.destination" = "Destination";
+"editor.side.folder" = "Dossier ou disque";
+"editor.side.cloud" = "Service en ligne";
+"editor.path" = "Chemin";
+"editor.choose" = "Choisir…";
+"editor.remote" = "Service";
+"editor.remote.help" = "Le nom du service dans rclone, par exemple « drive ». L’assistant de connexion arrive bientôt.";
+"editor.name" = "Nom de la tâche";
+"editor.next.run" = "Prochaine exécution : %@";
+"editor.simulate" = "Simuler";
+"editor.simulate.help" = "Calcule ce que ferait la tâche, sans rien copier ni supprimer.";
+"editor.simulating" = "Simulation en cours…";
+"editor.simulate.cancel" = "Annuler la simulation";
+"editor.simulate.again" = "Simuler à nouveau";
+"editor.options.transfer" = "Transfert";
+"editor.options.excludes" = "Exclusions (une par ligne)";
+"editor.options.bandwidth" = "Limite de débit (Ko/s, vide = illimité)";
+"editor.options.verify" = "Vérifier après la copie";
+"editor.options.quota" = "Quota par exécution (Go)";
+"editor.options.safety" = "Sécurité";
+"editor.options.threshold" = "Bloquer au-delà de %d %% de suppressions";
+"editor.options.archive" = "Dossier d’archive";
+"editor.options.retention" = "Garder les anciennes versions (jours)";
+"editor.options.conditions" = "Conditions";
+"editor.options.ac" = "Seulement sur secteur";
+"editor.options.network" = "Seulement avec le réseau";
+"editor.options.hours" = "Seulement dans une plage horaire";
+"editor.options.hours.start" = "De %d h";
+"editor.options.hours.end" = "à %d h";
+"editor.options.notifications" = "Notifications";
+"editor.schedule.kind" = "Quand lancer la tâche";
+"editor.schedule.time" = "Heure";
+"editor.schedule.every" = "Toutes les %d min";
+
+"schedule.kind.manual" = "À la demande";
+"schedule.kind.daily" = "Tous les jours";
+"schedule.kind.weekdays" = "Certains jours";
+"schedule.kind.everyMinutes" = "Régulièrement";
+"schedule.kind.whenAvailable" = "Dès que la destination est disponible";
+
+"notify.always" = "Toujours";
+"notify.errorsOnly" = "En cas de problème";
+"notify.never" = "Jamais";
+
+"mode.copy.description" = "Ajoute ce qui est nouveau ou modifié. Ne supprime jamais rien.";
+"mode.mirror.description" = "La destination devient identique à la source. Ce qui est supprimé ou remplacé est archivé.";
+"mode.bidirectional.description" = "Les deux côtés restent à jour, dans les deux sens.";
+"mode.move.description" = "Copie, puis retire les fichiers de la source.";
+"mode.versioned.description" = "Copie et garde les anciennes versions pendant un nombre de jours choisi.";
+"mode.verify.description" = "Compare les deux côtés sans rien modifier.";
+"mode.mirror.warning" = "Supprime de la destination ce qui n’est plus dans la source.";
+"mode.bidirectional.warning" = "Une suppression d’un côté se propage de l’autre.";
+"mode.move.warning" = "Les fichiers disparaissent de la source.";
+"mode.rclone.note" = "Utilise rclone.";
+
+"summary.sentence.copy" = "Copie les nouveautés de « %1$@ » vers « %2$@ », %3$@.";
+"summary.sentence.mirror" = "Rend « %2$@ » identique à « %1$@ », %3$@.";
+"summary.sentence.bidirectional" = "Garde « %1$@ » et « %2$@ » identiques dans les deux sens, %3$@.";
+"summary.sentence.move" = "Déplace le contenu de « %1$@ » vers « %2$@ », %3$@.";
+"summary.sentence.versioned" = "Copie « %1$@ » vers « %2$@ » en gardant les anciennes versions, %3$@.";
+"summary.sentence.verify" = "Compare « %1$@ » et « %2$@ », %3$@.";
+"summary.when.manual" = "à la demande";
+"summary.safe" = "Rien n’est supprimé.";
+"summary.readonly" = "Rien n’est modifié.";
+
+"warning.mirror" = "Les fichiers absents de la source seront retirés de la destination et archivés dans « %@ ».";
+"warning.bidirectional" = "Une suppression d’un côté se propagera de l’autre.";
+"warning.move" = "Les fichiers seront retirés de la source une fois copiés.";
+"warning.disabled" = "La tâche est désactivée : elle ne se lancera pas toute seule.";
+
+"simulation.result" = "%1$d fichier(s) à transférer (%2$@), %3$d suppression(s).";
+"simulation.deletions" = "Attention : %d fichier(s) seraient supprimés.";
+"simulation.failed" = "La simulation a échoué : %@";
+"simulation.stopped" = "Simulation annulée.";
+
+"problem.emptyName" = "Donnez un nom à la tâche.";
+"problem.missingSource" = "Choisissez une source.";
+"problem.missingDestination" = "Choisissez une destination.";
+"problem.sameSourceAndDestination" = "La source et la destination sont le même dossier.";
+"problem.nestedFolders" = "La destination ne peut pas être dans la source, ni la source dans la destination.";
+"problem.engineMismatch" = "Le moteur choisi ne sait pas faire ce mode.";
+"problem.invalidThreshold" = "Le seuil de suppression doit être compris entre 1 et 100 %.";
+"problem.invalidSchedule" = "La planification est incomplète.";
+
+"history.log.show" = "Voir le journal";
+"log.title" = "Journal de « %@ »";
+"log.copy" = "Copier";
+"log.close" = "Fermer";
+"log.truncated" = "Début du journal non affiché (trop long).";
+"log.none" = "Aucun journal pour cette exécution.";
+"log.loading" = "Chargement du journal…";
