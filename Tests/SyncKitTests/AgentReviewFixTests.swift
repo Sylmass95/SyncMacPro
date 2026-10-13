@@ -82,7 +82,7 @@ final class AgentReviewFixTests: XCTestCase {
     func testAgentPlistsRelaunchTheAgentAfterACrash() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        for name in ["make-dev-bundle.sh", "dev-launchd.sh"] {
+        for name in ["assemble-app.sh", "dev-launchd.sh"] {   // le plist du bundle est écrit par assemble-app.sh
             let text = try String(contentsOf: root.appendingPathComponent("scripts/\(name)"), encoding: .utf8)
             XCTAssertTrue(text.contains("<key>KeepAlive</key>"), "\(name) : KeepAlive manquant")
             XCTAssertTrue(text.contains("<key>SuccessfulExit</key><false/>"), "\(name) : sortie réussie ne doit pas relancer")

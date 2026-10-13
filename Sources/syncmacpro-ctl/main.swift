@@ -116,6 +116,26 @@ do {
         try await client.perform(.runOnce(task))
         print("« \(task.name) » lancée (suivre avec : syncmacpro-ctl watch).")
 
+    case .version:
+        print("SyncMacPro \(AppInfo.version())")
+
+    case .doctor:
+        print("SyncMacPro \(AppInfo.version())")
+        for engine in [EngineKind.rsync, .rclone] {
+            if let path = BinaryLocator.locateForProcess(engine) {
+                let line = BinaryLocator.firstLine(of: path, arguments: engine == .rsync ? ["--version"] : ["version"]) ?? ""
+                print("\(engine.rawValue) : \(path) — \(line)")
+            } else {
+                print("\(engine.rawValue) : introuvable")
+            }
+        }
+        do {
+            let status = try await client.status()
+            print("Agent : répond (\(status.tasks.count) tâche(s), pause globale : \(status.globalPause ? "oui" : "non"))")
+        } catch {
+            print("Agent : ne répond pas (\((error as? LocalizedError)?.errorDescription ?? "\(error)"))")
+        }
+
     case .remotes:
         let remotes = try await client.listRemotes()
         show(remotes, lines: remotes.isEmpty ? ["Aucune connexion."] : remotes.map { "\($0.name)  (\($0.type))" })

@@ -18,14 +18,19 @@ public struct RootView: View {
     let installer: AgentInstaller
     let loginItem: LoginItemModel
     let localizer: Localizer
+    let updates: UpdateModel?
     @State private var selection: SidebarItem? = .dashboard
     @State private var editor: EditorSession?
 
-    public init(model: AgentModel, installer: AgentInstaller, loginItem: LoginItemModel, localizer: Localizer = .system) {
+    public init(
+        model: AgentModel, installer: AgentInstaller, loginItem: LoginItemModel, localizer: Localizer = .system,
+        updates: UpdateModel? = nil
+    ) {
         self.model = model
         self.installer = installer
         self.loginItem = loginItem
         self.localizer = localizer
+        self.updates = updates
     }
 
     /// L'accueil ne s'affiche que si l'agent est injoignable ET pas installé : un agent installé mais muet, ou un agent
@@ -66,21 +71,21 @@ public struct RootView: View {
 
     @ViewBuilder private var detail: some View {
         if Self.shouldShowOnboarding(connection: model.connection, installState: installer.state) {
-            OnboardingView(installer: installer, localizer: localizer) {
+            OnboardingView(installer: installer, localizer: localizer, location: InstallLocation.problem(bundlePath: Bundle.main.bundlePath)) {
                 installer.install()
                 model.restart()
             }
         } else {
             switch selection ?? .dashboard {
             case .dashboard:
-                DashboardView(model: model, installer: installer, localizer: localizer, onCreate: { open($0, isNew: true) })
+                DashboardView(model: model, installer: installer, localizer: localizer, updates: updates, onCreate: { open($0, isNew: true) })
             case .tasks:
                 TasksView(model: model, localizer: localizer) { open($0, isNew: $1) }
             case .copy:
                 CopyView(model: model, localizer: localizer) { open($0, isNew: true) }
             case .history: HistoryView(model: model, localizer: localizer)
             case .connections: ConnectionsView(model: model, localizer: localizer)
-            case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer)
+            case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
             }
         }
     }

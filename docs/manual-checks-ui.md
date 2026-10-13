@@ -81,3 +81,12 @@ Nettoyage à la fin : `syncmacpro-ctl agent uninstall`, supprimer `~/Application
 - [ ] Supprimer une connexion utilisée par une tâche : refus avec le nom de la tâche.
 - [ ] Éditeur : choisir une connexion, parcourir ses dossiers, « Ajouter une connexion… » la sélectionne à la fermeture de l'assistant.
 - [ ] Les connexions créées avec rclone en ligne de commande apparaissent et sont utilisables.
+
+## Distribution (5)
+- [ ] Sur un Mac sans Homebrew : ouvrir le DMG, glisser l'app dans Applications, l'ouvrir après l'autorisation Gatekeeper.
+- [ ] Ouvrir l'app directement depuis le DMG : l'accueil demande de la déplacer dans Applications.
+- [ ] L'accueil installe l'agent ; `syncmacpro-ctl doctor` montre rsync et rclone **du bundle**.
+- [ ] Une copie vers un dossier et une connexion Google Drive fonctionnent sans rien installer.
+- [ ] Mac Intel (ou Rosetta) : l'app et l'agent démarrent.
+- [ ] Réglages › À propos : version, Vérifier maintenant (« à jour » ou nouvelle version), Licences ouvre le fichier.
+- [ ] Une publication plus récente sur GitHub fait apparaître le bandeau au tableau de bord.

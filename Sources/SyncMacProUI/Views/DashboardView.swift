@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SyncKit
 
@@ -9,10 +10,11 @@ struct DashboardContent: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
+    var update: ReleaseInfo?
 
     var body: some View {
         ScrollView {
-            DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate)
+            DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate, update: update)
         }
     }
 }
@@ -24,6 +26,8 @@ struct DashboardBody: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
+    /// Une version plus récente est publiée.
+    var update: ReleaseInfo?
 
     private var l: Localizer { text.localizer }
 
@@ -34,6 +38,11 @@ struct DashboardBody: View {
                 connection: model.connection, installState: installState, localizer: l,
                 onRetry: { model.restart() }, onInstall: onInstall
             )
+            if let update {
+                Banner(systemImage: "arrow.down.circle", tint: .blue, title: l.format("update.banner", update.version.description)) {
+                    Button(l.text("update.download")) { NSWorkspace.shared.open(update.url) }
+                }
+            }
             if model.status?.stateRecovered == true {
                 Banner(systemImage: "exclamationmark.triangle", tint: .orange, title: l.text("banner.recovered")) {
                     Button(l.text("dashboard.resume")) { Task { await model.setGlobalPause(false) } }
@@ -130,14 +139,16 @@ public struct DashboardView: View {
     let installer: AgentInstaller
     let localizer: Localizer
     let onCreate: (TaskDraft) -> Void
+    let updates: UpdateModel?
 
     public init(
-        model: AgentModel, installer: AgentInstaller, localizer: Localizer = .system,
+        model: AgentModel, installer: AgentInstaller, localizer: Localizer = .system, updates: UpdateModel? = nil,
         onCreate: @escaping (TaskDraft) -> Void = { _ in }
     ) {
         self.model = model
         self.installer = installer
         self.localizer = localizer
+        self.updates = updates
         self.onCreate = onCreate
     }
 
@@ -148,7 +159,8 @@ public struct DashboardView: View {
                 model: model, installState: installer.state,
                 text: CardText(localizer: localizer, now: context.date),
                 onInstall: { installer.install(); model.restart() },
-                onCreate: onCreate
+                onCreate: onCreate,
+                update: updates?.available
             )
         }
     }

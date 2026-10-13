@@ -4,6 +4,13 @@ import XCTest
 final class CtlParserTests: XCTestCase {
     func parse(_ arguments: String...) throws -> CtlInvocation { try CtlParser.parse(arguments) }
 
+    func testVersionAndDoctor() throws {
+        XCTAssertEqual(try parse("version").command, .version)
+        XCTAssertEqual(try parse("--version").command, .version)
+        XCTAssertEqual(try parse("doctor").command, .doctor)
+        XCTAssertEqual(try parse("diagnostic").command, .doctor)
+    }
+
     func testRemoteCommands() throws {
         XCTAssertEqual(try parse("remotes").command, .remotes)
         XCTAssertEqual(try parse("connexions").command, .remotes)

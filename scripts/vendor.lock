@@ -1,0 +1,9 @@
+# Versions et empreintes des programmes embarqués. Une empreinte différente arrête la construction.
+RSYNC_VERSION=3.5.1
+RSYNC_URL=https://download.samba.org/pub/rsync/src/rsync-3.5.1.tar.gz
+RSYNC_SHA256=c55f9c9dc10fb8bec397b399a0fdded53cc9a2d8e30891bb0d63724d25c37bef
+RCLONE_VERSION=1.75.1
+RCLONE_ARM64_URL=https://downloads.rclone.org/v1.75.1/rclone-v1.75.1-osx-arm64.zip
+RCLONE_ARM64_SHA256=c61d7a371c62bcbbe882c3423aa4b8bf63485c248dd0f692997b8f0c3f6d0c6f
+RCLONE_AMD64_URL=https://downloads.rclone.org/v1.75.1/rclone-v1.75.1-osx-amd64.zip
+RCLONE_AMD64_SHA256=29253d0288b8fbbac46baad6e5f6add6cb01d462c79f10805bbd4631c4cdf82c

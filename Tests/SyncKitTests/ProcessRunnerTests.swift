@@ -169,6 +169,57 @@ final class BinaryLocatorTests: XCTestCase {
         XCTAssertTrue((RunnerError.binaryMissing(.rclone).errorDescription ?? "").contains("rclone"))
     }
 
+    func testEmbeddedDirectoryIsFoundFromAnyExecutableOfTheBundle() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("bundle-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = root.appendingPathComponent("SyncMacPro.app/Contents")
+        try FileManager.default.createDirectory(at: app.appendingPathComponent("MacOS"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: app.appendingPathComponent("Resources/bin"), withIntermediateDirectories: true)
+        let agent = app.appendingPathComponent("MacOS/syncmacpro-agent").path
+        let expected = app.appendingPathComponent("Resources/bin").resolvingSymlinksInPath().path
+        XCTAssertEqual(BinaryLocator.embeddedDirectory(executable: agent), expected)
+        XCTAssertNil(BinaryLocator.embeddedDirectory(executable: "/usr/local/bin/syncmacpro-agent"))
+        XCTAssertNil(BinaryLocator.embeddedDirectory(executable: root.appendingPathComponent("x/MacOS/y").path), "pas de Resources/bin")
+    }
+
+    func testEmbeddedBinaryWinsOverTheSystemButNotOverTheEnvironment() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("loc-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let bundle = folder.appendingPathComponent("bundle"), system = folder.appendingPathComponent("system")
+        let embedded = try fakeRsync(in: bundle, name: "rsync", version: "rsync  version 3.5.1  protocol version 33")
+        let installed = try fakeRsync(in: system, name: "rsync", version: "rsync  version 3.4.1  protocol version 32")
+        XCTAssertEqual(BinaryLocator.locate(.rsync, environment: [:], bundleDirectory: bundle.path, searchDirectories: [system.path]), embedded)
+        let forced = BinaryLocator.locate(.rsync, environment: ["SYNCMACPRO_RSYNC": installed], bundleDirectory: bundle.path, searchDirectories: [])
+        XCTAssertEqual(forced, installed)
+    }
+
+    func testBrokenEmbeddedBinaryFallsBackToTheSystem() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("loc-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let bundle = folder.appendingPathComponent("bundle"), system = folder.appendingPathComponent("system")
+        for name in ["rsync", "rclone"] {
+            try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
+            try Data("pas un programme".utf8).write(to: bundle.appendingPathComponent(name))
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: bundle.appendingPathComponent(name).path)
+        }
+        let rsync = try fakeRsync(in: system, name: "rsync", version: "rsync  version 3.4.1  protocol version 32")
+        let rclone = try fakeRsync(in: system, name: "rclone", version: "rclone v1.75.1")
+        XCTAssertEqual(BinaryLocator.locate(.rsync, environment: [:], bundleDirectory: bundle.path, searchDirectories: [system.path]), rsync)
+        XCTAssertEqual(BinaryLocator.locate(.rclone, environment: [:], bundleDirectory: bundle.path, searchDirectories: [system.path]), rclone)
+    }
+
+    func testAppVersionComesFromTheBundle() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ver-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let contents = root.appendingPathComponent("SyncMacPro.app/Contents")
+        try FileManager.default.createDirectory(at: contents.appendingPathComponent("MacOS"), withIntermediateDirectories: true)
+        let plist: [String: Any] = ["CFBundleShortVersionString": "1.0.0", "CFBundleVersion": "321"]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+        XCTAssertEqual(AppInfo.version(executable: contents.appendingPathComponent("MacOS/syncmacpro-ctl").path), "1.0.0 (321)")
+        XCTAssertEqual(AppInfo.version(executable: "/usr/local/bin/syncmacpro-ctl"), "dev")
+    }
+
     func fakeRsync(in dir: URL, name: String, version: String) throws -> String {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent(name)
@@ -182,7 +233,7 @@ final class BinaryLocatorTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let fake = dir.appendingPathComponent("rclone")
-        try "#!/bin/sh\n".write(to: fake, atomically: true, encoding: .utf8)
+        try "#!/bin/sh\necho 'rclone v1.75.1'\n".write(to: fake, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fake.path)
 
         XCTAssertEqual(BinaryLocator.locate(.rclone, environment: [:], bundleDirectory: dir.path), fake.path)

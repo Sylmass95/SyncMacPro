@@ -401,3 +401,16 @@
 "remote.choose" = "Choose this folder";
 "remote.pick" = "Choose…";
 "remote.add" = "Add a connection…";
+"update.banner" = "SyncMacPro %@ is available.";
+"update.download" = "Download";
+"update.automatic" = "Check for updates daily";
+"update.checkNow" = "Check now";
+"update.checking" = "Checking…";
+"update.upToDate" = "SyncMacPro is up to date.";
+"update.available" = "Version %@ available.";
+"update.failed" = "Couldn’t check: %@";
+"settings.licenses" = "Licenses";
+"settings.source" = "Source code";
+"onboarding.location.diskImage" = "SyncMacPro is running from the disk image: drag it to the Applications folder, then reopen it from there.";
+"onboarding.location.translocated" = "macOS launched a temporary copy of SyncMacPro: move the app to the Applications folder (with the Finder), then reopen it.";
+"onboarding.location.reveal" = "Show in Finder";

@@ -14,11 +14,17 @@ struct SyncMacProApp: App {
     @State private var model: AgentModel
     @State private var installer = AgentInstaller()
     @State private var loginItem = LoginItemModel()
+    @State private var updates = UpdateModel(checker: UpdateChecker(current: AppInfo.version()))
     @AppStorage("appearance") private var appearance = Appearance.auto.rawValue
 
     private let localizer = Localizer.system
 
     init() {
+        // Lancée, l'app est autorisée : on retire la quarantaine de son bundle, sinon rsync, rclone et l'agent restent
+        // bloqués (ils ne sont pas couverts par l'autorisation donnée à l'app).
+        if Bundle.main.bundlePath.hasSuffix(".app"), InstallLocation.problem(bundlePath: Bundle.main.bundlePath) == nil {
+            Quarantine.clear(bundle: Bundle.main.bundleURL)
+        }
         let model = AgentModel(agent: AgentClient.machService(AgentIdentifiers.service()))
         _model = State(initialValue: model)
         // Le modèle démarre avec l'app, pas avec la fenêtre : l'icône de la barre de menus reste vivante même si
@@ -28,8 +34,9 @@ struct SyncMacProApp: App {
 
     var body: some Scene {
         Window(localizer.text("app.name"), id: "main") {
-            RootView(model: model, installer: installer, loginItem: loginItem, localizer: localizer)
+            RootView(model: model, installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
+                .task { await updates.checkIfDue() }
         }
         .defaultSize(width: 1180, height: 720)
 

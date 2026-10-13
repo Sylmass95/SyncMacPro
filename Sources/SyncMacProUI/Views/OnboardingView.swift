@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Premier lancement : propose d'installer l'agent d'arrière-plan.
@@ -6,10 +7,16 @@ public struct OnboardingView: View {
     let installer: AgentInstaller
     let localizer: Localizer
     let onInstall: () -> Void
+    /// L'app tourne depuis le DMG ou une copie temporaire : l'agent ne peut pas s'installer durablement.
+    let location: InstallLocationProblem?
 
-    public init(installer: AgentInstaller, localizer: Localizer = .system, onInstall: @escaping () -> Void) {
+    public init(
+        installer: AgentInstaller, localizer: Localizer = .system, location: InstallLocationProblem? = nil,
+        onInstall: @escaping () -> Void
+    ) {
         self.installer = installer
         self.localizer = localizer
+        self.location = location
         self.onInstall = onInstall
     }
 
@@ -23,7 +30,20 @@ public struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 440)
-            if installer.state == .requiresApproval {
+            if let location {
+                VStack(spacing: 8) {
+                    Label(
+                        localizer.text(location == .diskImage ? "onboarding.location.diskImage" : "onboarding.location.translocated"),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 440)
+                    Button(localizer.text("onboarding.location.reveal")) {
+                        NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+                    }
+                }
+            } else if installer.state == .requiresApproval {
                 Text(localizer.text("onboarding.approve"))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 440)

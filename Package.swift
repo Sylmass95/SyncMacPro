@@ -24,6 +24,6 @@ let package = Package(
             dependencies: ["SyncKit"],
             resources: [.copy("Fixtures")]
         ),
-        .testTarget(name: "SyncMacProUITests", dependencies: ["SyncMacProUI", "SyncKit"]),
+        .testTarget(name: "SyncMacProUITests", dependencies: ["SyncMacProUI", "SyncKit"], resources: [.copy("Fixtures")]),
     ]
 )
