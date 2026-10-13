@@ -94,7 +94,27 @@ L'installation de l'agent se fait au premier lancement (ou dans Réglages › Ag
 Tâches ou « Créer une tâche »), avec un éditeur en 5 étapes qui simule avant d'enregistrer ; l'historique montre le journal
 de chaque exécution. L'agent est le seul à écrire `tasks.json` ; `syncmacpro-ctl add / remove / simulate / log` passent par lui. Textes en français et en anglais (`Sources/SyncMacProUI/Resources/*.lproj`, fichiers
 `.strings` : `swift build` ne compile pas les catalogues `.xcstrings`). L'agent a besoin de **rsync 3** (`brew install rsync`) :
-sans lui macOS utilise `openrsync` et le résumé des exécutions est faux (le bundle de rsync viendra au sous-projet 5).
+l'`openrsync` de macOS est refusé avec un message clair (le bundle de rsync viendra au sous-projet 5).
 Vérifications à la main : [`docs/manual-checks-ui.md`](docs/manual-checks-ui.md). Les tests de rendu (`ImageRenderer`) écrivent
 des PNG dans `$TMPDIR/syncmacpro-renders/` ; `ImageRenderer` ne dessine ni les `ScrollView` ni les contrôles AppKit
 (barres de progression, filtres), qui se vérifient dans l'app.
+
+## Copie à deux panneaux (sous-projet 3c)
+
+L'écran **Copie** montre deux dossiers côte à côte : à gauche la source, à droite la destination (⇄ pour échanger).
+- **Copier** : les éléments choisis à gauche (⌘ et ⇧ pour en choisir plusieurs) vers le dossier de droite.
+- **Synchroniser** : rend le dossier de droite identique à celui de gauche (miroir, avec archive et garde-fou).
+- **Simuler** : montre ce qui serait copié et supprimé, sans rien modifier.
+- **Enregistrer comme tâche** : ouvre l'éditeur pré-rempli.
+- Glisser un élément d'un panneau à l'autre, ou déposer des fichiers du Finder, ouvre la même confirmation.
+- Emplacements standard, disques montés et favoris (étoile) dans le menu de chaque panneau ; fichiers cachés au choix.
+
+Chaque copie est exécutée par l'agent comme une **copie manuelle** : elle apparaît au tableau de bord le temps de
+l'exécution, puis dans l'historique (avec son journal) ; elle n'est pas enregistrée dans les tâches. Une copie
+interrompue par l'arrêt de l'agent n'est pas reprise. Si le garde-fou bloque une synchronisation, la confirmation propose,
+après une simulation, d'accepter les suppressions annoncées.
+
+```bash
+syncmacpro-ctl copy --source DOSSIER --dest DOSSIER [--item NOM]... [--mirror]
+SYNCMACPRO_AGENT_SERVICE=com.sylvain.syncmacpro.agent.dev .build/debug/SyncMacPro   # l'app sur l'agent de développement
+```
