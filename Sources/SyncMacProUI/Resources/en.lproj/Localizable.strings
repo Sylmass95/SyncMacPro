@@ -280,3 +280,6 @@
 "log.loading" = "Loading the log…";
 "problem.relativePath" = "Paths must be complete (start with /).";
 "problem.invalidArchiveFolder" = "The archive folder must be a plain name, without “/” or “..”.";
+"oneoff.copy.name" = "Copy of %@ to %@";
+"oneoff.sync.name" = "Sync of %@ to %@";
+"oneoff.items" = "%d items";

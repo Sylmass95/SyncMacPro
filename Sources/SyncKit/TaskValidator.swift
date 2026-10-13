@@ -48,10 +48,10 @@ public enum TaskValidator {
             } else {
                 let source = location(task.source), destination = location(task.destination)
                 if source.namespace == destination.namespace {
-                    if source.parts == destination.parts {
-                        found.append(.sameSourceAndDestination)
-                    } else if source.parts.starts(with: destination.parts) || destination.parts.starts(with: source.parts) {
-                        found.append(.nestedFolders)
+                    if let problem = task.sourceItems.isEmpty
+                        ? overlap(source.parts, destination.parts)
+                        : overlap(items: task.sourceItems, in: source, destination.parts) {
+                        found.append(problem)
                     }
                 }
             }
@@ -63,6 +63,28 @@ public enum TaskValidator {
         }
         if !isValid(task.schedule) { found.append(.invalidSchedule) }
         return found
+    }
+
+    /// Tout un dossier : il ne doit ni être la destination, ni la contenir, ni être dans elle.
+    static func overlap(_ source: [String], _ destination: [String]) -> TaskProblem? {
+        if source == destination { return .sameSourceAndDestination }
+        if source.starts(with: destination) || destination.starts(with: source) { return .nestedFolders }
+        return nil
+    }
+
+    /// Des éléments choisis : chacun est jugé avec l'endroit où il arrive (`destination/nom`). Copier /a/b/x.txt
+    /// dans /a ou /a/c est légitime ; la destination ne doit pas être dans un élément, ni l'arrivée contenir l'élément.
+    static func overlap(items: [String], in source: Location, _ destination: [String]) -> TaskProblem? {
+        if source.parts == destination { return .sameSourceAndDestination }
+        for item in items {
+            var parts = item.split(separator: "/").map(String.init).filter { !$0.isEmpty }
+            if source.namespace.isEmpty { parts = parts.map { $0.lowercased() } }
+            guard let name = parts.last else { continue }
+            let path = source.parts + parts
+            let arrival = destination + [name]
+            if destination.starts(with: path) || path.starts(with: arrival) { return .nestedFolders }
+        }
+        return nil
     }
 
     static func isEmpty(_ endpoint: Endpoint) -> Bool {

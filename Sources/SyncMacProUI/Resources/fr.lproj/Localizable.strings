@@ -280,3 +280,6 @@
 "log.loading" = "Chargement du journal…";
 "problem.relativePath" = "Les chemins doivent être complets (commencer par /).";
 "problem.invalidArchiveFolder" = "Le dossier d’archive doit être un simple nom, sans « / » ni « .. ».";
+"oneoff.copy.name" = "Copie de %@ vers %@";
+"oneoff.sync.name" = "Synchronisation de %@ vers %@";
+"oneoff.items" = "%d éléments";
