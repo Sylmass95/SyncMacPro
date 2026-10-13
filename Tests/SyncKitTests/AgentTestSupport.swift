@@ -160,8 +160,15 @@ final class FakeRemotes: RemoteConfiguring, @unchecked Sendable {
     let cancelled = Locked<[String]>([])
     let outcomes = Locked<[Result<RemoteConfigOutcome, RemoteConfigError>]>([])
     let gate = Locked<TestGate?>(nil)
+    /// Si défini, `listRemotes` attend cette porte (appel lent).
+    let listGate = Locked<TestGate?>(nil)
+    let idleWaits = Locked(0)
 
-    func listRemotes() async throws -> [RemoteInfo] { remotes.get() }
+    func listRemotes() async throws -> [RemoteInfo] {
+        if let gate = listGate.get() { await gate.wait() }
+        return remotes.get()
+    }
+    func waitForIdle() async { idleWaits.set(idleWaits.get() + 1) }
     func configure(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome {
         steps.set(steps.get() + [step])
         if case .start(let name, let type, _) = step { remotes.set(remotes.get() + [RemoteInfo(name: name, type: type)]) }

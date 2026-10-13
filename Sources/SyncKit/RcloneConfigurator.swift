@@ -6,6 +6,8 @@ public protocol RemoteConfiguring: Sendable {
     func configure(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome
     func cancelConfiguration(_ name: String)
     func cancelAll()
+    /// Attend que plus aucune configuration ne tourne (arrêt de l'agent).
+    func waitForIdle() async
     func delete(_ name: String) async throws
     func test(_ name: String) async -> RemoteTestResult
     func folders(remote: String, path: String) async throws -> [String]
@@ -122,6 +124,13 @@ public final class RcloneConfigurator: RemoteConfiguring, @unchecked Sendable {
     public func cancelAll() {
         let names = lock.withLock { Array(running.keys) }
         names.forEach(cancelConfiguration)
+    }
+
+    public func waitForIdle() async {
+        for _ in 0..<200 {   // 10 s au plus : un rclone arrêté rend la main en moins de 2 s
+            if lock.withLock({ running.isEmpty }) { return }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
     }
 
     public func delete(_ name: String) async throws {

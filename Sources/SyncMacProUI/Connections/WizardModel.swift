@@ -179,9 +179,14 @@ public final class WizardModel {
 
     /// Le test a échoué : on supprime la connexion et on revient corriger les saisies.
     public func fix() async {
-        _ = await model.deleteRemote(name)
         testResult = nil
-        step = reconnecting ? .connect : .prepare
+        // Une reconnexion porte sur une connexion existante : on ne la supprime pas, on réessaie.
+        if reconnecting {
+            step = .connect
+            return
+        }
+        _ = await model.deleteRemote(name)
+        step = .prepare
     }
 
     public func keepAnyway() {
