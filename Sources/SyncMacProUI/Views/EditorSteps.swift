@@ -164,9 +164,10 @@ struct ModeCard: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            selected ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.06),
+            selected ? Color.accentColor.opacity(0.14) : Color.clear,
             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
         )
+        .glassCard(cornerRadius: 12)
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(selected ? Color.accentColor : Color.clear, lineWidth: 2)
@@ -254,7 +255,7 @@ struct OptionsStepView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassCard(cornerRadius: 12)
     }
 
     private func field(_ label: String, text: Binding<String>) -> some View {

@@ -66,13 +66,15 @@ extension View {
 @MainActor
 public struct GlassButtonStyle: ButtonStyle {
     let prominent: Bool
+    let color: Color
 
-    public init(prominent: Bool) {
+    public init(prominent: Bool, color: Color = .accentColor) {
         self.prominent = prominent
+        self.color = color
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        GlassButtonBody(configuration: configuration, prominent: prominent)
+        GlassButtonBody(configuration: configuration, prominent: prominent, color: color)
     }
 }
 
@@ -80,6 +82,7 @@ public struct GlassButtonStyle: ButtonStyle {
 private struct GlassButtonBody: View {
     let configuration: ButtonStyleConfiguration
     let prominent: Bool
+    let color: Color
     @Environment(\.glassTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
 
@@ -95,9 +98,9 @@ private struct GlassButtonBody: View {
                 if prominent {
                     ZStack {
                         shape.fill(Color.white)
-                        shape.fill(LinearGradient(colors: [Color.accentColor.opacity(0.72), Color.accentColor], startPoint: .top, endPoint: .bottom))
+                        shape.fill(LinearGradient(colors: [color.opacity(0.72), color], startPoint: .top, endPoint: .bottom))
                     }
-                    .shadow(color: Color.accentColor.opacity(theme.buttonGlow > 0 ? 0.45 : 0), radius: theme.buttonGlow, y: 4)
+                    .shadow(color: color.opacity(theme.buttonGlow > 0 ? 0.45 : 0), radius: theme.buttonGlow, y: 4)
                 } else {
                     ZStack {
                         if theme.usesMaterial { shape.fill(.ultraThinMaterial) }

@@ -100,7 +100,7 @@ public struct MenuBarPanel: View {
                 Text(text.state(info.state)).font(.caption).foregroundStyle(.secondary)
             }
             if let progress {
-                ProgressView(value: Double(progress.overallPercent ?? 0) / 100)
+                GlowProgressBar(value: Double(progress.overallPercent ?? 0) / 100, height: 5)
                 Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
         }

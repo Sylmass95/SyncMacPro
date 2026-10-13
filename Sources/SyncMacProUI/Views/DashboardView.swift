@@ -85,8 +85,7 @@ struct DashboardBody: View {
                 systemImage: paused ? "play.fill" : "pause.fill"
             )
         }
-        .buttonStyle(.borderedProminent)
-        .tint(paused ? .green : .accentColor)
+        .buttonStyle(GlassButtonStyle(prominent: true, color: paused ? .green : .accentColor))
         .disabled(model.globalPauseBusy || model.connection != .connected)
     }
 
@@ -101,7 +100,7 @@ struct DashboardBody: View {
                         Button { onCreate(TaskDraft()) } label: {
                             Label(l.text("dashboard.create"), systemImage: "plus")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(GlassButtonStyle(prominent: true))
                         .disabled(model.connection != .connected)
                         TemplatesMenu(localizer: l) { onCreate(.template($0)) }
                     }

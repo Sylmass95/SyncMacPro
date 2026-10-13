@@ -9,6 +9,7 @@ public struct SettingsView: View {
     let localizer: Localizer
     let updates: UpdateModel?
     @AppStorage("appearance") private var appearanceRaw = Appearance.auto.rawValue
+    @AppStorage(GlassStyle.storageKey) private var styleRaw = GlassStyle.default.rawValue
 
     public init(installer: AgentInstaller, loginItem: LoginItemModel, localizer: Localizer = .system, updates: UpdateModel? = nil) {
         self.installer = installer
@@ -27,6 +28,11 @@ public struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+                Picker(localizer.text("settings.style"), selection: $styleRaw) {
+                    Text(localizer.text("settings.style.vivid")).tag(GlassStyle.vivid.rawValue)
+                    Text(localizer.text("settings.style.soft")).tag(GlassStyle.soft.rawValue)
+                }
+                .pickerStyle(.segmented)
             }
             Section {
                 Toggle(
@@ -72,6 +78,7 @@ public struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .navigationTitle(localizer.text("settings.title"))
         .onAppear {
             installer.refresh()

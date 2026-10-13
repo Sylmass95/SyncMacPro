@@ -52,7 +52,8 @@ struct Banner<Actions: View>: View {
             actions()
         }
         .padding(12)
-        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .glassCard(cornerRadius: 14)
         .accessibilityElement(children: .combine)
     }
 }

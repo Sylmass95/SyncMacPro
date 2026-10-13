@@ -48,10 +48,10 @@ public struct OnboardingView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 440)
                 Button(localizer.text("agent.opensettings")) { installer.openSettings() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(GlassButtonStyle(prominent: true))
             } else {
                 Button(localizer.text("onboarding.install"), action: onInstall)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(GlassButtonStyle(prominent: true))
                     .controlSize(.large)
             }
             if let error = installer.errorMessage {

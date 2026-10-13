@@ -115,6 +115,8 @@ struct CopyConfirmationView: View {
         }
         .padding(20)
         .frame(width: 540, height: 380)
+        .background(GlassBackdrop())
+        .glassThemed()
         .task { if session.simulateAtOnce && !invalid { await simulate() } }
         .onDisappear { cancelSimulations() }
     }

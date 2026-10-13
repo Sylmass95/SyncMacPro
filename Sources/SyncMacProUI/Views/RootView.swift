@@ -47,8 +47,11 @@ public struct RootView: View {
             .navigationSplitViewColumnWidth(min: 170, ideal: 200)
         } detail: {
             detail
+                .scrollContentBackground(.hidden)
+                .background(GlassBackdrop())
         }
         .frame(minWidth: 940, minHeight: 560)
+        .glassThemed()
         // L'agent a disparu (désinstallé, désactivé) : on relit son état pour proposer la bonne action.
         .onChange(of: model.connection) { _, state in
             if state == .unreachable { installer.refresh() }

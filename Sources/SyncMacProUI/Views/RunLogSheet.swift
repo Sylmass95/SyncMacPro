@@ -30,6 +30,8 @@ struct RunLogSheet: View {
         }
         .padding(16)
         .frame(width: 780, height: 540)
+        .background(GlassBackdrop())
+        .glassThemed()
         .task { outcome = await model.runLog(record.id) }
     }
 

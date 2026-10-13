@@ -75,7 +75,7 @@ struct WizardStepContent: View {
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .glassCard(cornerRadius: 14)
                     }
                     .buttonStyle(.plain)
                 }
@@ -205,6 +205,8 @@ struct ConnectionWizardView: View {
         }
         .padding(20)
         .frame(width: 580, height: 480)
+        .background(GlassBackdrop())
+        .glassThemed()
     }
 
     @ViewBuilder private var primary: some View {

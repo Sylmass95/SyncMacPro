@@ -124,6 +124,7 @@ public struct HistoryView: View {
                 onSelect: { selection = $0 }
             )
         }
+        .glassCard(cornerRadius: 12, dense: true)
         .focusable()
         .onMoveCommand { direction in move(direction, in: rows) }
     }
@@ -226,7 +227,7 @@ struct HistoryTableBody: View {
                     .padding(.vertical, 6)
                     Divider()
                 }
-                .background(.background)
+                .background(.regularMaterial)
             }
         }
     }

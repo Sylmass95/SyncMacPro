@@ -50,8 +50,7 @@ struct TaskCard: View {
             HStack { buttons }.controlSize(.small)
         }
         .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.quaternary))
+        .glassCard(cornerRadius: 16)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(info.name), \(text.state(info.state))")
     }
@@ -59,8 +58,7 @@ struct TaskCard: View {
     @ViewBuilder private var progressSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let progress {
-                ProgressView(value: fraction(progress))
-                    .progressViewStyle(.linear)
+                GlowProgressBar(value: fraction(progress))
                     .accessibilityLabel(l.text("state.running"))
                     .accessibilityValue("\(progress.overallPercent ?? Int(fraction(progress) * 100)) %")
                 Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
@@ -91,7 +89,7 @@ struct TaskCard: View {
             button("card.stop", "stop.fill", actions.stop)
         case .awaitingApproval:
             Button(action: actions.approve) { Label(l.text("card.approve"), systemImage: "checkmark.shield") }
-                .buttonStyle(.borderedProminent).disabled(busy)
+                .buttonStyle(GlassButtonStyle(prominent: true)).disabled(busy)
             button("card.run", "play.fill", actions.run)
         case .idle, .waiting, .disabled:
             button("card.run", "play.fill", actions.run)

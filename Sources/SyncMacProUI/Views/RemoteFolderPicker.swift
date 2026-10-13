@@ -102,6 +102,8 @@ struct RemoteFolderPicker: View {
         }
         .padding(20)
         .frame(width: 520, height: 460)
+        .background(GlassBackdrop())
+        .glassThemed()
         .task(id: path) { listing = nil; listing = await browse(remote, path) }
         .onAppear { path = RemotePath.join(RemotePath.components(startPath)) }
     }
