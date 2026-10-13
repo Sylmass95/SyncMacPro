@@ -1125,7 +1125,9 @@ final class AgentSchedulingTests: XCTestCase {
         await core.start()
         await core.tick(); await core.waitForIdle()
         XCTAssertEqual(h.factory.runCount, 0)
-        h.clock.set(h.at(2026, 10, 12, 23, 0))
+        h.clock.set(h.at(2026, 10, 12, 23, 0))   // un saut de 9 h ressemble à une veille : attente de 60 s
+        await core.tick()
+        h.clock.advance(61)
         await core.tick(); await core.waitForIdle()
         XCTAssertEqual(h.factory.runCount, 1)
     }
