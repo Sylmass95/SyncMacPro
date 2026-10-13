@@ -1,6 +1,7 @@
 import SwiftUI
 import SyncKit
 
+@MainActor
 public struct HistoryView: View {
     let model: AgentModel
     let localizer: Localizer
@@ -180,6 +181,7 @@ public struct HistoryView: View {
 }
 
 /// Le tableau (en-tête épinglé + lignes) sans son défilement : `ImageRenderer` ne dessine pas un `ScrollView`.
+@MainActor
 struct HistoryTableBody: View {
     let rows: [RunRecord]
     let selection: UUID?

@@ -9,6 +9,7 @@ struct TaskCardActions {
     var approve: () -> Void = {}
 }
 
+@MainActor
 struct TaskCard: View {
     let info: AgentTaskInfo
     /// `nil` tant que `listTasks` ne connaît pas la tâche : la carte reste affichable, sans mode ni planification.

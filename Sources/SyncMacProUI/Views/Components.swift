@@ -1,6 +1,7 @@
 import SwiftUI
 import SyncKit
 
+@MainActor
 struct StatePill: View {
     let state: TaskRunState
     let label: String
@@ -27,6 +28,7 @@ struct StatePill: View {
     }
 }
 
+@MainActor
 struct Banner<Actions: View>: View {
     let systemImage: String
     let tint: Color
@@ -55,6 +57,7 @@ struct Banner<Actions: View>: View {
     }
 }
 
+@MainActor
 struct ConnectionBanner: View {
     let connection: ConnectionState
     let installState: AgentInstallState

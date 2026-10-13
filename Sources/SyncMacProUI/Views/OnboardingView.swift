@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Premier lancement : propose d'installer l'agent d'arrière-plan.
+@MainActor
 public struct OnboardingView: View {
     let installer: AgentInstaller
     let localizer: Localizer

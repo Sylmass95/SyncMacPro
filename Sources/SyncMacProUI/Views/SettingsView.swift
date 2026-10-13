@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import SyncKit
 
+@MainActor
 public struct SettingsView: View {
     let installer: AgentInstaller
     let loginItem: LoginItemModel

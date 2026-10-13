@@ -49,6 +49,7 @@ struct SyncMacProApp: App {
 }
 
 /// L'icône reflète l'état en direct, même fenêtre fermée.
+@MainActor
 private struct MenuBarIcon: View {
     let model: AgentModel
     let localizer: Localizer
@@ -61,6 +62,7 @@ private struct MenuBarIcon: View {
     }
 }
 
+@MainActor
 private struct MenuBarContent: View {
     @Environment(\.openWindow) private var openWindow
     let model: AgentModel

@@ -2,6 +2,7 @@ import SwiftUI
 import SyncKit
 
 /// Le tableau de bord sans son défilement : `ImageRenderer` ne dessine pas un `ScrollView`, les tests rendent ce contenu.
+@MainActor
 struct DashboardContent: View {
     let model: AgentModel
     let installState: AgentInstallState
@@ -15,6 +16,7 @@ struct DashboardContent: View {
     }
 }
 
+@MainActor
 struct DashboardBody: View {
     let model: AgentModel
     let installState: AgentInstallState
@@ -111,6 +113,7 @@ struct DashboardBody: View {
     }
 }
 
+@MainActor
 public struct DashboardView: View {
     let model: AgentModel
     let installer: AgentInstaller

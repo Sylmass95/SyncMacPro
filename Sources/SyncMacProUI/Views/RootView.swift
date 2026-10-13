@@ -6,6 +6,7 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// Fenêtre principale : barre latérale (tableau de bord, historique, réglages) et accueil au premier lancement.
+@MainActor
 public struct RootView: View {
     let model: AgentModel
     let installer: AgentInstaller

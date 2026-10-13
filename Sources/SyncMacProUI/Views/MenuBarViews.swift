@@ -2,6 +2,7 @@ import SwiftUI
 import SyncKit
 
 /// Icône de la barre de menus : symbole selon l'état, et « 42 % » ou « 2 copies » pendant une copie.
+@MainActor
 public struct MenuBarLabel: View {
     let state: MenuBarState
     let localizer: Localizer
@@ -20,6 +21,7 @@ public struct MenuBarLabel: View {
 }
 
 /// Panneau de la barre de menus : copies actives, prochaines exécutions, pause globale, ouvrir, quitter.
+@MainActor
 public struct MenuBarPanel: View {
     let model: AgentModel
     let text: CardText
