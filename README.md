@@ -12,7 +12,7 @@ Conception : [`docs/superpowers/specs/2026-10-12-syncmacpro-design.md`](docs/sup
 |---|---|
 | 1. Cœur (`SyncKit`) | terminé : modèle de tâche, moteurs rsync/rclone, progression, historique |
 | 2. Planification (agent) | en cours : agent d'arrière-plan, XPC et outil `syncmacpro-ctl` (voir ci-dessous) |
-| 3. Interface | 3a livrée : tableau de bord, barre de menus, historique, réglages ; 3b (tâches) et 3c (copie à deux panneaux) à venir |
+| 3. Interface | 3a et 3b livrées : tableau de bord, barre de menus, historique, réglages, tâches, éditeur, simulation, journal ; 3c (copie à deux panneaux) à venir |
 | 4. Connexion aux services | à venir |
 | 5. Distribution | à venir |
 
@@ -49,6 +49,7 @@ pause-all | resume-all
 history [<tâche>] [--limit N]
 add --name N --source P --dest P [--mode M] [--every MIN | --daily HH:MM] [--ac-power]
 remove <tâche>
+simulate <tâche> | log <tâche>
 agent install | uninstall | status
 Options : --json  --state-dir DOSSIER  --service NOM
 ```
@@ -69,7 +70,7 @@ scripts/make-dev-bundle.sh
 `SyncMacPro.app/Contents/MacOS/`. Si macOS demande une autorisation, elle se donne dans Réglages Système ›
 Général › Éléments de connexion et extensions.
 
-Sans bundle, `scripts/dev-launchd.sh install` déclare un agent de développement (service
+Sans bundle, `scripts/dev-launchd.sh install` déclare un agent de développement (il reçoit `SYNCMACPRO_RSYNC` s'il est défini) (service
 `com.sylvain.syncmacpro.agent.dev`, données dans `SyncMacPro-dev`) ; l'utiliser avec
 `syncmacpro-ctl --service com.sylvain.syncmacpro.agent.dev --state-dir "$HOME/Library/Application Support/SyncMacPro-dev"`.
 `syncmacpro-agent --foreground` fait tourner l'agent dans le terminal **sans XPC** (un service Mach exige launchd).
@@ -89,8 +90,9 @@ scripts/make-dev-bundle.sh          # assemble ~/Applications/SyncMacPro.app (si
 open ~/Applications/SyncMacPro.app
 ```
 
-L'installation de l'agent se fait au premier lancement (ou dans Réglages › Agent). La création de tâches depuis l'app arrive
-en 3b ; d'ici là : `syncmacpro-ctl add`. Textes en français et en anglais (`Sources/SyncMacProUI/Resources/*.lproj`, fichiers
+L'installation de l'agent se fait au premier lancement (ou dans Réglages › Agent). Les tâches se créent dans l'app (écran
+Tâches ou « Créer une tâche »), avec un éditeur en 5 étapes qui simule avant d'enregistrer ; l'historique montre le journal
+de chaque exécution. L'agent est le seul à écrire `tasks.json` ; `syncmacpro-ctl add / remove / simulate / log` passent par lui. Textes en français et en anglais (`Sources/SyncMacProUI/Resources/*.lproj`, fichiers
 `.strings` : `swift build` ne compile pas les catalogues `.xcstrings`). L'agent a besoin de **rsync 3** (`brew install rsync`) :
 sans lui macOS utilise `openrsync` et le résumé des exécutions est faux (le bundle de rsync viendra au sous-projet 5).
 Vérifications à la main : [`docs/manual-checks-ui.md`](docs/manual-checks-ui.md). Les tests de rendu (`ImageRenderer`) écrivent

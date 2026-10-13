@@ -15,6 +15,11 @@ case "${1:-}" in
   install)
     swift build
     mkdir -p "$DATA"
+    # launchd ne transmet pas l'environnement du terminal : sans cela l'agent prendrait l'openrsync de macOS.
+    ENV_XML=""
+    if [ -n "${SYNCMACPRO_RSYNC:-}" ]; then
+      ENV_XML="<key>EnvironmentVariables</key><dict><key>SYNCMACPRO_RSYNC</key><string>$SYNCMACPRO_RSYNC</string></dict>"
+    fi
     cat > "$PLIST" <<XML
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -30,6 +35,7 @@ case "${1:-}" in
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>StandardErrorPath</key><string>$DATA/agent.log</string>
+  $ENV_XML
 </dict></plist>
 XML
     launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
