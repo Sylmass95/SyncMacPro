@@ -415,7 +415,7 @@ public actor AgentCore {
         case .quotaReached: title = "\(task.name) : quota atteint"
         default: title = "\(task.name) : échec"
         }
-        var body = summary.message
+        let body = summary.message
             ?? "\(summary.filesTransferred) fichier(s), \(Formatting.bytes(summary.bytesTransferred))"
         // Une copie ponctuelle n'existe plus après son exécution : il n'y a rien à valider, on explique comment relancer.
         if oneOff && status == .blocked {

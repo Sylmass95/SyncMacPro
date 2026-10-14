@@ -64,7 +64,8 @@ extension View {
 }
 
 /// Bouton principal en dégradé de la couleur d'accent avec halo, ou bouton secondaire en verre.
-@MainActor
+/// Sans `@MainActor` : `makeBody` doit satisfaire l'exigence non isolée de `ButtonStyle` (SDK macOS 14). Le corps
+/// (`GlassButtonBody`) ne fait que stocker des valeurs : son initialiseur n'a pas besoin du fil principal.
 public struct GlassButtonStyle: ButtonStyle {
     let prominent: Bool
     let color: Color
@@ -94,7 +95,6 @@ struct GlassButtonMetrics: Equatable {
     }
 }
 
-@MainActor
 private struct GlassButtonBody: View {
     let configuration: ButtonStyleConfiguration
     let prominent: Bool
