@@ -24,21 +24,24 @@ public enum RsyncPlanParser {
 
     public static func parse(_ text: String) -> RsyncPlan {
         var plan = RsyncPlan()
-        for line in LineSplitter.lines(in: text) {
-            if let name = captures(listing, in: line), name.count == 2 {
-                let size = Int64(name[0]) ?? 0
-                let path = name[1]
-                if path == "./" { continue }
-                if path.hasSuffix("/") { plan.directories.insert(path) } else { plan.files[path] = size }
-            } else if line.hasPrefix("deleting ") {
-                plan.deletions.append(String(line.dropFirst("deleting ".count)))
-            } else if let reg = captures(regularFiles, in: line)?.first {
-                plan.sourceRegularFiles = Int(reg.replacingOccurrences(of: ",", with: ""))
-            } else if let created = captures(createdFiles, in: line)?.first {
-                plan.createdRegularFiles = Int(created.replacingOccurrences(of: ",", with: ""))
-            }
-        }
+        for line in LineSplitter.lines(in: text) { add(line, to: &plan) }
         return plan
+    }
+
+    /// Lecture au fil de l'eau : une simulation d'un million de fichiers n'est jamais gardée en entier sous forme de texte.
+    public static func add(_ line: String, to plan: inout RsyncPlan) {
+        if let name = captures(listing, in: line), name.count == 2 {
+            let size = Int64(name[0]) ?? 0
+            let path = name[1]
+            if path == "./" { return }
+            if path.hasSuffix("/") { plan.directories.insert(path) } else { plan.files[path] = size }
+        } else if line.hasPrefix("deleting ") {
+            plan.deletions.append(String(line.dropFirst("deleting ".count)))
+        } else if let reg = captures(regularFiles, in: line)?.first {
+            plan.sourceRegularFiles = Int(reg.replacingOccurrences(of: ",", with: ""))
+        } else if let created = captures(createdFiles, in: line)?.first {
+            plan.createdRegularFiles = Int(created.replacingOccurrences(of: ",", with: ""))
+        }
     }
 
     private static func captures(_ regex: NSRegularExpression, in line: String) -> [String]? {

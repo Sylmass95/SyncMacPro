@@ -44,6 +44,17 @@ public final class ProgressTracker {
     private var planFiles: [String: Int64]?
     private var planDirs: Set<String> = []
 
+    // Totaux tenus à jour au fil des événements : `snapshot()` est appelé quatre fois par seconde, et le recalcul de
+    // l'union du plan et des fichiers copiés coûtait proportionnellement au nombre de fichiers (un million de fichiers
+    // ralentissait la copie jusqu'à freiner rsync, qui attendait que l'agent lise sa sortie).
+    private var doneBytesSum: Int64 = 0
+    private var planBytes: Int64 = 0
+    /// Σ (taille copiée − taille prévue, 0 si absent du plan) sur les fichiers copiés.
+    private var unionBytesDelta: Int64 = 0
+    /// Fichiers copiés absents du plan, dossiers vus absents du plan.
+    private var extraFiles = 0
+    private var extraDirs = 0
+
     private var currentName: String?
     private var currentSize: Int64 = 0
     private var currentBytes: Int64 = 0
@@ -87,10 +98,7 @@ public final class ProgressTracker {
     public func finish() {
         pause()
         finished = true
-        if planFiles == nil, rclone == nil {
-            planFiles = [:]
-            planDirs = []
-        }
+        if planFiles == nil, rclone == nil { setPlan(files: [:], directories: []) }
     }
 
     // MARK: rsync
@@ -99,6 +107,16 @@ public final class ProgressTracker {
     public func setPlan(files: [String: Int64], directories: Set<String>) {
         planFiles = files
         planDirs = directories
+        // Une fois par exécution : on rapproche le plan de ce qui a déjà été copié.
+        planBytes = files.values.reduce(0, +)
+        unionBytesDelta = 0
+        extraFiles = 0
+        for (name, size) in doneFiles {
+            let planned = files[name]
+            unionBytesDelta += size - (planned ?? 0)
+            if planned == nil { extraFiles += 1 }
+        }
+        extraDirs = doneDirs.subtracting(directories).count
     }
 
     public func apply(_ event: RsyncEvent) {
@@ -117,7 +135,7 @@ public final class ProgressTracker {
             currentCounted = false
             samples = []
         case .directory(let name):
-            doneDirs.insert(name)
+            if doneDirs.insert(name).inserted, planFiles != nil, !planDirs.contains(name) { extraDirs += 1 }
         case .progress(let bytes, let percent, let speed, let fileFinished):
             guard !currentCounted else { return }
             if !currentLive {
@@ -152,7 +170,18 @@ public final class ProgressTracker {
     private func completeCurrentFile() {
         guard let name = currentName else { return }
         let size = currentSize > 0 ? currentSize : currentBytes
-        doneFiles[name] = size          // affectation : un fichier retransféré n'est compté qu'une fois
+        // Affectation : un fichier retransféré n'est compté qu'une fois.
+        if let previous = doneFiles.updateValue(size, forKey: name) {
+            doneBytesSum += size - previous
+            unionBytesDelta += size - previous
+        } else {
+            doneBytesSum += size
+            if let plan = planFiles {
+                let planned = plan[name]
+                unionBytesDelta += size - (planned ?? 0)
+                if planned == nil { extraFiles += 1 }
+            }
+        }
         currentBytes = size
         currentPercent = 100
         currentCounted = true
@@ -209,15 +238,23 @@ public final class ProgressTracker {
 
         snap.filesDone = doneFiles.count
         snap.dirsDone = doneDirs.count
-        snap.doneBytes = doneFiles.values.reduce(0, +) + (currentCounted ? 0 : currentBytes)
+        snap.doneBytes = doneBytesSum + (currentCounted ? 0 : currentBytes)
 
+        // Union du plan et des fichiers copiés (un fichier copié remplace sa taille prévue), plus le fichier en cours.
         if let plan = planFiles {
-            var union = plan
-            for (name, size) in doneFiles { union[name] = size }
-            if !currentCounted, let name = currentName { union[name] = max(union[name] ?? 0, currentSize) }
-            snap.totalFiles = union.count
-            snap.totalBytes = union.values.reduce(0, +)
-            snap.totalDirs = planDirs.union(doneDirs).count
+            var files = plan.count + extraFiles
+            var bytes = planBytes + unionBytesDelta
+            if !currentCounted, let name = currentName {
+                if let known = doneFiles[name] ?? plan[name] {
+                    bytes += max(known, currentSize) - known
+                } else {
+                    files += 1
+                    bytes += currentSize
+                }
+            }
+            snap.totalFiles = files
+            snap.totalBytes = bytes
+            snap.totalDirs = planDirs.count + extraDirs
         }
     }
 

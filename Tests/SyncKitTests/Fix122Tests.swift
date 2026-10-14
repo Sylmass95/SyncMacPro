@@ -202,3 +202,72 @@ final class Fix122MinorTests: XCTestCase {
         XCTAssertEqual(TaskReference.logTarget("Copie du soir", in: tasks), .failure(.notFound("Copie du soir")))
     }
 }
+
+/// Gros volumes : l'avancement se calcule à coût constant (un calcul proportionnel au nombre de fichiers, quatre fois
+/// par seconde, ralentissait une copie d'un million de fichiers jusqu'à freiner rsync).
+final class Fix122TrackerTests: XCTestCase {
+    private func copy(_ tracker: ProgressTracker, _ name: String, _ size: Int64) {
+        tracker.apply(.fileStarted(name: name, isNew: nil))
+        tracker.apply(.progress(bytes: size, percent: 100, bytesPerSecond: 1, fileFinished: true))
+    }
+
+    func testSnapshotsStayFastWithManyFiles() {
+        let count = 100_000
+        var plan: [String: Int64] = [:]
+        for index in 0..<count { plan["d\(index / 1000)/fichier_\(index).txt"] = 12 }
+        let tracker = ProgressTracker()
+        tracker.start()
+        tracker.setPlan(files: plan, directories: Set((0..<100).map { "d\($0)/" }))
+        let started = Date()
+        for index in 0..<count {
+            copy(tracker, "d\(index / 1000)/fichier_\(index).txt", 12)
+            if index % 100 == 0 { _ = tracker.snapshot() }
+        }
+        let snap = tracker.snapshot()
+        XCTAssertLessThan(Date().timeIntervalSince(started), 3, "1 000 instantanés sur 100 000 fichiers")
+        XCTAssertEqual(snap.totalFiles, count)
+        XCTAssertEqual(snap.filesDone, count)
+        XCTAssertEqual(snap.totalBytes, Int64(count) * 12)
+        XCTAssertEqual(snap.doneBytes, Int64(count) * 12)
+    }
+
+    // Mêmes totaux qu'avant : plan arrivé en retard, fichier absent du plan, taille différente, reprise, fichier en cours.
+    func testIncrementalTotalsMatchTheUnionOfPlanAndCopiedFiles() {
+        let tracker = ProgressTracker(fileInfo: { name in (name == "gros" ? 1000 : 0, false) })
+        tracker.start()
+        copy(tracker, "a", 100)                       // avant le plan
+        tracker.apply(.directory(name: "hors-plan/"))
+        tracker.setPlan(files: ["a": 90, "b": 200, "c": 300], directories: ["x/", "y/"])
+        copy(tracker, "b", 250)                       // plus gros que prévu
+        copy(tracker, "b", 250)                       // reprise : compté une fois
+        copy(tracker, "nouveau", 50)                  // apparu après la simulation
+        tracker.apply(.directory(name: "x/"))
+        tracker.apply(.fileStarted(name: "gros", isNew: nil))
+        tracker.apply(.progress(bytes: 400, percent: 40, bytesPerSecond: 1, fileFinished: false))
+        let snap = tracker.snapshot()
+        // union : a=100, b=250, c=300, nouveau=50, gros=1000 (en cours)
+        XCTAssertEqual(snap.totalFiles, 5)
+        XCTAssertEqual(snap.totalBytes, 1700)
+        XCTAssertEqual(snap.filesDone, 3)
+        XCTAssertEqual(snap.doneBytes, 100 + 250 + 50 + 400)
+        XCTAssertEqual(snap.totalDirs, 3)             // x, y, hors-plan
+        XCTAssertEqual(snap.dirsDone, 2)
+        // « gros » abandonné en route ne compte plus ; « c », en cours, garde la taille du plan (plus grande)
+        tracker.apply(.fileStarted(name: "c", isNew: nil))
+        XCTAssertEqual(tracker.snapshot().totalBytes, 100 + 250 + 300 + 50)
+        XCTAssertEqual(tracker.snapshot().totalFiles, 4)
+    }
+
+    // Sans simulation, à la fin, le total est ce qui a été copié.
+    func testWithoutPlanTheTotalIsWhatWasCopiedAtTheEnd() {
+        let tracker = ProgressTracker()
+        tracker.start()
+        copy(tracker, "a", 10)
+        copy(tracker, "b", 20)
+        XCTAssertNil(tracker.snapshot().totalBytes)
+        tracker.finish()
+        XCTAssertEqual(tracker.snapshot().totalBytes, 30)
+        XCTAssertEqual(tracker.snapshot().totalFiles, 2)
+        XCTAssertEqual(tracker.snapshot().overallPercent, 100)
+    }
+}

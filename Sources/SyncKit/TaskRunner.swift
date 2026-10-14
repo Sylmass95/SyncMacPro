@@ -85,18 +85,27 @@ public final class TaskRunner: @unchecked Sendable {
     /// du JSON dès qu'un simple avertissement apparaît.
     func collect(_ command: EngineCommand) async throws -> (code: Int32, output: String, errors: String) {
         let out = LineBox(), err = LineBox()
+        let code = try await stream(command, errors: { err.add($0) }) { out.add($0) }
+        return (code, out.joined, err.joined)
+    }
+
+    /// Comme `collect`, mais chaque ligne de la sortie standard est passée à `onOutput` sans être gardée.
+    func stream(
+        _ command: EngineCommand, errors: (@Sendable (String) -> Void)? = nil,
+        onOutput: @escaping @Sendable (String) -> Void
+    ) async throws -> Int32 {
         let watch = makeWatch(for: command.engine)
         let process = try ProcessRunner.spawn(
             executable: try executable(for: command.engine), arguments: command.arguments
         ) { line in
             watch.note()
-            if line.stream == .stderr { err.add(line.text) } else { out.add(line.text) }
+            if line.stream == .stderr { errors?(line.text) } else { onOutput(line.text) }
         }
         control.registerAuxiliary(process)
         watch.attach(process)
         let code = await process.waitForExit()
         watch.stop()
-        return (code, out.joined, err.joined)
+        return code
     }
 
     func result(

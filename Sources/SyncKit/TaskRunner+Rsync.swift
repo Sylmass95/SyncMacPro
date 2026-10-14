@@ -153,9 +153,12 @@ extension TaskRunner {
     /// rsync saute alors les suppressions, c'est le sens sûr) ; une simulation demandée par l'utilisateur, non :
     /// elle dirait « rien à copier » pour une source introuvable.
     func rsyncPlan(_ task: SyncTask, _ options: RunOptions, strict: Bool = false) async throws -> RsyncPlan? {
-        let outcome = try await collect(try RsyncCommandBuilder.planCommand(for: task, run: options))
-        guard outcome.code == 0 || outcome.code == 24 || (!strict && outcome.code == 23) else { return nil }
-        return RsyncPlanParser.parse(outcome.output)
+        let plan = Locked(RsyncPlan())
+        let code = try await stream(try RsyncCommandBuilder.planCommand(for: task, run: options)) { line in
+            plan.update { RsyncPlanParser.add(line, to: &$0) }
+        }
+        guard code == 0 || code == 24 || (!strict && code == 23) else { return nil }
+        return plan.get()
     }
 
     private func verifyWithRsync(
