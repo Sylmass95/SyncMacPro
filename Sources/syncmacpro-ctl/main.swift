@@ -169,6 +169,12 @@ do {
             + "(\(Formatting.bytes(result.bytesToTransfer))), \(result.deletions) suppression(s)."
             + (result.message.map { "\n\($0)" } ?? ""))
 
+    case .clearHistory(let text):
+        var taskID: UUID?
+        if let text { taskID = try await resolve(text).id }
+        let count = try await client.clearHistory(taskID: taskID)
+        print("\(count) exécution(s) supprimée(s) de l'historique (journaux compris).")
+
     case .log(let text):
         let last: RunRecord
         switch TaskReference.logTarget(text, in: try await client.listTasks()) {

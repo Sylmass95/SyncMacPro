@@ -9,6 +9,8 @@ public struct HistoryView: View {
     @State private var filter: HistoryFilter
     @State private var selection: UUID?
     @State private var logRecord: RunRecord?
+    /// Vidage demandé : `.some(nil)` pour tout l'historique, `.some(id)` pour une tâche ; confirmation affichée.
+    @State private var clearing: UUID??
 
     public init(
         model: AgentModel, localizer: Localizer = .system, filter: HistoryFilter = HistoryFilter(),
@@ -51,6 +53,38 @@ public struct HistoryView: View {
         .sheet(item: $logRecord) { record in
             RunLogSheet(model: model, record: record, localizer: localizer) { logRecord = nil }
         }
+        .confirmationDialog(
+            clearTitle, isPresented: Binding(get: { clearing != nil }, set: { if !$0 { clearing = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button(localizer.text("history.clear"), role: .destructive) {
+                guard let target = clearing else { return }
+                clearing = nil
+                selection = nil
+                Task { await model.clearHistory(taskID: target) }
+            }
+        } message: {
+            Text(localizer.text("history.clear.message"))
+        }
+    }
+
+    private var clearTitle: String {
+        guard let target = clearing, let id = target else { return localizer.text("history.clear.confirm.all") }
+        return localizer.format("history.clear.confirm.task", taskName(id))
+    }
+
+    private func taskName(_ id: UUID) -> String { taskChoices.first { $0.0 == id }?.1 ?? "" }
+
+    /// Menu « Vider… » : tout, ou la tâche choisie dans le filtre.
+    private var clearMenu: some View {
+        Menu(localizer.text("history.clear")) {
+            if let id = filter.taskID {
+                Button(localizer.format("history.clear.task", taskName(id))) { clearing = .some(id) }
+            }
+            Button(localizer.text("history.clear.all")) { clearing = .some(nil) }
+        }
+        .fixedSize()
+        .disabled(model.history.isEmpty)
     }
 
     // MARK: filtres
@@ -84,6 +118,7 @@ public struct HistoryView: View {
             TextField(localizer.text("history.search"), text: $filter.search)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 200)
+            clearMenu
         }
         .padding(12)
     }

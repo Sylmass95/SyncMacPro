@@ -1,4 +1,7 @@
-SyncMacPro 1.2.3 — l'agent redémarre de lui-même après une mise à jour, et la robustesse de la 1.2.2.
+SyncMacPro 1.2.4 — vider l'historique, et les corrections des versions 1.2.2 et 1.2.3.
+
+**Nouveau (1.2.4)**
+- Historique › « Vider… » : vide tout l'historique, ou celui de la tâche choisie dans le filtre, après confirmation. Les journaux correspondants sont supprimés ; une exécution en cours est conservée ; tâches, fichiers et archives ne sont pas touchés. En ligne de commande : `syncmacpro-ctl history [tâche] --clear`.
 
 **Corrections (1.2.3)**
 - Après une mise à jour, l'agent d'arrière-plan pouvait encore rester arrêté (launchd refusait le nouvel agent, code 78). L'app attend que macOS ait vraiment retiré l'ancien agent, vérifie que le nouveau tourne, et sinon recommence : plus besoin de le réinstaller à la main.

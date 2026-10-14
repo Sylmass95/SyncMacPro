@@ -42,6 +42,8 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case deleteRemote(String)
     case testRemote(String)
     case listRemoteFolders(remote: String, path: String)
+    /// Vider l'historique, tout (`nil`) ou celui d'une tâche (1.2.4 : ajout, aucun message existant ne change).
+    case clearHistory(taskID: UUID?)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {
@@ -56,6 +58,8 @@ public enum AgentResponse: Codable, Equatable, Sendable {
     case remoteConfig(RemoteConfigOutcome)
     case remoteTest(RemoteTestResult)
     case folders([String])
+    /// Nombre d'exécutions supprimées de l'historique.
+    case cleared(Int)
 }
 
 public struct AgentRequestEnvelope: Codable, Sendable {

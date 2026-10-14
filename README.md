@@ -60,6 +60,7 @@ status | list | watch
 run | pause | resume | stop | approve <tâche>
 pause-all | resume-all
 history [<tâche>] [--limit N]
+history [<tâche>] --clear
 add --name N --source P --dest P [--mode M] [--every MIN | --daily HH:MM] [--ac-power]
 remove <tâche>
 simulate <tâche> | log <tâche>
