@@ -82,7 +82,9 @@ extension TaskRunner {
         onUpdate(.phase(.running))
         let log = RunLog()
         let lastStarted = Locked<String?>(nil)
+        let watch = makeWatch(for: .rsync)
         let process = try ProcessRunner.spawn(executable: rsync, arguments: command.arguments) { output in
+            watch.note()
             onUpdate(.line(output.text))
             guard let event = RsyncOutputParser.parse(line: output.text) else { return }
             switch event {
@@ -94,6 +96,7 @@ extension TaskRunner {
             tracker.perform { $0.apply(event) }
         }
         control.registerMain(process)
+        watch.attach(process)
 
         let interval = configuration.sampleInterval
         let sampler = Task.detached {
@@ -108,6 +111,7 @@ extension TaskRunner {
         }
 
         let code = await process.waitForExit()
+        watch.stop()
         control.clearMain()
         sampler.cancel()
         control.stopAuxiliary()
@@ -120,7 +124,7 @@ extension TaskRunner {
             status = .succeeded
         } else {
             status = .failed
-            message = log.lastError ?? "rsync a échoué (code \(code))."
+            message = log.mainError ?? "rsync a échoué (code \(code))."
         }
 
         if status == .succeeded, task.options.verifyAfterCopy, task.mode == .copy || task.mode == .mirror {
@@ -168,7 +172,8 @@ extension TaskRunner {
         return result(
             status: differences.isEmpty ? .succeeded : .failed, engine: .rsync, snapshot: TransferSnapshot(),
             started: started,
-            message: differences.isEmpty ? "Aucune différence." : "\(differences.count) fichier(s) diffèrent (par exemple « \(differences[0]) »)."
+            message: differences.isEmpty ? "Aucune différence." : "\(differences.count) fichier(s) diffèrent (par exemple « \(differences[0]) »).",
+            retryable: differences.isEmpty
         )
     }
 }

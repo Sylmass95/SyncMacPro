@@ -1,8 +1,10 @@
 import Foundation
 
 extension TaskRunner {
+    /// `forceResync` : réinitialisation de bisync demandée par une exécution précédente (voir plus bas).
     func runRclone(
-        _ task: SyncTask, dryRun: Bool, stamp: String, onUpdate: @escaping @Sendable (RunUpdate) -> Void
+        _ task: SyncTask, dryRun: Bool, stamp: String, onUpdate: @escaping @Sendable (RunUpdate) -> Void,
+        forceResync: Bool = false
     ) async throws -> RunResult {
         let rclone = try executable(for: .rclone)
         let started = configuration.now()
@@ -18,7 +20,16 @@ extension TaskRunner {
             try FileManager.default.createDirectory(at: workdir, withIntermediateDirectories: true)
             options.bisyncWorkdir = workdir.path
             (options.bisyncPath1, options.bisyncPath2) = try Self.bisyncLinks(for: task, in: configuration.workDirectory)
-            options.resync = !Self.hasBisyncState(at: workdir)     // première exécution : initialisation
+            options.resync = forceResync || !Self.hasBisyncState(at: workdir)     // première exécution : initialisation
+            // bisync refuse un côté qui n'existe pas : la destination d'une nouvelle tâche est créée, comme le font la
+            // copie et le miroir. La source, jamais : absente, c'est un disque débranché.
+            if options.resync && !dryRun {
+                if let path = task.destination.filesystemPath {
+                    try? FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+                } else {
+                    _ = try? await collect(RcloneCommandBuilder.mkdirCommand(for: task.destination, run: options))
+                }
+            }
         }
 
         // Garde-fou des modes qui suppriment : simulation d'abord, avant de toucher à quoi que ce soit.
@@ -79,12 +90,25 @@ extension TaskRunner {
             message = "Quota de transfert atteint : la copie reprendra à la prochaine exécution."
         } else if code == 0 {
             status = .succeeded
+        } else if log.signal == .needsResync, task.mode == .bidirectional, !dryRun, !forceResync {
+            // bisync s'arrête dès que ses listes ne correspondent plus aux deux côtés (changement de casse seul sur un
+            // disque qui ignore la casse, exécution interrompue au mauvais moment…) et exige une réinitialisation.
+            // Sans elle, la tâche échouerait pour toujours. Une réinitialisation ne supprime rien et garde la version
+            // la plus récente de chaque fichier ; la version remplacée va dans l'archive.
+            onUpdate(.line("Réinitialisation automatique de bisync (rien n'est supprimé, les versions remplacées sont archivées)."))
+            var again = try await runRclone(task, dryRun: false, stamp: stamp, onUpdate: onUpdate, forceResync: true)
+            if again.status == .succeeded {
+                again.summary.message = "bisync a été réinitialisé automatiquement après une incohérence : les deux côtés "
+                    + "ont été réunis (version la plus récente gardée, versions remplacées dans \(task.options.archiveFolder) ; "
+                    + "un fichier supprimé d'un seul côté a pu réapparaître)."
+            }
+            return again
         } else if log.signal == .needsResync {
             status = .failed
             message = "bisync demande une réinitialisation de cette tâche (--resync) : l'état des deux côtés n'est plus cohérent."
         } else {
             status = .failed
-            message = log.lastError ?? "rclone a échoué (code \(code))."
+            message = log.mainError ?? "rclone a échoué (code \(code))."
         }
 
         if status == .succeeded, !dryRun {
@@ -198,7 +222,8 @@ extension TaskRunner {
         return result(
             status: differences.isEmpty ? .succeeded : .failed, engine: .rclone, snapshot: TransferSnapshot(),
             started: started,
-            message: differences.isEmpty ? "Aucune différence." : "\(differences.count) fichier(s) diffèrent (par exemple « \(differences[0]) »)."
+            message: differences.isEmpty ? "Aucune différence." : "\(differences.count) fichier(s) diffèrent (par exemple « \(differences[0]) »).",
+            retryable: differences.isEmpty
         )
     }
 }

@@ -57,8 +57,19 @@ public final class RunningProcess: @unchecked Sendable {
         }
     }
 
+    /// Arrête un processus figé. S'il reste coincé dans le noyau (disque réseau qui ne répond plus, même SIGKILL
+    /// n'agit qu'au retour du système de fichiers), on cesse de l'attendre au bout de `giveUpAfter` secondes : son
+    /// exécution se termine en échec au lieu de rester bloquée pour toujours.
+    public func terminateStalled(giveUpAfter: TimeInterval) {
+        terminate()
+        DispatchQueue.global().asyncAfter(deadline: .now() + giveUpAfter) { [weak self] in
+            self?.finish(with: 128 + SIGKILL)
+        }
+    }
+
     func finish(with code: Int32) {
         lock.lock()
+        guard exitCode == nil else { lock.unlock(); return }
         exitCode = code
         let pending = waiters
         waiters = []

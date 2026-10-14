@@ -5,7 +5,7 @@ import SyncKit
 // Agent d'arrière-plan de SyncMacPro.
 //
 //   syncmacpro-agent [--foreground] [--state-dir DOSSIER] [--mach-service NOM] [--startup-hold SECONDES]
-//                    [--rclone-config FICHIER]
+//                    [--rclone-config FICHIER] [--stall-timeout SECONDES]
 //
 // Lancé par launchd (SMAppService) il répond aux requêtes XPC. Avec --foreground il tourne dans le terminal
 // sans XPC : un service Mach exige launchd (voir scripts/dev-launchd.sh pour le développement).
@@ -31,8 +31,11 @@ let history = try HistoryStore(path: paths.history.path)
 // Fichier de configuration rclone : celui de rclone par défaut (partagé avec la ligne de commande).
 let rcloneConfig = option("--rclone-config")
 let rclonePath = BinaryLocator.locateForProcess(.rclone)
+// Délai au bout duquel un rsync figé (NAS qui ne répond plus) est arrêté ; option pour les essais.
+let stallTimeout = option("--stall-timeout").flatMap(Double.init) ?? RunnerConfiguration.defaultStallTimeout
 let runnerConfiguration = RunnerConfiguration(
-    rsyncPath: BinaryLocator.locateForProcess(.rsync), rclonePath: rclonePath, rcloneConfigPath: rcloneConfig, workDirectory: paths.work
+    rsyncPath: BinaryLocator.locateForProcess(.rsync), rclonePath: rclonePath, rcloneConfigPath: rcloneConfig,
+    workDirectory: paths.work, stallTimeout: stallTimeout
 )
 var agentConfiguration = AgentConfiguration()
 agentConfiguration.workDirectory = paths.work

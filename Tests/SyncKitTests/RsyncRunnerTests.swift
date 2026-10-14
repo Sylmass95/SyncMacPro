@@ -176,8 +176,9 @@ final class RsyncRunnerTests: IntegrationTestCase {
         let bad = task(src, dst, mode: .copy, options: TaskOptions(excludes: [], forcedEngine: .rsync))
         var cloud = bad
         cloud.destination = .cloud(remote: "gdrive", path: "")
+        let runner = try makeRunner(rsync: true)   // hors du `do` : un rsync absent ignore le test au lieu de le faire échouer
         do {
-            _ = try await makeRunner(rsync: true).run(cloud)
+            _ = try await runner.run(cloud)
             XCTFail("aurait dû échouer")
         } catch {
             XCTAssertEqual(error as? EngineSelectionError, .cloudRequiresRclone)

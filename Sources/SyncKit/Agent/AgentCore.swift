@@ -330,10 +330,12 @@ public actor AgentCore {
         let now = clock.now()
         var status: RunStatus
         let summary: RunSummary
+        var retryable = true
         switch outcome {
         case .success(let result):
             status = result.status
             summary = result.summary
+            retryable = result.retryable
         case .failure(let error):
             status = .failed
             summary = RunSummary(
@@ -358,8 +360,9 @@ public actor AgentCore {
             entry.lastSuccess = now
             entry.attempts = 0
             entry.retryAt = nil
-        case .failed where job.task.mode == .verify:
-            // Des différences trouvées ne sont pas une panne passagère : relancer ne changerait rien.
+        case .failed where !retryable:
+            // Des différences trouvées par une vérification ne sont pas une panne passagère : relancer ne changerait rien.
+            // Une vérification qui n'a pas pu se faire (NAS absent, réseau coupé), elle, est retentée.
             entry.attempts = 0
             entry.retryAt = nil
         case .failed, .quotaReached:

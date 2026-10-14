@@ -7,12 +7,15 @@ final class Fix120AgentTests: XCTestCase {
     func testFailedVerifyIsNotRetried() async throws {
         let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
         h.factory.status.set(.failed)
+        h.factory.retryable.set(false)   // des différences trouvées (1.2.2 : une vérification impossible est retentée)
         let check = makeTask("Vérif", schedule: .manual, mode: .verify)
         let copy = makeTask("Copie", schedule: .manual)
         try h.save([check, copy])
         let core = h.makeCore()
         await core.start()
         try await core.runNow(check.id)
+        await core.waitForIdle()
+        h.factory.retryable.set(true)
         try await core.runNow(copy.id)
         await core.waitForIdle()
         let infos = await core.status().tasks

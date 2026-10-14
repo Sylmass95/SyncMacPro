@@ -75,6 +75,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
     let calls = Locked<[String]>([])
     let ranTasks = Locked<[SyncTask]>([])
     let status = Locked<RunStatus>(.succeeded)
+    let retryable = Locked(true)
     let message = Locked<String?>(nil)
     let failure = Locked<Error?>(nil)
     let snapshot = Locked<TransferSnapshot?>(nil)
@@ -104,7 +105,8 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         let final = stopped.get() ? RunStatus.stopped : status.get()
         return RunResult(
             status: final, engine: .rsync,
-            summary: RunSummary(filesTransferred: 1, message: message.get()), snapshot: TransferSnapshot()
+            summary: RunSummary(filesTransferred: 1, message: message.get()), snapshot: TransferSnapshot(),
+            retryable: retryable.get()
         )
     }
 
@@ -121,6 +123,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
 final class RunnerFactory: @unchecked Sendable {
     let runners = Locked<[FakeRunner]>([])
     let status = Locked<RunStatus>(.succeeded)
+    let retryable = Locked(true)
     let failure = Locked<Error?>(nil)
     let snapshot = Locked<TransferSnapshot?>(nil)
     let lines = Locked<[String]>([])
@@ -131,6 +134,7 @@ final class RunnerFactory: @unchecked Sendable {
     func make() -> TaskRunning {
         let runner = FakeRunner(status: status.get(), gated: gated)
         runner.failure.set(failure.get())
+        runner.retryable.set(retryable.get())
         runner.snapshot.set(snapshot.get())
         runner.lines.set(lines.get())
         runners.set(runners.get() + [runner])

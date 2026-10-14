@@ -10,6 +10,12 @@ public struct RunnerConfiguration: Sendable {
     public var now: @Sendable () -> Date
     /// Intervalle entre deux mesures de progression.
     public var sampleInterval: TimeInterval
+    /// rsync sans sortie ni calcul pendant ce délai (secondes) : il est arrêté et l'exécution échoue (nouvel essai
+    /// plus tard). 0 : pas de surveillance.
+    public var stallTimeout: TimeInterval
+    public var stallCheckInterval: TimeInterval
+
+    public static let defaultStallTimeout: TimeInterval = 20 * 60
 
     public init(
         rsyncPath: String? = nil,
@@ -17,8 +23,12 @@ public struct RunnerConfiguration: Sendable {
         rcloneConfigPath: String? = nil,
         workDirectory: URL,
         now: @escaping @Sendable () -> Date = { Date() },
-        sampleInterval: TimeInterval = 0.25
+        sampleInterval: TimeInterval = 0.25,
+        stallTimeout: TimeInterval = RunnerConfiguration.defaultStallTimeout,
+        stallCheckInterval: TimeInterval = 30
     ) {
+        self.stallTimeout = stallTimeout
+        self.stallCheckInterval = stallCheckInterval
         self.rsyncPath = rsyncPath
         self.rclonePath = rclonePath
         self.rcloneConfigPath = rcloneConfigPath
@@ -48,6 +58,9 @@ public struct RunResult: Equatable, Sendable {
     public var engine: EngineKind
     public var summary: RunSummary
     public var snapshot: TransferSnapshot
+    /// Un nouvel essai a-t-il une chance de réussir ? Faux pour une vérification qui a trouvé des différences :
+    /// relancer ne changerait rien. Vrai pour une panne (disque absent, réseau coupé).
+    public var retryable: Bool = true
 }
 
 public enum RunnerError: Error, Equatable, LocalizedError {
@@ -87,6 +100,7 @@ final class RunControl: @unchecked Sendable {
     private var auxiliary: [RunningProcess] = []
     private var stopRequestedFlag = false
     private var pausedFlag = false
+    private var stalledFor: TimeInterval?
     /// Appelés (hors verrou) quand l'exécution est mise en pause ou reprise : arrêtent / relancent le chronomètre.
     private var pauseHook: (@Sendable () -> Void)?
     private var resumeHook: (@Sendable () -> Void)?
@@ -99,6 +113,9 @@ final class RunControl: @unchecked Sendable {
 
     var stopRequested: Bool { lock.lock(); defer { lock.unlock() }; return stopRequestedFlag }
     var isPaused: Bool { lock.lock(); defer { lock.unlock() }; return pausedFlag }
+    /// Délai au bout duquel un processus a été arrêté parce qu'il ne progressait plus (`nil` : jamais).
+    var stalledAfter: TimeInterval? { lock.lock(); defer { lock.unlock() }; return stalledFor }
+    func markStalled(after timeout: TimeInterval) { lock.lock(); stalledFor = timeout; lock.unlock() }
 
     func reset() {
         lock.lock(); defer { lock.unlock() }
@@ -106,6 +123,7 @@ final class RunControl: @unchecked Sendable {
         auxiliary = []
         stopRequestedFlag = false
         pausedFlag = false
+        stalledFor = nil
         pauseHook = nil
         resumeHook = nil
     }
@@ -161,7 +179,8 @@ final class RunControl: @unchecked Sendable {
 /// Texte collecté pendant l'exécution d'un moteur (dernières erreurs, compteurs).
 final class RunLog: @unchecked Sendable {
     private let lock = NSLock()
-    private var errorLines: [String] = []
+    /// Les premières erreurs : la cause vient avant ses conséquences (voir `EngineErrorText`).
+    private var firstErrors: [String] = []
     private var errorCount = 0
     private var deletionCount = 0
     private var signalValue: OutputSignal?
@@ -170,8 +189,7 @@ final class RunLog: @unchecked Sendable {
     func addError(_ line: String) {
         lock.lock(); defer { lock.unlock() }
         errorCount += 1
-        errorLines.append(line)
-        if errorLines.count > 20 { errorLines.removeFirst() }
+        if firstErrors.count < 20 { firstErrors.append(line) }
     }
 
     func addDeletion() { lock.lock(); deletionCount += 1; lock.unlock() }
@@ -186,7 +204,11 @@ final class RunLog: @unchecked Sendable {
     var deletions: Int { lock.lock(); defer { lock.unlock() }; return deletionCount }
     var signal: OutputSignal? { lock.lock(); defer { lock.unlock() }; return signalValue }
     var signalText: String? { lock.lock(); defer { lock.unlock() }; return signalLine }
-    var lastError: String? { lock.lock(); defer { lock.unlock() }; return errorLines.last }
+    /// Message d'échec : la première cause, expliquée.
+    var mainError: String? {
+        lock.lock(); defer { lock.unlock() }
+        return EngineErrorText.summary(errors: firstErrors, total: errorCount)
+    }
 }
 
 /// Valeur partagée entre threads.
