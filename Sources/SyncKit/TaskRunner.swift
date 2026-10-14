@@ -26,10 +26,41 @@ public final class TaskRunner: @unchecked Sendable {
         let engine = try EngineSelector.engine(for: task)
         control.reset()
         let stamp = Self.archiveStamp(configuration.now())
+        var outcome: RunResult
         switch engine {
-        case .rsync: return try await runRsync(task, dryRun: dryRun, stamp: stamp, onUpdate: onUpdate)
-        case .rclone: return try await runRclone(task, dryRun: dryRun, stamp: stamp, onUpdate: onUpdate)
+        case .rsync: outcome = try await runRsync(task, dryRun: dryRun, stamp: stamp, onUpdate: onUpdate)
+        case .rclone: outcome = try await runRclone(task, dryRun: dryRun, stamp: stamp, onUpdate: onUpdate)
         }
+        if let timeout = control.stalledAfter, outcome.status == .failed {
+            outcome.summary.message = Self.stallMessage(after: timeout)
+            outcome.retryable = true
+        }
+        return outcome
+    }
+
+    static func stallMessage(after timeout: TimeInterval) -> String {
+        let delay = timeout >= 60 ? "\(Int(timeout / 60)) min" : "\(Int(timeout)) s"
+        return "Aucune progression depuis \(delay) : le disque ou le NAS ne répond plus. "
+            + "L'exécution a été arrêtée ; nouvel essai plus tard."
+    }
+
+    /// Surveillance d'un processus rsync contre les blocages (voir `StallWatchdog`). rclone a ses propres délais
+    /// (`--timeout`, `--contimeout`) et écrit ses statistiques chaque seconde : il n'est pas surveillé.
+    func makeWatch(for engine: EngineKind) -> EngineWatch {
+        guard engine == .rsync, configuration.stallTimeout > 0 else { return EngineWatch(dog: nil, holder: Locked(nil)) }
+        let holder = Locked<RunningProcess?>(nil)
+        let timeout = configuration.stallTimeout
+        let control = self.control
+        let dog = StallWatchdog(
+            timeout: timeout, interval: min(configuration.stallCheckInterval, timeout / 2),
+            isPaused: { control.isPaused },
+            cpuTime: { holder.get()?.groupCPUTime() },
+            onStall: {
+                control.markStalled(after: timeout)
+                holder.get()?.terminateStalled(giveUpAfter: 60)
+            }
+        )
+        return EngineWatch(dog: dog, holder: holder)
     }
 
     /// Nom du sous-dossier d'archive, par exemple « 2026-10-12_14-30-05 ».
@@ -54,19 +85,32 @@ public final class TaskRunner: @unchecked Sendable {
     /// du JSON dès qu'un simple avertissement apparaît.
     func collect(_ command: EngineCommand) async throws -> (code: Int32, output: String, errors: String) {
         let out = LineBox(), err = LineBox()
+        let code = try await stream(command, errors: { err.add($0) }) { out.add($0) }
+        return (code, out.joined, err.joined)
+    }
+
+    /// Comme `collect`, mais chaque ligne de la sortie standard est passée à `onOutput` sans être gardée.
+    func stream(
+        _ command: EngineCommand, errors: (@Sendable (String) -> Void)? = nil,
+        onOutput: @escaping @Sendable (String) -> Void
+    ) async throws -> Int32 {
+        let watch = makeWatch(for: command.engine)
         let process = try ProcessRunner.spawn(
             executable: try executable(for: command.engine), arguments: command.arguments
         ) { line in
-            if line.stream == .stderr { err.add(line.text) } else { out.add(line.text) }
+            watch.note()
+            if line.stream == .stderr { errors?(line.text) } else { onOutput(line.text) }
         }
         control.registerAuxiliary(process)
+        watch.attach(process)
         let code = await process.waitForExit()
-        return (code, out.joined, err.joined)
+        watch.stop()
+        return code
     }
 
     func result(
         status: RunStatus, engine: EngineKind, snapshot: TransferSnapshot, started: Date,
-        deletions: Int = 0, errors: Int = 0, message: String? = nil
+        deletions: Int = 0, errors: Int = 0, message: String? = nil, retryable: Bool = true
     ) -> RunResult {
         RunResult(
             status: status, engine: engine,
@@ -75,7 +119,7 @@ public final class TaskRunner: @unchecked Sendable {
                 deletions: deletions, errors: errors,
                 durationSeconds: configuration.now().timeIntervalSince(started), message: message
             ),
-            snapshot: snapshot
+            snapshot: snapshot, retryable: retryable
         )
     }
 
@@ -83,6 +127,19 @@ public final class TaskRunner: @unchecked Sendable {
         "Bloqué : \(deletions) suppression(s) sur \(existing) fichier(s) (\(percent) %), "
             + "au-dessus du seuil de \(threshold) %. Rien n'a été modifié."
     }
+}
+
+/// Chien de garde d'un processus : créé avant le lancement (chaque ligne de sortie le nourrit), branché ensuite.
+struct EngineWatch: Sendable {
+    let dog: StallWatchdog?
+    let holder: Locked<RunningProcess?>
+
+    func note() { dog?.noteActivity() }
+    func attach(_ process: RunningProcess) {
+        holder.set(process)
+        dog?.start()
+    }
+    func stop() { dog?.cancel() }
 }
 
 /// Collecte de lignes depuis plusieurs threads.

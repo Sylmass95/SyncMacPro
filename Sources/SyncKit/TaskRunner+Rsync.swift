@@ -82,7 +82,9 @@ extension TaskRunner {
         onUpdate(.phase(.running))
         let log = RunLog()
         let lastStarted = Locked<String?>(nil)
+        let watch = makeWatch(for: .rsync)
         let process = try ProcessRunner.spawn(executable: rsync, arguments: command.arguments) { output in
+            watch.note()
             onUpdate(.line(output.text))
             guard let event = RsyncOutputParser.parse(line: output.text) else { return }
             switch event {
@@ -94,6 +96,7 @@ extension TaskRunner {
             tracker.perform { $0.apply(event) }
         }
         control.registerMain(process)
+        watch.attach(process)
 
         let interval = configuration.sampleInterval
         let sampler = Task.detached {
@@ -108,6 +111,7 @@ extension TaskRunner {
         }
 
         let code = await process.waitForExit()
+        watch.stop()
         control.clearMain()
         sampler.cancel()
         control.stopAuxiliary()
@@ -120,7 +124,7 @@ extension TaskRunner {
             status = .succeeded
         } else {
             status = .failed
-            message = log.lastError ?? "rsync a échoué (code \(code))."
+            message = log.mainError ?? "rsync a échoué (code \(code))."
         }
 
         if status == .succeeded, task.options.verifyAfterCopy, task.mode == .copy || task.mode == .mirror {
@@ -149,9 +153,12 @@ extension TaskRunner {
     /// rsync saute alors les suppressions, c'est le sens sûr) ; une simulation demandée par l'utilisateur, non :
     /// elle dirait « rien à copier » pour une source introuvable.
     func rsyncPlan(_ task: SyncTask, _ options: RunOptions, strict: Bool = false) async throws -> RsyncPlan? {
-        let outcome = try await collect(try RsyncCommandBuilder.planCommand(for: task, run: options))
-        guard outcome.code == 0 || outcome.code == 24 || (!strict && outcome.code == 23) else { return nil }
-        return RsyncPlanParser.parse(outcome.output)
+        let plan = Locked(RsyncPlan())
+        let code = try await stream(try RsyncCommandBuilder.planCommand(for: task, run: options)) { line in
+            plan.update { RsyncPlanParser.add(line, to: &$0) }
+        }
+        guard code == 0 || code == 24 || (!strict && code == 23) else { return nil }
+        return plan.get()
     }
 
     private func verifyWithRsync(
@@ -168,7 +175,8 @@ extension TaskRunner {
         return result(
             status: differences.isEmpty ? .succeeded : .failed, engine: .rsync, snapshot: TransferSnapshot(),
             started: started,
-            message: differences.isEmpty ? "Aucune différence." : "\(differences.count) fichier(s) diffèrent (par exemple « \(differences[0]) »)."
+            message: differences.isEmpty ? "Aucune différence." : "\(differences.count) fichier(s) diffèrent (par exemple « \(differences[0]) »).",
+            retryable: differences.isEmpty
         )
     }
 }

@@ -1,4 +1,12 @@
-SyncMacPro 1.2.1 — mise à jour sans perdre l'agent, et les corrections de la 1.2.0.
+SyncMacPro 1.2.2 — robustesse face aux incidents (disque plein, débranché, NAS figé) et aux gros volumes.
+
+**Corrections (1.2.2)**
+- Une copie sur un disque ou un NAS qui ne répond plus ne reste plus « en cours » pour toujours : sans aucune activité pendant 20 minutes (pauses et veille exclues), elle est arrêtée et retentée plus tard.
+- Gros volumes : l'avancement se calcule à coût constant. Une copie d'un million de fichiers ralentissait au fil du temps (jusqu'à freiner rsync) et occupait beaucoup plus de mémoire.
+- Les échecs indiquent la vraie cause, expliquée en français (« Plus de place sur le disque de destination », « le disque ou le NAS a peut-être été débranché », « Dossier introuvable »…), au lieu de sa conséquence (« Broken pipe »).
+- Synchronisation bidirectionnelle : une nouvelle tâche crée son dossier de destination ; quand bisync exige une réinitialisation (par exemple après un changement de casse seul dans un nom), elle est faite tout de suite, sans rien supprimer (la version remplacée est archivée), au lieu d'un échec et d'un nouvel essai une heure plus tard.
+- Une vérification qui n'a pas pu se faire (NAS absent, réseau coupé) est retentée ; seule une vérification qui trouve des différences ne l'est pas.
+- Finitions : lecture plus sûre de la version des programmes embarqués, nom de tâche ambigu signalé par `syncmacpro-ctl log`, avertissements de compilation.
 
 **Corrections (1.2.1)**
 - Après une mise à jour, l'agent d'arrière-plan pouvait rester arrêté (macOS gardait l'ancien agent, refusé pour sa signature). L'app attend désormais que macOS l'ait retiré avant de le réenregistrer, et répare d'elle-même un agent installé qui ne répond pas.

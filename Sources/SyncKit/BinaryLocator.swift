@@ -46,11 +46,18 @@ public enum BinaryLocator {
         let finished = DispatchSemaphore(value: 0)
         process.terminationHandler = { _ in finished.signal() }
         do { try process.run() } catch { return nil }
-        // La sortie est lue en parallèle : un programme bavard ne reste pas bloqué sur un tube plein.
+        // La sortie est lue en parallèle et au fil de l'eau : un programme bavard ne reste pas bloqué sur un tube plein,
+        // et ce qui est déjà lu compte même si un sous-processus garde le tube ouvert (la fin n'arrive alors jamais).
         let collected = Locked(Data())
         let reader = DispatchSemaphore(value: 0)
         DispatchQueue.global().async {
-            collected.set(output.fileHandleForReading.readDataToEndOfFile())
+            let handle = output.fileHandleForReading
+            while true {
+                let chunk = handle.availableData
+                if chunk.isEmpty { break }
+                collected.update { $0.append(chunk) }
+                if chunk.contains(0x0A) { break }   // la première ligne suffit
+            }
             reader.signal()
         }
         guard finished.wait(timeout: .now() + timeout) == .success else {

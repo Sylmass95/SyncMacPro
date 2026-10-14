@@ -69,6 +69,13 @@ public enum RcloneCommandBuilder {
         return EngineCommand(engine: .rclone, arguments: args)
     }
 
+    /// Crée un dossier distant (bisync refuse un côté absent).
+    public static func mkdirCommand(for endpoint: Endpoint, run: RunOptions) -> EngineCommand {
+        var args = ["mkdir", endpoint.rcloneSpec]
+        if let config = run.rcloneConfigPath { args += ["--config", config] }
+        return EngineCommand(engine: .rclone, arguments: args)
+    }
+
     /// Supprime les versions archivées plus anciennes que la durée de conservation (mode `versioned`).
     public static func retentionCleanupCommand(for task: SyncTask, run: RunOptions) -> EngineCommand? {
         guard task.mode == .versioned, let days = task.options.retentionDays else { return nil }

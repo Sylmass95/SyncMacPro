@@ -330,10 +330,12 @@ public actor AgentCore {
         let now = clock.now()
         var status: RunStatus
         let summary: RunSummary
+        var retryable = true
         switch outcome {
         case .success(let result):
             status = result.status
             summary = result.summary
+            retryable = result.retryable
         case .failure(let error):
             status = .failed
             summary = RunSummary(
@@ -358,8 +360,9 @@ public actor AgentCore {
             entry.lastSuccess = now
             entry.attempts = 0
             entry.retryAt = nil
-        case .failed where job.task.mode == .verify:
-            // Des différences trouvées ne sont pas une panne passagère : relancer ne changerait rien.
+        case .failed where !retryable:
+            // Des différences trouvées par une vérification ne sont pas une panne passagère : relancer ne changerait rien.
+            // Une vérification qui n'a pas pu se faire (NAS absent, réseau coupé), elle, est retentée.
             entry.attempts = 0
             entry.retryAt = nil
         case .failed, .quotaReached:
@@ -412,7 +415,7 @@ public actor AgentCore {
         case .quotaReached: title = "\(task.name) : quota atteint"
         default: title = "\(task.name) : échec"
         }
-        var body = summary.message
+        let body = summary.message
             ?? "\(summary.filesTransferred) fichier(s), \(Formatting.bytes(summary.bytesTransferred))"
         // Une copie ponctuelle n'existe plus après son exécution : il n'y a rien à valider, on explique comment relancer.
         if oneOff && status == .blocked {

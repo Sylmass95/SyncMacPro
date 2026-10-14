@@ -171,16 +171,20 @@ do {
 
     case .log(let text):
         let last: RunRecord
-        if let task = try? await resolve(text) {
+        switch TaskReference.logTarget(text, in: try await client.listTasks()) {
+        case .success(let task):
             guard let record = try await client.history(taskID: task.id, limit: 1).first else {
                 fail("« \(task.name) » n'a encore jamais tourné.")
             }
             last = record
-        } else if let record = TaskReference.latestRun(named: text, in: try await client.history(taskID: nil, limit: 500)) {
-            last = record   // copie manuelle : pas de tâche, mais une exécution de ce nom
-        } else {
-            _ = try await resolve(text)   // message habituel « Aucune tâche ne correspond… »
-            fail("Aucune exécution ne correspond à « \(text) ».")
+        case .failure(.notFound):
+            // Copie manuelle : pas de tâche, mais une exécution de ce nom.
+            guard let record = TaskReference.latestRun(named: text, in: try await client.history(taskID: nil, limit: 500)) else {
+                fail("Aucune tâche ni exécution ne correspond à « \(text) ».")
+            }
+            last = record
+        case .failure(let error):
+            throw error
         }
         let log = try await client.runLog(runID: last.id)
         if log.truncated { print("(début du journal non affiché)") }

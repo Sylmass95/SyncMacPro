@@ -20,6 +20,16 @@ public enum TaskReference {
         return records.filter { $0.taskName.lowercased().hasPrefix(wanted) }.max { $0.startedAt < $1.startedAt }
     }
 
+    /// Tâche visée par « log » : seule l'absence de tâche permet de chercher une copie ponctuelle du même nom ; un nom
+    /// ambigu le reste (sinon le journal d'une autre exécution serait affiché sans prévenir).
+    public static func logTarget(_ text: String, in tasks: [SyncTask]) -> Result<SyncTask, TaskReferenceError> {
+        do { return .success(try resolve(text, in: tasks)) } catch let error as TaskReferenceError {
+            return .failure(error)
+        } catch {
+            return .failure(.notFound(text))
+        }
+    }
+
     /// Nom exact, début de nom, identifiant complet ou début d'identifiant (4 caractères au moins).
     public static func resolve(_ text: String, in tasks: [SyncTask]) throws -> SyncTask {
         let wanted = text.lowercased()
