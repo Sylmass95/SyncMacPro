@@ -1,4 +1,7 @@
-SyncMacPro 1.2.2 — robustesse face aux incidents (disque plein, débranché, NAS figé) et aux gros volumes.
+SyncMacPro 1.2.3 — l'agent redémarre de lui-même après une mise à jour, et la robustesse de la 1.2.2.
+
+**Corrections (1.2.3)**
+- Après une mise à jour, l'agent d'arrière-plan pouvait encore rester arrêté (launchd refusait le nouvel agent, code 78). L'app attend que macOS ait vraiment retiré l'ancien agent, vérifie que le nouveau tourne, et sinon recommence : plus besoin de le réinstaller à la main.
 
 **Corrections (1.2.2)**
 - Une copie sur un disque ou un NAS qui ne répond plus ne reste plus « en cours » pour toujours : sans aucune activité pendant 20 minutes (pauses et veille exclues), elle est arrêtée et retentée plus tard.
