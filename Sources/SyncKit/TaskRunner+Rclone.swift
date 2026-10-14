@@ -93,8 +93,9 @@ extension TaskRunner {
         } else if log.signal == .needsResync, task.mode == .bidirectional, !dryRun, !forceResync {
             // bisync s'arrête dès que ses listes ne correspondent plus aux deux côtés (changement de casse seul sur un
             // disque qui ignore la casse, exécution interrompue au mauvais moment…) et exige une réinitialisation.
-            // Sans elle, la tâche échouerait pour toujours. Une réinitialisation ne supprime rien et garde la version
-            // la plus récente de chaque fichier ; la version remplacée va dans l'archive.
+            // Elle n'arrivait qu'au nouvel essai, une heure plus tard, après une notification d'échec : on la fait tout
+            // de suite. Une réinitialisation ne supprime rien et garde la version la plus récente de chaque fichier ; la
+            // version remplacée va dans l'archive.
             onUpdate(.line("Réinitialisation automatique de bisync (rien n'est supprimé, les versions remplacées sont archivées)."))
             var again = try await runRclone(task, dryRun: false, stamp: stamp, onUpdate: onUpdate, forceResync: true)
             if again.status == .succeeded {
