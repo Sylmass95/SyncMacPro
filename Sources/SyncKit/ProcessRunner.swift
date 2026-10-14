@@ -170,8 +170,13 @@ public enum ProcessRunner {
         var buffer = [UInt8](repeating: 0, count: 65_536)
 
         func emit(_ bytes: Data) {
-            let text = String(decoding: bytes, as: UTF8.self).trimmingCharacters(in: .whitespaces)
-            if !text.isEmpty { onLine(ProcessOutputLine(stream: stream, text: text)) }
+            // Ce fil n'a pas de boucle d'événements : sans bassin local, les objets Foundation temporaires de chaque
+            // ligne (expressions régulières, chemins) ne seraient libérés qu'à la fin du processus, soit des centaines
+            // de Mo pour une copie d'un million de fichiers.
+            autoreleasepool {
+                let text = String(decoding: bytes, as: UTF8.self).trimmingCharacters(in: .whitespaces)
+                if !text.isEmpty { onLine(ProcessOutputLine(stream: stream, text: text)) }
+            }
         }
 
         while true {
