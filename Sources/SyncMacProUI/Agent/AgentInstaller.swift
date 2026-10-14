@@ -17,6 +17,15 @@ public protocol ServiceControlling: Sendable {
     func register() throws
     func unregister() throws
     func openSystemSettings()
+    /// launchd connaît encore le job de l'agent (il peut le garder après `unregister`, avec son ancienne signature).
+    func isJobLoaded() -> Bool
+    /// launchd fait tourner l'agent.
+    func isAgentRunning() -> Bool
+}
+
+public extension ServiceControlling {
+    func isJobLoaded() -> Bool { status() == .enabled }
+    func isAgentRunning() -> Bool { status() == .enabled }
 }
 
 /// Enregistrement de l'agent de l'app par `SMAppService`.
@@ -40,6 +49,24 @@ public struct SystemAgentService: ServiceControlling {
     public func register() throws { try service.register() }
     public func unregister() throws { try service.unregister() }
     public func openSystemSettings() { SMAppService.openSystemSettingsLoginItems() }
+
+    public func isJobLoaded() -> Bool { launchdDescription() != nil }
+
+    public func isAgentRunning() -> Bool { launchdDescription()?.contains("\tstate = running") == true }
+
+    /// `launchctl print gui/<uid>/<label>` ; `nil` si launchd ne connaît pas le job.
+    private func launchdDescription() -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["print", "gui/\(getuid())/\(AgentIdentifiers.launchdLabel)"]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return nil }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return process.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
+    }
 }
 
 @MainActor
@@ -100,16 +127,26 @@ public final class AgentInstaller {
     private func reRegister(currentBuild: String, defaults: UserDefaults, pause: Pause) async {
         errorMessage = nil
         do {
-            try service.unregister()
-            // macOS retire l'agent en différé : on attend (5 s au plus) qu'il ne soit plus déclaré, puis une seconde
-            // pour que launchd décharge l'ancien job. Réenregistrer aussitôt le laissait chargé avec l'ancienne signature.
-            var polls = 0
-            while service.status() == .enabled && polls < 25 {
-                polls += 1
-                await pause(200_000_000)
+            // Essais réels 1.2.1 → 1.2.2 et 1.2.2 → 1.2.3 : juste après le remplacement de l'app, le premier
+            // réenregistrement donnait un job que launchd refusait de lancer (« spawn failed », code 78, « needs LWCR
+            // update ») ; un second le réparait. On attend donc que launchd ne connaisse plus l'ancien job, on vérifie
+            // que l'agent tourne vraiment (15 s au plus), et sinon on recommence une fois en attendant plus longtemps.
+            for attempt in 0..<2 {
+                try service.unregister()
+                var polls = 0
+                while (service.status() == .enabled || service.isJobLoaded()) && polls < 75 {   // 15 s au plus
+                    polls += 1
+                    await pause(200_000_000)
+                }
+                await pause(attempt == 0 ? 1_000_000_000 : 3_000_000_000)
+                try service.register()
+                var running = false
+                for _ in 0..<60 {
+                    if service.isAgentRunning() { running = true; break }
+                    await pause(250_000_000)
+                }
+                if running { break }
             }
-            await pause(1_000_000_000)
-            try service.register()
             defaults.set(currentBuild, forKey: Self.registeredBuildKey)
         } catch {
             errorMessage = Self.describe(error)

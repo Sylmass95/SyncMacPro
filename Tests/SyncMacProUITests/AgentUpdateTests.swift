@@ -18,9 +18,51 @@ final class AgentUpdateTests: XCTestCase {
                 return current
             }
         }
-        func register() throws { lock.withLock { calls.append("register"); current = .enabled } }
+        /// Après `unregister`, launchd connaît encore le job ce nombre de fois (essai réel 1.2.1 → 1.2.2 : SMAppService
+        /// répondait « retiré » tout de suite, launchd gardait l'ancien job et sa contrainte de signature).
+        var jobLag = 0
+        /// Nombre d'enregistrements dont le lancement échoue encore (code 78).
+        var failingRegistrations = 0
+        private var launchFailedNow = false
+        func register() throws {
+            lock.withLock {
+                calls.append("register"); current = .enabled
+                launchFailedNow = failingRegistrations > 0
+                if failingRegistrations > 0 { failingRegistrations -= 1 }
+            }
+        }
         func unregister() throws { lock.withLock { calls.append("unregister"); current = .notRegistered } }
+        func isJobLoaded() -> Bool {
+            lock.withLock {
+                guard current == .notRegistered, jobLag > 0 else { return current == .enabled }
+                jobLag -= 1
+                calls.append("encore chargé")
+                return true
+            }
+        }
+        func isAgentRunning() -> Bool { lock.withLock { current == .enabled && !launchFailedNow } }
         func openSystemSettings() {}
+    }
+
+    func testReRegistrationWaitsUntilLaunchdHasDroppedTheOldJob() async {
+        let service = RecordingService(.enabled)
+        service.jobLag = 3
+        let store = defaults()
+        store.set("1.2.1 (137)", forKey: AgentInstaller.registeredBuildKey)
+        let installer = AgentInstaller(service: service)
+        await installer.reRegisterAfterUpdate(currentBuild: "1.2.2 (143)", defaults: store, pause: { _ in })
+        XCTAssertEqual(service.calls, ["unregister", "encore chargé", "encore chargé", "encore chargé", "register"])
+    }
+
+    func testALaunchStillRefusedIsRetriedOnceWithALongerWait() async {
+        let service = RecordingService(.enabled)
+        service.failingRegistrations = 1
+        let store = defaults()
+        store.set("1.2.1 (137)", forKey: AgentInstaller.registeredBuildKey)
+        let installer = AgentInstaller(service: service)
+        await installer.reRegisterAfterUpdate(currentBuild: "1.2.2 (143)", defaults: store, pause: { _ in })
+        XCTAssertEqual(service.calls, ["unregister", "register", "unregister", "register"])
+        XCTAssertEqual(store.string(forKey: AgentInstaller.registeredBuildKey), "1.2.2 (143)")
     }
 
     func defaults() -> UserDefaults {
