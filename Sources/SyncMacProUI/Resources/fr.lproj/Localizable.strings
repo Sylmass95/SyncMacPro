@@ -272,6 +272,12 @@
 "problem.invalidSchedule" = "La planification est incomplète.";
 
 "history.log.show" = "Voir le journal";
+"history.clear" = "Vider…";
+"history.clear.all" = "Vider tout l’historique";
+"history.clear.task" = "Vider l’historique de « %@ »";
+"history.clear.confirm.all" = "Vider tout l’historique ?";
+"history.clear.confirm.task" = "Vider l’historique de « %@ » ?";
+"history.clear.message" = "Les exécutions et leurs journaux sont supprimés définitivement. Une exécution en cours est conservée. Les tâches, les fichiers copiés et les archives ne sont pas touchés.";
 "log.title" = "Journal de « %@ »";
 "log.copy" = "Copier";
 "log.close" = "Fermer";

@@ -217,6 +217,23 @@ public actor AgentCore {
         }
     }
 
+    /// Vide l'historique (tout, ou celui d'une tâche) et supprime les journaux correspondants. Une exécution en cours
+    /// reste. Seuls les fichiers du dossier des journaux sont effacés. Retourne le nombre d'exécutions supprimées.
+    public func clearHistory(taskID: UUID?) throws -> Int {
+        let removed: (count: Int, logPaths: [String])
+        do { removed = try history.clear(taskID: taskID) } catch {
+            throw AgentError.internalFailure("historique non vidé : \(error)")
+        }
+        if let logDirectory {
+            let folder = logDirectory.standardizedFileURL.path + "/"
+            for path in removed.logPaths where URL(fileURLWithPath: path).standardizedFileURL.path.hasPrefix(folder) {
+                try? FileManager.default.removeItem(atPath: path)
+            }
+        }
+        emit(.stateChanged)
+        return removed.count
+    }
+
     public func runLog(runID: UUID, maxBytes: Int) throws -> RunLogText {
         guard let record = try history.record(id: runID), let path = record.logPath,
               FileManager.default.fileExists(atPath: path) else { throw AgentError.unknownRun }

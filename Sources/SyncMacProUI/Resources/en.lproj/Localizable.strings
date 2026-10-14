@@ -272,6 +272,12 @@
 "problem.invalidSchedule" = "The schedule is incomplete.";
 
 "history.log.show" = "Show log";
+"history.clear" = "Clear…";
+"history.clear.all" = "Clear all history";
+"history.clear.task" = "Clear history of “%@”";
+"history.clear.confirm.all" = "Clear all history?";
+"history.clear.confirm.task" = "Clear the history of “%@”?";
+"history.clear.message" = "Runs and their logs are permanently deleted. A run in progress is kept. Tasks, copied files and archives are not touched.";
 "log.title" = "Log of “%@”";
 "log.copy" = "Copy";
 "log.close" = "Close";

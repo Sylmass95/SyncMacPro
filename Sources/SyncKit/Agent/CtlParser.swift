@@ -30,6 +30,8 @@ public enum CtlCommand: Equatable, Sendable {
     case simulate(String), log(String)
     case pauseAll, resumeAll
     case history(String?, limit: Int)
+    /// Vider l'historique, tout ou celui d'une tâche.
+    case clearHistory(String?)
     case add(NewTask)
     case copy(OneOffRequest)
     case remotes, remoteTest(String), remoteDelete(String)
@@ -70,6 +72,7 @@ public enum CtlParser {
       approve <tâche>                accepte les suppressions qui ont bloqué la tâche
       pause-all | resume-all         pause globale (conservée après un redémarrage)
       history [<tâche>] [--limit N]  dernières exécutions
+      history [<tâche>] --clear      vide l'historique (tout, ou celui d'une tâche) et ses journaux
       watch                          avancement en direct
       add --name N --source P --dest P [--mode copy|mirror|bidirectional|move|versioned|verify]
           [--every MINUTES | --daily HH:MM] [--ac-power]
@@ -98,7 +101,7 @@ public enum CtlParser {
     private static let valued: Set<String> = [
         "state-dir", "service", "name", "source", "dest", "mode", "every", "daily", "limit", "item",
     ]
-    private static let flags: Set<String> = ["json", "ac-power", "help", "mirror"]
+    private static let flags: Set<String> = ["json", "ac-power", "help", "mirror", "clear"]
 
     public static func parse(_ arguments: [String]) throws -> CtlInvocation {
         if arguments == ["--version"] {
@@ -162,6 +165,7 @@ public enum CtlParser {
         case "simulate": return invocation(.simulate(try single()))
         case "log": return invocation(.log(try single()))
         case "history":
+            if flagged.contains("clear") { return invocation(.clearHistory(rest.first)) }
             let limit = try values["limit"].map { text -> Int in
                 guard let value = Int(text), value > 0 else { throw CtlParseError.invalid("--limit attend un nombre positif") }
                 return value

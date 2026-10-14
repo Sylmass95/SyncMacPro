@@ -314,6 +314,16 @@ public final class AgentModel {
         if let message = await saveTask(task) { alertMessage = message }
     }
 
+    /// Vide l'historique (tout, ou celui d'une tâche), puis relit celui qui est affiché.
+    public func clearHistory(taskID: UUID?) async {
+        do {
+            try await agent.perform(.clearHistory(taskID: taskID))
+        } catch {
+            alertMessage = Self.describe(error)
+        }
+        await reloadHistory()
+    }
+
     public func removeTask(_ id: UUID) async {
         await act(on: id) { try await $0.perform(.removeTask(id)) }
     }

@@ -254,6 +254,14 @@ public final class AgentClient: @unchecked Sendable {
     }
 
     /// Commande sans résultat (lancer, pause, reprise, arrêt, pause globale, validation, rechargement).
+    /// Nombre d'exécutions supprimées.
+    public func clearHistory(taskID: UUID?) async throws -> Int {
+        guard case .cleared(let count) = try await send(.clearHistory(taskID: taskID)) else {
+            throw AgentClientError.badReply
+        }
+        return count
+    }
+
     public func perform(_ request: AgentRequest) async throws {
         _ = try await send(request)
     }

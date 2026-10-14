@@ -83,6 +83,23 @@ public final class HistoryStore: @unchecked Sendable {
         }
     }
 
+    /// Supprime les exécutions terminées (toutes, ou celles d'une tâche) ; une exécution en cours reste.
+    /// Retourne les journaux des lignes supprimées, pour que l'appelant les efface.
+    public func clear(taskID: UUID?) throws -> (count: Int, logPaths: [String]) {
+        let filter = "status != 'running'" + (taskID == nil ? "" : " AND task_id = ?")
+        let paths = try query("SELECT * FROM runs WHERE \(filter)") { statement in
+            if let taskID { bind(statement, 1, taskID.uuidString) }
+        }.compactMap(\.logPath)
+        // Un journal encore cité par une exécution conservée (en cours) reste.
+        let kept = Set(try query("SELECT * FROM runs WHERE status = 'running'") { _ in }.compactMap(\.logPath))
+        let count = try withStatement("DELETE FROM runs WHERE \(filter)") { statement in
+            if let taskID { bind(statement, 1, taskID.uuidString) }
+            try step(statement)
+            return Int(sqlite3_changes(database))
+        }
+        return (count, paths.filter { !kept.contains($0) })
+    }
+
     // MARK: lecture
 
     public func record(id: UUID) throws -> RunRecord? {

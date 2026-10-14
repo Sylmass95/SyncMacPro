@@ -43,6 +43,7 @@ public enum AgentRouter {
             case .testRemote(let name): return .remoteTest(try await core.testRemote(name))
             case .listRemoteFolders(let remote, let path):
                 return .folders(try await core.listRemoteFolders(remote: remote, path: path))
+            case .clearHistory(let id): return .cleared(try await core.clearHistory(taskID: id))
             }
             return .ok
         } catch let error as AgentError {
