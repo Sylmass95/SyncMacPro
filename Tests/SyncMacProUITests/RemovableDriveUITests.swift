@@ -60,6 +60,20 @@ final class RemovableDriveUITests: XCTestCase {
         XCTAssertEqual(draft.task(resolver: .localOnly).removableDrive, task.removableDrive)
     }
 
+    // Ouvrir l'éditeur ne relie jamais la tâche à un autre disque du même nom (ni ne retire le lien) en silence.
+    func testOpeningTheEditorKeepsTheLinkedDrive() {
+        let task = backupTask()
+        var draft = TaskDraft(task: task)
+        var other = external
+        other.uuid = "BBBB-2222"
+        draft.refreshRemovable(adopting: false) { _ in other }
+        XCTAssertEqual(draft.task(resolver: .localOnly).removableDrive, task.removableDrive)
+        draft.refreshRemovable(adopting: false) { _ in VolumeInfo(uuid: "X", name: "Macintosh HD", rootPath: "/", isInternal: true, isNetwork: false) }
+        XCTAssertEqual(draft.task(resolver: .localOnly).removableDrive, task.removableDrive, "dossier fantôme sur le disque interne")
+        draft.refreshRemovable { _ in other }   // l'utilisateur a choisi un dossier sur l'autre disque
+        XCTAssertEqual(draft.removable?.volumeUUID, "BBBB-2222")
+    }
+
     func testInternalNetworkOrCloudDestinationHasNoSection() {
         var draft = draftOnDrive()
         draft.refreshRemovable { _ in VolumeInfo(uuid: "X", name: "Macintosh HD", rootPath: "/", isInternal: true, isNetwork: false) }

@@ -9,6 +9,7 @@ extension AgentCore {
     public func enqueue(_ id: UUID) throws {
         guard let task = tasks.first(where: { $0.id == id }) else { throw AgentError.unknownTask }
         guard task.isEnabled else { throw AgentError.invalidTask("Tâche désactivée : activez-la avant de la mettre en file.") }
+        if driveMissing(task), let drive = task.removableDrive { throw AgentError.driveNotConnected(drive.volumeName) }
         try ensureNotBusy(id)
         state.userQueue.append(id)
         persist()
@@ -66,9 +67,10 @@ extension AgentCore {
         guard remotes == nil || remoteTypesLoaded else { return }
         // Attente du démarrage ou du réveil : le NAS ou le réseau n'est peut-être pas encore là (comme pour `tick`).
         if let hold = holdUntil, clock.now() < hold { return }
-        // Éléments devenus impossibles (tâche supprimée ou désactivée) : sautés.
-        while let first = state.userQueue.first,
-              queuedOneOffs[first] == nil, !tasks.contains(where: { $0.id == first && $0.isEnabled }) {
+        // Éléments devenus impossibles (tâche supprimée ou désactivée, disque amovible débranché) : sautés. Une tâche
+        // liée ne part jamais sans son disque : un autre disque du même nom serait écrit à sa place.
+        while let first = state.userQueue.first, queuedOneOffs[first] == nil,
+              !tasks.contains(where: { $0.id == first && $0.isEnabled && !driveMissing($0) }) {
             state.userQueue.removeFirst()
         }
         guard let next = state.userQueue.first else {

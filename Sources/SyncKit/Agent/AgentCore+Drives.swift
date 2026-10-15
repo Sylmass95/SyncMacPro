@@ -29,17 +29,20 @@ extension AgentCore {
     func handleDrives(_ now: Date) {
         guard drives != nil, !state.paused, !shuttingDown else { return }
         for task in tasks where task.isEnabled {
+            // Deux exécutions au plus : le branchement attend une place (rappelé à la fin de chaque exécution).
+            guard jobs.count < configuration.maxParallel else { return }
             guard let drive = task.removableDrive, mountedDrives[drive.volumeUUID] != nil,
                   let seen = mountSeen[drive.volumeUUID], now.timeIntervalSince(seen) >= Self.driveSettleDelay,
                   jobs[task.id] == nil, !queue.contains(where: { $0.id == task.id }) else { continue }
             let key = task.id.uuidString
             var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
-            if let handled = entry.lastMountHandled, handled > seen { continue }   // ce branchement est déjà traité
+            // `lastMountHandled` : l'instant où le branchement servi a été vu ; un même branchement n'est servi qu'une fois.
+            if let handled = entry.lastMountHandled, handled >= seen { continue }
             if let reason = unmetCondition(task, now: now) {
                 waiting[task.id] = reason   // secteur, plage horaire : on réessaie au prochain passage
                 continue
             }
-            entry.lastMountHandled = now
+            entry.lastMountHandled = seen
             if let suspended = entry.suspendedRun {
                 entry.suspendedRun = nil
                 state.tasks[key] = entry
@@ -58,6 +61,12 @@ extension AgentCore {
             }
             if due { startJob(task, overrideGuard: false) } else { persist() }
         }
+    }
+
+    /// Tâche liée à un disque qui n'est pas branché (toujours faux sans moniteur de disques).
+    func driveMissing(_ task: SyncTask) -> Bool {
+        guard let drive = task.removableDrive, drives != nil else { return false }
+        return mountedDrives[drive.volumeUUID] == nil
     }
 
     /// La tâche avec sa destination sur le point de montage actuel du volume (inchangée sans disque amovible).
@@ -102,6 +111,7 @@ extension AgentCore {
                 body: "Disque « \(drive.volumeName) » débranché : la sauvegarde reprendra quand vous le rebrancherez."
             )
         }
+        emit(.taskFinished(job.task.id, .interrupted, paused.message))
         afterJob(job.task.id)
     }
 
@@ -112,6 +122,7 @@ extension AgentCore {
         startQueued()
         if userQueueCurrent == id && !shuttingDown { userQueueCurrent = nil; persist() }
         advanceUserQueue()
+        handleDrives(clock.now())
     }
 
     func close(_ suspended: SuspendedRun, message: String, at now: Date) {

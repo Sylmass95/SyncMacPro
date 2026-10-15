@@ -14,6 +14,9 @@ public struct AgentConfiguration: Sendable {
     public var historyRetentionDays = 90
     /// Dossier de travail des moteurs (état de bisync, liens courts) : nettoyé quand une tâche est supprimée.
     public var workDirectory: URL?
+    /// Disque amovible : un échec du moteur alors que le volume est encore listé est réexaminé après ce délai
+    /// (disque arraché : l'erreur d'entrée/sortie précède l'avis de démontage).
+    public var driveFailureRecheck: TimeInterval = 3
 
     public init() {}
 }

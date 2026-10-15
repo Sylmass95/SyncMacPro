@@ -169,6 +169,8 @@ public actor AgentCore {
     public func tick() {
         let now = clock.now()
         defer { lastTick = now }
+        // Secours si un avis de DiskArbitration a été manqué : les volumes sont relus à chaque passage.
+        if let drives, drives.mountedVolumes() != mountedDrives { drivesChanged() }
         if let last = lastTick, now.timeIntervalSince(last) > configuration.wakeGap {
             holdUntil = now.addingTimeInterval(configuration.wakeHold)
         }
@@ -314,12 +316,29 @@ public actor AgentCore {
     }
 
     func startJob(_ original: SyncTask, overrideGuard: Bool, resuming: SuspendedRun? = nil) {
+        // Garde-fou : une tâche liée ne part jamais sans son disque (le chemin enregistré pourrait être un autre disque
+        // du même nom).
+        if driveMissing(original) {
+            log("« \(original.name) » : disque non branché, exécution non lancée")
+            return
+        }
         // Disque amovible : la destination suit le point de montage actuel du volume.
         let task = resolvedForDrive(original)
         var runTask = task
         if overrideGuard { runTask.options.deleteThresholdPercent = 100 }
         let now = clock.now()
         let key = task.id.uuidString
+        // Lancée à la main (ou par la file) pendant une suspension : c'est une reprise, dans le délai ; au-delà,
+        // l'exécution suspendue est close.
+        var resuming = resuming
+        if resuming == nil, let drive = original.removableDrive, let suspended = state.tasks[key]?.suspendedRun {
+            state.tasks[key]?.suspendedRun = nil
+            if now.timeIntervalSince(suspended.since) <= Double(drive.resumeWindowDays) * 86_400 {
+                resuming = suspended
+            } else {
+                close(suspended, message: "Interrompue : disque débranché plus de \(drive.resumeWindowDays) jour(s).", at: now)
+            }
+        }
         let engine = (try? EngineSelector.engine(for: runTask)) ?? .rsync
         var record = RunRecord(taskID: task.id, taskName: task.name, engine: engine, mode: task.mode, startedAt: now)
         if let resuming, var previous = try? history.record(id: resuming.recordID) {
@@ -346,6 +365,8 @@ public actor AgentCore {
         entry.runningSince = now
         entry.retryAt = nil
         entry.awaitingApproval = false
+        // Ce branchement est servi (à la main, par la file ou au branchement) : pas de deuxième sauvegarde.
+        if let drive = original.removableDrive { entry.lastMountHandled = mountSeen[drive.volumeUUID] ?? now }
         state.tasks[key] = entry
         persist()
 
@@ -400,7 +421,19 @@ public actor AgentCore {
         emit(.progress(id, info))
     }
 
-    func finish(_ id: UUID, _ outcome: Result<RunResult, Error>) {
+    func finish(_ id: UUID, _ outcome: Result<RunResult, Error>, rechecked: Bool = false) {
+        // Disque arraché : l'erreur d'entrée/sortie peut précéder la disparition du volume. Un échec alors que le
+        // volume est encore listé est réexaminé un peu plus tard (suspension s'il a disparu entre-temps).
+        if !rechecked, let job = jobs[id], let drive = job.task.removableDrive, !job.driveLost, !shuttingDown,
+           configuration.driveFailureRecheck > 0, currentMountPath(drive) != nil, Self.failed(outcome) {
+            let delay = UInt64(configuration.driveFailureRecheck * 1_000_000_000)
+            let core = self
+            jobTasks[id] = Task.detached {
+                try? await Task.sleep(nanoseconds: delay)
+                await core.finish(id, outcome, rechecked: true)
+            }
+            return
+        }
         jobTasks[id] = nil
         guard var job = jobs.removeValue(forKey: id) else { return }
         applyBandwidth()   // une exécution de moins : les autres récupèrent sa part
@@ -483,11 +516,19 @@ public actor AgentCore {
             notify(job.task, status, summary, oneOff: wasOneOff)
         }
         refreshActivity()
+        defer { handleDrives(now) }   // une place libérée : un disque branché entre-temps peut partir
         emit(.taskFinished(id, status, summary.message))
         startQueued()
         // À l'arrêt de l'agent, l'élément interrompu reste « en cours » : il sera repris avant le suivant.
         if userQueueCurrent == id && !shuttingDown { userQueueCurrent = nil; persist() }
         advanceUserQueue()
+    }
+
+    static func failed(_ outcome: Result<RunResult, Error>) -> Bool {
+        switch outcome {
+        case .success(let result): return result.status == .failed
+        case .failure: return true
+        }
     }
 
     func notify(_ task: SyncTask, _ status: RunStatus, _ summary: RunSummary, oneOff: Bool = false, note: String? = nil) {

@@ -243,10 +243,13 @@ public struct TaskDraft: Equatable, Sendable {
 
     /// Relit le volume de la destination : section proposée sur un disque externe, retirée sur un disque interne,
     /// un partage réseau ou un service en ligne ; disque débranché (chemin introuvable) : le lien est gardé.
-    public mutating func refreshRemovable(lookup: (String) -> VolumeInfo? = VolumeLookup.info(forPath:)) {
+    /// `adopting` faux (ouverture de l'éditeur, destination inchangée) : un lien existant n'est jamais changé, même si un
+    /// autre disque du même nom répond au chemin enregistré.
+    public mutating func refreshRemovable(adopting: Bool = true, lookup: (String) -> VolumeInfo? = VolumeLookup.info(forPath:)) {
         let path = (destination.path.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
         guard destination.kind == .folder, !path.isEmpty else { removable = nil; return }
         guard let volume = lookup(path) else { return }
+        if !adopting, removable?.linked == true { return }
         guard volume.isRemovable else { removable = nil; return }
         if removable == nil { removable = RemovableDraft(volume: volume, path: path) } else { removable?.adopt(volume, path: path) }
     }
