@@ -25,6 +25,9 @@ public enum EngineErrorText {
             || lower.contains("error in rsync protocol data stream")
             || lower.hasPrefix("rsync error:")
             || lower.contains("] rsync error:")
+            // Résumés de rclone : « Attempt 1/3 failed with 1 errors and: … », « Failed to copy with 2 errors: … ».
+            || (lower.hasPrefix("attempt ") && lower.contains(" failed with "))
+            || (lower.hasPrefix("failed to ") && lower.contains(" with ") && lower.contains(" error"))
     }
 
     private static let explanations: [(patterns: [String], text: String)] = [

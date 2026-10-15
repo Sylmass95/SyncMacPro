@@ -429,3 +429,34 @@
 "update.failed.rateLimit" = "too many requests to GitHub, will retry later";
 "update.failed.http" = "GitHub isn’t responding properly";
 "update.failed.unreadable" = "unreadable answer from GitHub";
+
+/* 1.3.0: RsyncGUI-style progress */
+"progress.files" = "Files %@ / %@";
+"progress.dirs" = "Folders %@ / %@";
+"progress.average" = "%@ average";
+"progress.elapsed" = "Elapsed %@";
+"summary.dirs" = "%d folder(s)";
+"queue.title" = "Queue";
+"queue.start" = "Start queue";
+"queue.suspend" = "Pause queue";
+"queue.current" = "Running: %@";
+"queue.empty" = "No task in the queue";
+"queue.up" = "Move up";
+"queue.down" = "Move down";
+"queue.remove" = "Remove from queue";
+"card.enqueue" = "Add to queue";
+"card.inqueue" = "Queued (%d)";
+"copy.enqueue" = "Add to queue";
+"tasks.copies" = "Copies";
+"settings.network" = "Network";
+"network.download" = "Internet download";
+"network.upload" = "Internet upload";
+"network.local" = "Local network";
+"network.unit" = "Mbit/s";
+"network.invalid" = "A positive number is expected (in Mbit/s).";
+"network.help" = "In Mbit/s, like speedtest. Download applies to copies from an online service, upload to copies to an online service, local network to copies between disks and NAS. Copies in the same direction share the cap; a change applies to running copies.";
+"mini.title" = "Transfers";
+"mini.expand" = "Show full window";
+"mini.idle" = "No transfer running";
+"mini.offline" = "Agent unreachable";
+"mini.toggle" = "Mini mode";

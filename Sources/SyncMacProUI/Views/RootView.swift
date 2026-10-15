@@ -51,6 +51,16 @@ public struct RootView: View {
                 .background(GlassBackdrop())
         }
         .frame(minWidth: 940, minHeight: 560)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    MiniPanelController.shared.show(model: model, localizer: localizer)
+                } label: {
+                    Label(localizer.text("mini.toggle"), systemImage: "rectangle.inset.bottomright.filled")
+                }
+                .help(localizer.text("mini.toggle") + " (⌥⌘M)")
+            }
+        }
         .glassThemed()
         // L'agent a disparu (désinstallé, désactivé) : on relit son état pour proposer la bonne action.
         .onChange(of: model.connection) { _, state in
@@ -95,7 +105,7 @@ public struct RootView: View {
                 CopyView(model: model, localizer: localizer) { open($0, isNew: true) }
             case .history: HistoryView(model: model, localizer: localizer)
             case .connections: ConnectionsView(model: model, localizer: localizer)
-            case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
+            case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates, model: model)
             }
         }
     }

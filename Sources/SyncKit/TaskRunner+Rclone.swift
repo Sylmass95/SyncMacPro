@@ -50,6 +50,44 @@ extension TaskRunner {
             options.maxDeleteCount = DeleteGuard.maxDeleteCount(existing: guardResult.existing, thresholdPercent: threshold)
         }
 
+        // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
+        var protectedEmpty: [String] = []
+        if !dryRun, [.copy, .mirror, .versioned, .move].contains(task.mode) {
+            protectedEmpty = await protectedEmptyFiles(task, options: options, onUpdate: onUpdate)
+            options.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rcloneEscape)
+            protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
+        }
+        defer { if let file = options.excludeFrom { try? FileManager.default.removeItem(atPath: file) } }
+
+        // Dossiers à faire : une simulation en arrière-plan liste les fichiers à copier (la copie démarre tout de suite).
+        let directories = Locked<RcloneDirectoryProgress?>(nil)
+        let copiedEarly = Locked<[String]>([])   // fichiers copiés avant la fin du comptage
+        let countsDirectories = !dryRun && [.copy, .mirror, .versioned, .move].contains(task.mode)
+        var counting: Task<Void, Never>?
+        if countsDirectories {
+            var simulated = options
+            simulated.dryRun = true
+            simulated.rcSocketPath = nil
+            let planCommand = try RcloneCommandBuilder.command(for: task, run: simulated)
+            let pending = Locked<Set<String>>([])
+            let control = self.control
+            counting = Task.detached { [self] in
+                let code = try? await self.stream(planCommand, errors: { line in
+                    pending.update { RcloneDirectoryProgress.notePending(line, into: &$0) }
+                }) { line in pending.update { RcloneDirectoryProgress.notePending(line, into: &$0) } }
+                guard code == 0, !control.stopRequested else { return }
+                directories.update { current in
+                    // Fichiers copiés pendant le comptage (même verrou que la copie) : comptés et faits.
+                    current = RcloneDirectoryProgress(pendingFiles: pending.get(), alreadyCopied: copiedEarly.get())
+                }
+            }
+        }
+
+        // Limite de départ, et prise de contrôle pour la changer en route (pas pour une simulation).
+        options.bandwidth = control.bandwidth
+        let socket = dryRun ? nil : RcloneRemoteControl.socketPath()
+        options.rcSocketPath = socket
+        defer { if let socket { try? FileManager.default.removeItem(atPath: socket) } }
         let command = try RcloneCommandBuilder.command(for: task, run: options)
         let tracker = SafeTracker(now: configuration.now, fileInfo: { _ in (0, false) })
         tracker.perform { $0.start() }
@@ -66,17 +104,34 @@ extension TaskRunner {
             switch event {
             case .stats(let stats):
                 lastStats.set(stats)
+                let dirs = directories.get()
                 onUpdate(.snapshot(tracker.perform { tracker -> TransferSnapshot in
                     tracker.apply(stats)
+                    if let dirs { tracker.setRcloneDirectories(done: dirs.done, total: dirs.total) }
                     return tracker.snapshot()
                 }))
             case .error(let text): log.addError(text)
             case .notice: break
+            case .copied(let name):
+                directories.update { current in
+                    if current != nil { current?.fileCopied(name) } else { copiedEarly.update { $0.append(name) } }
+                }
             }
         }
         control.registerMain(process)
+        if let socket {
+            let sender = LatestRateSender { rate in await RcloneRemoteControl.setRate(rclone: rclone, socket: socket, rate: rate) }
+            control.setBandwidthHook { sender.submit($0) }
+        }
         let code = await process.waitForExit()
+        control.setBandwidthHook(nil)
         control.clearMain()
+        // Le comptage des dossiers finit d'ordinaire bien avant la copie ; sur un petit dossier, on l'attend.
+        if control.stopRequested { control.stopAuxiliary() }
+        await counting?.value
+        if let dirs = directories.get() {
+            tracker.perform { $0.setRcloneDirectories(done: dirs.done, total: dirs.total) }
+        }
 
         var status: RunStatus
         var message: String?
@@ -129,6 +184,9 @@ extension TaskRunner {
             }
         }
 
+        if status == .succeeded, message == nil, !protectedEmpty.isEmpty {
+            message = EmptySourceGuard.message(count: protectedEmpty.count)
+        }
         let snapshot = tracker.perform { tracker -> TransferSnapshot in
             if status == .succeeded { tracker.finish() } else { tracker.pause() }
             return tracker.snapshot()
@@ -141,7 +199,31 @@ extension TaskRunner {
             try? Data().write(to: URL(fileURLWithPath: workdir).appendingPathComponent(Self.bisyncLinksMarker))
         }
         return result(status: status, engine: .rclone, snapshot: snapshot, started: started,
-                      deletions: stats?.deletes ?? 0, errors: max(log.errors, stats?.errors ?? 0), message: message)
+                      deletions: stats?.deletes ?? 0, errors: log.errors > 0 ? log.errors : (stats?.errors ?? 0), message: message)
+    }
+
+    /// Fichiers vides de la source dont la destination a une version non vide (listes de rclone, sans rien copier).
+    private func protectedEmptyFiles(
+        _ task: SyncTask, options: RunOptions, onUpdate: @escaping @Sendable (RunUpdate) -> Void
+    ) async -> [String] {
+        let empty = Locked<[String]>([])
+        let code = try? await stream(RcloneCommandBuilder.emptyFilesCommand(for: task, run: options)) { line in
+            empty.update { $0.append(line) }
+        }
+        // Liste partielle (un sous-dossier illisible, une erreur passagère) : on protège quand même ce qui a été lu.
+        if code != 0 { onUpdate(.line("Liste des fichiers vides incomplète (code \(code.map(String.init) ?? "?")) : protection partielle.")) }
+        guard !empty.get().isEmpty else { return [] }
+        let list = FileManager.default.temporaryDirectory.appendingPathComponent("smp-liste-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: list) }
+        guard (try? empty.get().joined(separator: "\n").write(to: list, atomically: true, encoding: .utf8)) != nil,
+              let outcome = try? await collect(RcloneCommandBuilder.destinationSizesCommand(for: task, file: list.path, run: options)),
+              let entries = try? JSONSerialization.jsonObject(with: Data(outcome.output.utf8)) as? [[String: Any]]
+        else { return [] }
+        var sizes: [String: Int64] = [:]
+        for entry in entries {
+            if let path = entry["Path"] as? String, let size = (entry["Size"] as? NSNumber)?.int64Value { sizes[path] = size }
+        }
+        return EmptySourceGuard.protectedPaths(sourceEmpty: empty.get(), destinationSizes: sizes)
     }
 
     /// Marque d'un dossier d'état créé avec les liens courts (1.2.0) : les listes d'avant portent le nom des chemins

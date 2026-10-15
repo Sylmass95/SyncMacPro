@@ -101,6 +101,10 @@ final class RunControl: @unchecked Sendable {
     private var stopRequestedFlag = false
     private var pausedFlag = false
     private var stalledFor: TimeInterval?
+    private var bandwidthValue = BandwidthRate.unlimited
+    private var restartFlag = false
+    /// Appelé (hors verrou) quand la limite change pendant l'exécution : le moteur l'applique à chaud.
+    private var bandwidthHook: (@Sendable (BandwidthRate) -> Void)?
     /// Appelés (hors verrou) quand l'exécution est mise en pause ou reprise : arrêtent / relancent le chronomètre.
     private var pauseHook: (@Sendable () -> Void)?
     private var resumeHook: (@Sendable () -> Void)?
@@ -117,6 +121,37 @@ final class RunControl: @unchecked Sendable {
     var stalledAfter: TimeInterval? { lock.lock(); defer { lock.unlock() }; return stalledFor }
     func markStalled(after timeout: TimeInterval) { lock.lock(); stalledFor = timeout; lock.unlock() }
 
+    var bandwidth: BandwidthRate { lock.lock(); defer { lock.unlock() }; return bandwidthValue }
+
+    func setBandwidth(_ rate: BandwidthRate) {
+        lock.lock()
+        let changed = rate != bandwidthValue
+        bandwidthValue = rate
+        let hook = bandwidthHook
+        lock.unlock()
+        if changed { hook?(rate) }
+    }
+
+    /// rsync : arrête le processus principal pour qu'il soit relancé aussitôt (nouvelle limite de débit).
+    func requestRestart() {
+        lock.lock(); defer { lock.unlock() }
+        guard !stopRequestedFlag, let main else { return }
+        restartFlag = true
+        main.terminate()
+    }
+
+    /// Vrai une fois si une relance a été demandée.
+    func consumeRestart() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        let value = restartFlag
+        restartFlag = false
+        return value
+    }
+
+    func setBandwidthHook(_ hook: (@Sendable (BandwidthRate) -> Void)?) {
+        lock.lock(); bandwidthHook = hook; lock.unlock()
+    }
+
     func reset() {
         lock.lock(); defer { lock.unlock() }
         main = nil
@@ -124,6 +159,8 @@ final class RunControl: @unchecked Sendable {
         stopRequestedFlag = false
         pausedFlag = false
         stalledFor = nil
+        restartFlag = false
+        bandwidthHook = nil
         pauseHook = nil
         resumeHook = nil
     }
@@ -182,6 +219,7 @@ final class RunLog: @unchecked Sendable {
     /// Les premières erreurs : la cause vient avant ses conséquences (voir `EngineErrorText`).
     private var firstErrors: [String] = []
     private var errorCount = 0
+    private var distinctErrors: Set<String> = []
     private var deletionCount = 0
     private var signalValue: OutputSignal?
     private var signalLine: String?
@@ -190,6 +228,8 @@ final class RunLog: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         errorCount += 1
         if firstErrors.count < 20 { firstErrors.append(line) }
+        // Un même incident revient à chaque tentative, et les lignes de résumé le rappellent : compté une fois.
+        if !EngineErrorText.isConsequence(line) { distinctErrors.insert(line) }
     }
 
     func addDeletion() { lock.lock(); deletionCount += 1; lock.unlock() }
@@ -200,14 +240,18 @@ final class RunLog: @unchecked Sendable {
         if signalValue == nil || found == .safetyAbort { signalValue = found; signalLine = line }
     }
 
-    var errors: Int { lock.lock(); defer { lock.unlock() }; return errorCount }
+    /// Erreurs distinctes ; au moins 1 s'il n'y a eu que des lignes de résumé.
+    var errors: Int {
+        lock.lock(); defer { lock.unlock() }
+        return max(distinctErrors.count, errorCount > 0 ? 1 : 0)
+    }
     var deletions: Int { lock.lock(); defer { lock.unlock() }; return deletionCount }
     var signal: OutputSignal? { lock.lock(); defer { lock.unlock() }; return signalValue }
     var signalText: String? { lock.lock(); defer { lock.unlock() }; return signalLine }
     /// Message d'échec : la première cause, expliquée.
     var mainError: String? {
         lock.lock(); defer { lock.unlock() }
-        return EngineErrorText.summary(errors: firstErrors, total: errorCount)
+        return EngineErrorText.summary(errors: firstErrors, total: max(distinctErrors.count, errorCount > 0 ? 1 : 0))
     }
 }
 

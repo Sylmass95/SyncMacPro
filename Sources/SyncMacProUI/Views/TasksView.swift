@@ -39,13 +39,33 @@ public struct TasksView: View {
                 Spacer()
             } else {
                 ScrollView {
+                    if model.queue?.items.isEmpty == false || model.queue?.current != nil {
+                        QueueSection(model: model, localizer: localizer).padding([.horizontal, .top], 12)
+                    }
+                    let copies = (model.status?.tasks ?? []).filter(\.isOneOff)
+                    if !copies.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(localizer.text("tasks.copies")).font(.headline)
+                            ForEach(copies) { info in
+                                TaskCard(info: info, task: nil, progress: model.progress[info.id], busy: model.busyTasks.contains(info.id),
+                                         text: text, actions: TaskCardActions(
+                                            pause: { Task { await model.pause(info.id) } },
+                                            resume: { Task { await model.resume(info.id) } },
+                                            stop: { Task { await model.stop(info.id) } }))
+                            }
+                        }
+                        .padding([.horizontal, .top], 12)
+                    }
                     TasksListBody(
                         tasks: tasks, selection: selection, text: text,
+
                         onToggle: { task, on in Task { await model.setEnabled(task.id, on) } },
                         onEdit: { onEdit(TaskDraft(task: $0), false) },
                         onDuplicate: { onEdit(.duplicate(of: $0, suffix: localizer.text("tasks.copy.suffix")), true) },
                         onDelete: { pendingDelete = $0 },
-                        onSelect: { selection = $0 }
+                        onSelect: { selection = $0 },
+                        infos: Dictionary((model.status?.tasks ?? []).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+                        progress: model.progress
                     )
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -98,6 +118,8 @@ struct TasksListBody: View {
     let onDuplicate: (SyncTask) -> Void
     let onDelete: (SyncTask) -> Void
     let onSelect: (UUID) -> Void
+    var infos: [UUID: AgentTaskInfo] = [:]
+    var progress: [UUID: ProgressInfo] = [:]
 
     private var l: Localizer { text.localizer }
 
@@ -116,6 +138,13 @@ struct TasksListBody: View {
                 Text(task.name).font(.headline).lineLimit(1)
                 Text("\(text.mode(task.mode)) · \(text.schedule(task.schedule))")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if let info = infos[task.id], info.state == .running || info.state == .paused, let current = progress[task.id] ?? info.progress {
+                    GlowProgressBar(value: Double(current.overallPercent ?? 0) / 100).frame(maxWidth: 320)
+                    Text(text.progressLine(current) + " · " + ProgressPresentation(localizer: l).filesLine(done: current.filesDone, total: current.totalFiles))
+                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
+                } else if let position = infos[task.id]?.queuePosition {
+                    Text(l.format("card.inqueue", position)).font(.caption.bold()).foregroundStyle(.blue)
+                }
             }
             Spacer(minLength: 12)
             Toggle(l.text("tasks.enabled"), isOn: Binding(get: { task.isEnabled }, set: { onToggle(task, $0) }))

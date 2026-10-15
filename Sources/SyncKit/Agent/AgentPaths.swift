@@ -8,6 +8,8 @@ public struct AgentPaths: Sendable {
 
     public var tasks: URL { root.appendingPathComponent("tasks.json") }
     public var state: URL { root.appendingPathComponent("scheduler-state.json") }
+    /// Réglages de l'agent (plafonds de débit).
+    public var settings: URL { root.appendingPathComponent("settings.json") }
     public var history: URL { root.appendingPathComponent("history.sqlite") }
     /// Dossier d'état propre aux tâches (bisync y garde ses listes).
     public var work: URL { root.appendingPathComponent("work") }

@@ -429,3 +429,34 @@
 "update.failed.rateLimit" = "trop de demandes à GitHub, nouvel essai plus tard";
 "update.failed.http" = "GitHub ne répond pas correctement";
 "update.failed.unreadable" = "réponse de GitHub illisible";
+
+/* 1.3.0 : progression façon RsyncGUI */
+"progress.files" = "Fichiers %@ / %@";
+"progress.dirs" = "Dossiers %@ / %@";
+"progress.average" = "%@ en moyenne";
+"progress.elapsed" = "Écoulé %@";
+"summary.dirs" = "%d dossier(s)";
+"queue.title" = "File d’attente";
+"queue.start" = "Lancer la file";
+"queue.suspend" = "Suspendre la file";
+"queue.current" = "En cours : %@";
+"queue.empty" = "Aucune tâche en file";
+"queue.up" = "Monter";
+"queue.down" = "Descendre";
+"queue.remove" = "Retirer de la file";
+"card.enqueue" = "Mettre en file";
+"card.inqueue" = "En file (%d)";
+"copy.enqueue" = "Mettre en file";
+"tasks.copies" = "Copies";
+"settings.network" = "Réseau";
+"network.download" = "Réception internet";
+"network.upload" = "Envoi internet";
+"network.local" = "Réseau local";
+"network.unit" = "Mbit/s";
+"network.invalid" = "Nombre positif attendu (en Mbit/s).";
+"network.help" = "En Mbit/s, comme speedtest. La réception vaut pour les copies depuis un service en ligne, l’envoi pour les copies vers un service en ligne, le réseau local pour les copies entre disques et NAS. Les copies d’un même sens se partagent le plafond ; un changement s’applique aux copies en cours.";
+"mini.title" = "Transferts";
+"mini.expand" = "Agrandir la fenêtre";
+"mini.idle" = "Aucun transfert en cours";
+"mini.offline" = "Agent injoignable";
+"mini.toggle" = "Mode miniature";

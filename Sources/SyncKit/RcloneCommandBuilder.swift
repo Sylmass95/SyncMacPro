@@ -19,13 +19,13 @@ public enum RcloneCommandBuilder {
 
         switch task.mode {
         case .copy:
-            args = ["copy", source, destination] + loggingFlags
+            args = ["copy", source, destination] + verbosity(task) + loggingFlags
         case .mirror, .versioned:
-            args = ["sync", source, destination] + loggingFlags
+            args = ["sync", source, destination] + verbosity(task) + loggingFlags
                 + ["--backup-dir", archiveRoot(task.destination), "--exclude", archiveFilter]
             if let maxDelete = run.maxDeleteCount { args += ["--max-delete", String(maxDelete)] }
         case .move:
-            args = ["move", source, destination, "--delete-empty-src-dirs"] + loggingFlags
+            args = ["move", source, destination, "--delete-empty-src-dirs"] + verbosity(task) + loggingFlags
         case .bidirectional:
             // bisync nomme son verrou et ses listes d'après les deux chemins : au-delà de 255 caractères il échoue.
             // Un côté sur le disque passe donc par un lien court (`run.bisyncPath1`, `run.bisyncPath2`), préparé par le runner.
@@ -46,17 +46,39 @@ public enum RcloneCommandBuilder {
             args = ["check", source, destination, "--combined", "-"]
         }
 
-        if let limit = task.options.bandwidthLimitKBps, task.mode != .verify {
-            args += ["--bwlimit", "\(limit)K"]
+        if task.mode != .verify {
+            if let rate = run.bandwidth, let value = bwlimitValue(rate) {
+                args += ["--bwlimit", value]
+            } else if let limit = task.options.bandwidthLimitKBps {
+                args += ["--bwlimit", "\(limit)K"]
+            }
+            if let socket = run.rcSocketPath { args += ["--rc", "--rc-addr", "unix://\(socket)", "--rc-no-auth"] }
         }
         if let quota = task.options.maxTransferGB, task.mode != .verify {
             args += ["--max-transfer", "\(quota)G", "--cutoff-mode", "soft"]
         }
+        if let file = run.excludeFrom, task.mode != .verify { args += ["--exclude-from", file] }
         args += filterArguments(for: task)
         args += task.options.extraArguments
         if run.dryRun, task.mode != .verify { args.append("--dry-run") }
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
+    }
+
+    /// `-v` (lignes « Copied » pour les dossiers faits), sauf si l'utilisateur a choisi un niveau de journal : rclone refuse
+    /// `-v` avec `--log-level` ou `-q`.
+    static func verbosity(_ task: SyncTask) -> [String] {
+        let chosen = task.options.extraArguments.contains { argument in
+            ["-q", "--quiet", "-v", "-vv", "-vvv", "--verbose", "--log-level"].contains(argument) || argument.hasPrefix("--log-level=")
+        }
+        return chosen ? [] : ["-v"]
+    }
+
+    /// `--bwlimit` de rclone : « ENVOI:RÉCEPTION » en Kio/s, `off` pour un côté sans limite.
+    public static func bwlimitValue(_ rate: BandwidthRate) -> String? {
+        guard rate.upBytesPerSecond != nil || rate.downBytesPerSecond != nil else { return nil }
+        func side(_ bytes: Int64?) -> String { bytes.map { "\(max(1, $0 / 1024))K" } ?? "off" }
+        return "\(side(rate.upBytesPerSecond)):\(side(rate.downBytesPerSecond))"
     }
 
     /// Compte les fichiers d'un côté (`rclone size --json`) : sert à calculer le pourcentage de suppressions.
@@ -65,6 +87,23 @@ public enum RcloneCommandBuilder {
     public static func sizeCommand(for endpoint: Endpoint, task: SyncTask, run: RunOptions) -> EngineCommand {
         var args = ["size", "--json", endpoint.rcloneSpec, "--exclude", "/\(task.options.archiveFolder)/**"]
         args += task.options.excludes.flatMap { ["--exclude", $0] }
+        if let config = run.rcloneConfigPath { args += ["--config", config] }
+        return EngineCommand(engine: .rclone, arguments: args)
+    }
+
+    /// Fichiers vides de la source (même sélection et mêmes exclusions que la copie), un chemin par ligne.
+    public static func emptyFilesCommand(for task: SyncTask, run: RunOptions) -> EngineCommand {
+        var args = ["lsf", "-R", "--files-only", "--max-size", "0", "--format", "p", task.source.rcloneSpec]
+        var listing = task
+        listing.mode = .copy
+        args += filterArguments(for: listing)
+        if let config = run.rcloneConfigPath { args += ["--config", config] }
+        return EngineCommand(engine: .rclone, arguments: args)
+    }
+
+    /// Tailles à la destination des chemins listés dans `file` (`lsjson --files-from`).
+    public static func destinationSizesCommand(for task: SyncTask, file: String, run: RunOptions) -> EngineCommand {
+        var args = ["lsjson", "-R", task.destination.rcloneSpec, "--files-from", file, "--no-traverse", "--files-only"]
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
     }

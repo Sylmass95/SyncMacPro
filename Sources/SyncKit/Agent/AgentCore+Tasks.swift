@@ -24,6 +24,7 @@ extension AgentCore {
                 try? FileManager.default.removeItem(at: work.appendingPathComponent(folder))
             }
         }
+        state.userQueue.removeAll { $0 == id }
         loadTasks()
         persist()
         emit(.stateChanged)

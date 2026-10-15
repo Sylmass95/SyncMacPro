@@ -108,6 +108,8 @@ struct CopyConfirmationView: View {
                 } else {
                     Button(localizer.text("confirm.simulate")) { Task { await simulate() } }.disabled(offline || invalid)
                 }
+                Button(localizer.text("copy.enqueue")) { Task { await launch(queued: true) } }
+                    .disabled(offline || launching || invalid)
                 Button(localizer.text("confirm.launch")) { Task { await launch() } }
                     .keyboardShortcut(.defaultAction).buttonStyle(GlassButtonStyle(prominent: true))
                     .disabled(offline || launching || invalid)
@@ -143,10 +145,10 @@ struct CopyConfirmationView: View {
         Task { for id in ids { await model.cancelSimulation(id) } }
     }
 
-    private func launch() async {
+    private func launch(queued: Bool = false) async {
         launching = true
         defer { launching = false }
-        if let refusal = await model.runOnce(tasks) {
+        if let refusal = queued ? await model.enqueueOnce(tasks) : await model.runOnce(tasks) {
             error = refusal
         } else {
             close()

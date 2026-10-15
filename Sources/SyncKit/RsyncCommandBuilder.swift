@@ -32,12 +32,34 @@ public enum RsyncCommandBuilder {
             throw CommandError.unsupportedMode(mode: task.mode, engine: .rsync)
         }
 
-        if let limit = task.options.bandwidthLimitKBps, task.mode != .verify {
-            args.append("--bwlimit=\(limit)")
+        if task.mode != .verify {
+            if let rate = run.bandwidth, let kbps = bwlimitKBps(rate) {
+                args.append("--bwlimit=\(kbps)")
+            } else if let limit = task.options.bandwidthLimitKBps {
+                args.append("--bwlimit=\(limit)")
+            }
         }
+        if let file = run.excludeFrom { args.append("--exclude-from=\(file)") }
         args += task.options.excludes.map { "--exclude=\($0)" }
         args += task.options.extraArguments
         if run.dryRun, task.mode != .verify { args.append("-n") }
+        args += sources + [destination]
+        return EngineCommand(engine: .rsync, arguments: args)
+    }
+
+    /// `--bwlimit` de rsync (Kio/s) : un seul débit, le plus bas des deux côtés.
+    public static func bwlimitKBps(_ rate: BandwidthRate) -> Int? {
+        let sides = [rate.upBytesPerSecond, rate.downBytesPerSecond].compactMap { $0 }
+        guard let lowest = sides.min() else { return nil }
+        return Int(max(1, lowest / 1024))
+    }
+
+    /// Fichiers vides qui seraient copiés (`-rn --max-size=0`), un nom par ligne, mêmes exclusions que la copie.
+    public static func emptyFilesCommand(for task: SyncTask, run: RunOptions) throws -> EngineCommand {
+        let (sources, destination, _) = try paths(for: task)
+        var args = ["-rn", "--max-size=0", "--out-format=%n"]
+        if task.mode == .mirror { args.append("--exclude=/\(task.options.archiveFolder)/") }
+        args += task.options.excludes.map { "--exclude=\($0)" }
         args += sources + [destination]
         return EngineCommand(engine: .rsync, arguments: args)
     }

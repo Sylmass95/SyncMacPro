@@ -71,6 +71,23 @@ public struct Localizer: Sendable {
         bytes(Int64(bytesPerSecond)) + "/s"
     }
 
+    /// 925 → « 925 », 12 345 → « 12 345 » (séparateur de milliers de la langue).
+    public func number(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
+    /// 724 → « 12 min 04 s », 3780 → « 1 h 03 min », 42 → « 42 s ».
+    public func longDuration(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let hours = total / 3_600, minutes = (total % 3_600) / 60, secs = total % 60
+        if hours > 0 { return String(format: "%d h %02d min", hours, minutes) }
+        if minutes > 0 { return String(format: "%d min %02d s", minutes, secs) }
+        return "\(secs) s"
+    }
+
     /// 65 → « 1:05 », 3725 → « 1:02:05 ».
     public func duration(_ seconds: TimeInterval) -> String {
         let total = max(0, Int(seconds.rounded()))

@@ -39,7 +39,8 @@ public struct MenuBarPanel: View {
     private var tasks: [AgentTaskInfo] { model.status?.tasks ?? [] }
     private var active: [AgentTaskInfo] { tasks.filter { $0.state == .running || $0.state == .paused } }
     private var upcoming: [AgentTaskInfo] {
-        let planned = tasks.filter { $0.nextDue != nil && $0.state != .disabled }
+        // Une tâche manuelle n'a pas d'échéance à annoncer (une nouvelle tentative non plus n'est pas « à venir »).
+        let planned = tasks.filter { $0.nextDue != nil && $0.state != .disabled && model.tasks[$0.id]?.schedule != .manual }
         return Array(planned.sorted { ($0.nextDue ?? .distantFuture) < ($1.nextDue ?? .distantFuture) }.prefix(3))
     }
 

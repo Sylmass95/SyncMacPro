@@ -8,6 +8,8 @@ public protocol TaskRunning: AnyObject, Sendable {
     func pause()
     func resume()
     func stop()
+    /// Limite de débit de l'exécution : appelée avant `run` (limite de départ) puis à chaque changement.
+    func setBandwidth(_ rate: BandwidthRate)
 }
 
 extension TaskRunner: TaskRunning {}

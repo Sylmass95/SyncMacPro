@@ -76,6 +76,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
     let ranTasks = Locked<[SyncTask]>([])
     let status = Locked<RunStatus>(.succeeded)
     let retryable = Locked(true)
+    let rates = Locked<[BandwidthRate]>([])
     let message = Locked<String?>(nil)
     let failure = Locked<Error?>(nil)
     let snapshot = Locked<TransferSnapshot?>(nil)
@@ -110,6 +111,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         )
     }
 
+    func setBandwidth(_ rate: BandwidthRate) { rates.update { $0.append(rate) } }
     func pause() { calls.set(calls.get() + ["pause"]) }
     func resume() { calls.set(calls.get() + ["resume"]) }
     func stop() {

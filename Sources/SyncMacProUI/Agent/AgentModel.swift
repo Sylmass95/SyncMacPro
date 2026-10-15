@@ -20,6 +20,9 @@ public final class AgentModel {
     public private(set) var status: AgentStatus?
     public private(set) var tasks: [UUID: SyncTask] = [:]
     public private(set) var progress: [UUID: ProgressInfo] = [:]
+    /// File d'attente explicite et plafonds de débit, tels que l'agent les tient (`nil` pour un agent plus ancien).
+    public private(set) var queue: QueueInfo?
+    public private(set) var bandwidth: BandwidthLimits?
     public private(set) var history: [RunRecord] = []
     public private(set) var historyError: String?
     public private(set) var busyTasks: Set<UUID> = []
@@ -56,6 +59,8 @@ public final class AgentModel {
         let model = AgentModel(agent: UnavailableAgent())
         model.connection = connection
         model.status = status
+        model.queue = status?.queue
+        model.bandwidth = status?.bandwidth
         model.tasks = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         model.progress = progress
         model.history = history
@@ -245,6 +250,9 @@ public final class AgentModel {
 
     private func apply(status new: AgentStatus, tasks list: [SyncTask]) {
         status = new
+        queue = new.queue
+        // Une saisie en attente d'envoi l'emporte sur la valeur relue.
+        if bandwidthSend == nil { bandwidth = new.bandwidth }
         tasks = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
         for info in new.tasks {
             if let current = info.progress {
@@ -322,6 +330,50 @@ public final class AgentModel {
             alertMessage = Self.describe(error)
         }
         await reloadHistory()
+    }
+
+    // MARK: file d'attente et débit
+
+    public func enqueue(_ id: UUID) async { await act(on: id) { try await $0.perform(.enqueue(id)) } }
+    public func dequeue(_ id: UUID) async { await act(on: id) { try await $0.perform(.dequeue(id)) } }
+    public func setQueueRunning(_ running: Bool) async { await act(on: nil) { try await $0.perform(.setQueueRunning(running)) } }
+
+    /// Monte (−1) ou descend (+1) un élément de la file.
+    public func moveInQueue(_ id: UUID, by offset: Int) async {
+        guard let items = queue?.items, let index = items.firstIndex(of: id) else { return }
+        let target = max(0, min(items.count - 1, index + offset))
+        await act(on: id) { try await $0.perform(.moveInQueue(id, to: target)) }
+    }
+
+    /// Copies ponctuelles mises en file : `nil` si l'agent les a toutes prises, sinon le premier refus.
+    public func enqueueOnce(_ tasks: [SyncTask]) async -> String? {
+        for task in tasks {
+            do { try await agent.perform(.enqueueOnce(task)) } catch {
+                await refreshNow()
+                return Self.describe(error)
+            }
+        }
+        await refreshNow()
+        return nil
+    }
+
+    @ObservationIgnored private var bandwidthSend: Task<Void, Never>?
+
+    /// Envoyé 0,6 s après la dernière modification : une saisie ne relance pas rsync à chaque chiffre.
+    public func setBandwidth(_ limits: BandwidthLimits) {
+        bandwidth = limits
+        bandwidthSend?.cancel()
+        let agent = self.agent
+        let sleeper = self.sleeper
+        bandwidthSend = Task { [weak self] in
+            do { try await sleeper.sleep(seconds: 0.6) } catch { return }
+            do {
+                try await agent.perform(.setBandwidth(limits))
+            } catch {
+                self?.alertMessage = Self.describe(error)
+            }
+            self?.bandwidthSend = nil
+        }
     }
 
     public func removeTask(_ id: UUID) async {

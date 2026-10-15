@@ -23,11 +23,17 @@ public struct RunSummary: Codable, Equatable, Sendable {
     public var durationSeconds: Double
     /// Explication lisible (motif d'un blocage ou d'un échec, « Simulation », …).
     public var message: String?
+    /// Dossiers traités et vitesse moyenne (octets/s) : facultatifs, absents des exécutions d'avant 1.3.0.
+    public var directories: Int?
+    public var averageSpeed: Double?
 
     public init(
         filesTransferred: Int = 0, bytesTransferred: Int64 = 0, deletions: Int = 0,
-        errors: Int = 0, durationSeconds: Double = 0, message: String? = nil
+        errors: Int = 0, durationSeconds: Double = 0, message: String? = nil,
+        directories: Int? = nil, averageSpeed: Double? = nil
     ) {
+        self.directories = directories
+        self.averageSpeed = averageSpeed
         self.filesTransferred = filesTransferred
         self.bytesTransferred = bytesTransferred
         self.deletions = deletions

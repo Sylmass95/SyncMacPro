@@ -6,13 +6,13 @@ extension TaskRunner {
     ) async throws -> RunResult {
         let rsync = try executable(for: .rsync)
         let started = configuration.now()
-        let runOptions = RunOptions(dryRun: dryRun, archiveStamp: stamp)
+        var runOptions = RunOptions(dryRun: dryRun, archiveStamp: stamp)
         onUpdate(.phase(.preparing))
 
         if task.mode == .verify {
             return try await verifyWithRsync(task, options: runOptions, started: started, onUpdate: onUpdate)
         }
-        let command = try RsyncCommandBuilder.command(for: task, run: runOptions)   // refuse tôt les modes non pris en charge
+        _ = try RsyncCommandBuilder.command(for: task, run: runOptions)   // refuse tôt les modes non pris en charge
         let source = task.source.filesystemPath ?? ""
         let destination = task.destination.filesystemPath ?? ""
 
@@ -62,6 +62,28 @@ extension TaskRunner {
             knownPlan = plan
         }
 
+        // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
+        var protectedEmpty: [String] = []
+        if [.copy, .mirror, .move].contains(task.mode) {
+            // rsync lui-même liste les fichiers vides qui seraient copiés (`-n --max-size=0`) : même parcours que la copie,
+            // arrêtable, et seuls ces fichiers sont ensuite regardés à la destination.
+            let found = Locked<[String]>([])
+            let code = try await stream(RsyncCommandBuilder.emptyFilesCommand(for: task, run: runOptions)) { line in
+                if !line.hasSuffix("/") { found.update { $0.append(line) } }
+            }
+            if control.stopRequested { return result(status: .stopped, engine: .rsync, snapshot: TransferSnapshot(), started: started) }
+            if code != 0 && code != 23 && code != 24 {
+                onUpdate(.line("Liste des fichiers vides impossible (code \(code)) : pas de protection pour cette exécution."))
+            }
+            let empty = found.get()
+            protectedEmpty = EmptySourceGuard.protectedPaths(
+                sourceEmpty: empty, destinationSizes: EmptySourceGuard.sizes(of: empty, in: destination)
+            )
+            runOptions.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rsyncEscape)
+            protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
+        }
+        defer { if let file = runOptions.excludeFrom { try? FileManager.default.removeItem(atPath: file) } }
+
         let tracker = SafeTracker(now: configuration.now, fileInfo: { name in
             let size = (try? FileManager.default.attributesOfItem(atPath: Endpoint.join(source, name))[.size] as? NSNumber)?
                 .flatMap { $0 }?.int64Value ?? 0
@@ -73,8 +95,9 @@ extension TaskRunner {
 
         // Sans plan connu, le total se calcule en arrière-plan : la copie démarre tout de suite.
         if knownPlan == nil {
+            let planOptions = runOptions   // copie immuable : Swift 5.10 refuse une `var` capturée dans une closure concurrente
             Task.detached { [self] in
-                guard let plan = try? await self.rsyncPlan(task, runOptions), !self.control.stopRequested else { return }
+                guard let plan = try? await self.rsyncPlan(task, planOptions), !self.control.stopRequested else { return }
                 tracker.perform { $0.setPlan(files: plan.files, directories: plan.directories) }
             }
         }
@@ -82,22 +105,6 @@ extension TaskRunner {
         onUpdate(.phase(.running))
         let log = RunLog()
         let lastStarted = Locked<String?>(nil)
-        let watch = makeWatch(for: .rsync)
-        let process = try ProcessRunner.spawn(executable: rsync, arguments: command.arguments) { output in
-            watch.note()
-            onUpdate(.line(output.text))
-            guard let event = RsyncOutputParser.parse(line: output.text) else { return }
-            switch event {
-            case .fileStarted(let name, _): lastStarted.set(name)
-            case .deleting: log.addDeletion()
-            case .error(let text): log.addError(text)
-            default: break
-            }
-            tracker.perform { $0.apply(event) }
-        }
-        control.registerMain(process)
-        watch.attach(process)
-
         let interval = configuration.sampleInterval
         let sampler = Task.detached {
             while !Task.isCancelled {
@@ -110,9 +117,67 @@ extension TaskRunner {
             }
         }
 
-        let code = await process.waitForExit()
-        watch.stop()
-        control.clearMain()
+        // rsync ne change pas sa limite en route : une nouvelle limite l'arrête et il est relancé aussitôt ; avec
+        // `--partial --inplace` il reprend où il en était. Au plus une relance toutes les 5 s. Le plan et le garde-fou
+        // du miroir ne sont pas refaits.
+        let control = self.control
+        let lastRestart = Locked(Date.distantPast)
+        let deferred = Locked(false)
+        // Un changement arrivé moins de 5 s après une relance n'est pas perdu : la relance est différée, et lit alors la
+        // limite la plus récente.
+        control.setBandwidthHook { _ in
+            let wait = 5 - Date().timeIntervalSince(lastRestart.get())
+            if wait <= 0 {
+                lastRestart.set(Date())
+                control.requestRestart()
+                return
+            }
+            var schedule = false
+            deferred.update { if !$0 { $0 = true; schedule = true } }
+            guard schedule else { return }
+            DispatchQueue.global().asyncAfter(deadline: .now() + wait) {
+                deferred.set(false)
+                lastRestart.set(Date())
+                control.requestRestart()
+            }
+        }
+        var code: Int32 = 0   // toujours donné par la boucle ; Swift 5.10 ne le voit pas à travers `while true`
+        var attemptNumber = 0
+        while true {
+            var current = runOptions
+            current.bandwidth = control.bandwidth
+            // Chaque relance archive dans son propre dossier : la version d'avant, déjà archivée par la première tentative,
+            // n'est jamais remplacée par un fichier à moitié réécrit.
+            if attemptNumber > 0 { current.archiveStamp = "\(stamp)-r\(attemptNumber + 1)" }
+            attemptNumber += 1
+            let attempt = try RsyncCommandBuilder.command(for: task, run: current)
+            let watch = makeWatch(for: .rsync)
+            // Les erreurs d'une tentative arrêtée pour relance (« received SIGTERM ») ne comptent pas.
+            let attemptErrors = Locked<[String]>([])
+            let process = try ProcessRunner.spawn(executable: rsync, arguments: attempt.arguments) { output in
+                watch.note()
+                onUpdate(.line(output.text))
+                guard let event = RsyncOutputParser.parse(line: output.text) else { return }
+                switch event {
+                case .fileStarted(let name, _): lastStarted.set(name)
+                case .deleting: log.addDeletion()
+                case .error(let text): attemptErrors.update { $0.append(text) }
+                default: break
+                }
+                tracker.perform { $0.apply(event) }
+            }
+            control.registerMain(process)
+            watch.attach(process)
+            code = await process.waitForExit()
+            watch.stop()
+            control.clearMain()
+            guard control.consumeRestart(), !control.stopRequested else {
+                attemptErrors.get().forEach(log.addError)
+                break
+            }
+            onUpdate(.line("Limite de débit modifiée : rsync est relancé et reprend où il en était."))
+        }
+        control.setBandwidthHook(nil)
         sampler.cancel()
         control.stopAuxiliary()
 
@@ -139,6 +204,9 @@ extension TaskRunner {
             }
         }
 
+        if status == .succeeded, message == nil, !protectedEmpty.isEmpty {
+            message = EmptySourceGuard.message(count: protectedEmpty.count)
+        }
         let snapshot = tracker.perform { tracker -> TransferSnapshot in
             if status == .succeeded { tracker.finish() } else { tracker.pause() }
             return tracker.snapshot()

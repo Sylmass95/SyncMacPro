@@ -15,6 +15,7 @@ public final class TaskRunner: @unchecked Sendable {
     public func pause() { control.pause() }
     public func resume() { control.resume() }
     public func stop() { control.stop() }
+    public func setBandwidth(_ rate: BandwidthRate) { control.setBandwidth(rate) }
 
     // MARK: exécution
 
@@ -112,12 +113,15 @@ public final class TaskRunner: @unchecked Sendable {
         status: RunStatus, engine: EngineKind, snapshot: TransferSnapshot, started: Date,
         deletions: Int = 0, errors: Int = 0, message: String? = nil, retryable: Bool = true
     ) -> RunResult {
-        RunResult(
+        let duration = configuration.now().timeIntervalSince(started)
+        return RunResult(
             status: status, engine: engine,
             summary: RunSummary(
                 filesTransferred: snapshot.filesDone, bytesTransferred: snapshot.doneBytes,
                 deletions: deletions, errors: errors,
-                durationSeconds: configuration.now().timeIntervalSince(started), message: message
+                durationSeconds: duration, message: message,
+                directories: snapshot.totalDirs.map { _ in snapshot.dirsDone },
+                averageSpeed: duration > 0 && snapshot.doneBytes > 0 ? Double(snapshot.doneBytes) / duration : nil
             ),
             snapshot: snapshot, retryable: retryable
         )

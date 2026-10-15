@@ -23,6 +23,12 @@ public struct RunOptions: Equatable, Sendable {
     /// bisync : liens courts vers chaque côté sur le disque (bisync nomme ses fichiers d'état d'après les chemins).
     public var bisyncPath1: String?
     public var bisyncPath2: String?
+    /// Limite de débit de l'exécution (plafonds des réglages) ; `nil` : celle de la tâche.
+    public var bandwidth: BandwidthRate?
+    /// rclone : prise Unix de son contrôle à distance (limite modifiable en route).
+    public var rcSocketPath: String?
+    /// Fichier d'exclusions de l'exécution (fichiers vides protégés, voir `EmptySourceGuard`).
+    public var excludeFrom: String?
 
     public init(
         dryRun: Bool = false,

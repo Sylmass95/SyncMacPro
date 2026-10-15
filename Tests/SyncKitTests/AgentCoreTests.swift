@@ -37,12 +37,14 @@ final class AgentHarness {
 
     func save(_ tasks: [SyncTask]) throws { try taskStore.save(tasks) }
 
-    func makeCore(runner: (@Sendable () -> TaskRunning)? = nil, remotes: RemoteConfiguring? = nil) -> AgentCore {
+    func makeCore(
+        runner: (@Sendable () -> TaskRunning)? = nil, remotes: RemoteConfiguring? = nil, settings: AgentSettingsStore? = nil
+    ) -> AgentCore {
         let factory = self.factory
         return AgentCore(
             configuration: configuration, taskStore: taskStore, stateStore: stateStore, history: history,
             clock: clock, conditions: conditions, notifier: notifier, activity: activity,
-            logDirectory: logs, remotes: remotes, makeRunner: runner ?? { factory.make() }
+            logDirectory: logs, remotes: remotes, settingsStore: settings, makeRunner: runner ?? { factory.make() }
         )
     }
 

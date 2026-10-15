@@ -8,10 +8,16 @@ public struct SettingsView: View {
     let loginItem: LoginItemModel
     let localizer: Localizer
     let updates: UpdateModel?
+    /// Agent pour les plafonds de débit ; `nil` : section Réseau absente (aperçus, tests).
+    let model: AgentModel?
     @AppStorage("appearance") private var appearanceRaw = Appearance.auto.rawValue
     @AppStorage(GlassStyle.storageKey) private var styleRaw = GlassStyle.default.rawValue
 
-    public init(installer: AgentInstaller, loginItem: LoginItemModel, localizer: Localizer = .system, updates: UpdateModel? = nil) {
+    public init(
+        installer: AgentInstaller, loginItem: LoginItemModel, localizer: Localizer = .system, updates: UpdateModel? = nil,
+        model: AgentModel? = nil
+    ) {
+        self.model = model
         self.installer = installer
         self.loginItem = loginItem
         self.localizer = localizer
@@ -55,6 +61,7 @@ public struct SettingsView: View {
                 }
                 if let error = installer.errorMessage { Text(error).font(.callout).foregroundStyle(.red) }
             }
+            if let model { NetworkSettingsSection(model: model, localizer: localizer) }
             Section(localizer.text("settings.data")) {
                 Button(localizer.text("settings.data.reveal")) { revealData() }
             }

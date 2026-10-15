@@ -27,6 +27,8 @@ public enum RcloneEvent: Equatable, Sendable {
     case stats(RcloneStats)
     case notice(message: String, object: String?)
     case error(String)
+    /// Un fichier copié ou déplacé (lignes « Copied (…) » / « Moved (…) » en `-v`).
+    case copied(name: String)
 }
 
 public enum RcloneOutputParser {
@@ -80,8 +82,14 @@ public enum RcloneOutputParser {
             ))
         }
         let message = decoded.msg ?? ""
+        if message.hasPrefix("Copied (") || message.hasPrefix("Moved ("), let object = decoded.object {
+            return .copied(name: object)
+        }
         switch decoded.level {
-        case "error", "critical", "alert", "emergency": return .error(message)
+        // Le fichier fait partie de l'erreur : deux fichiers qui échouent pour la même raison sont deux erreurs.
+        case "error", "critical", "alert", "emergency":
+            if let object = decoded.object, !object.isEmpty, !message.contains(object) { return .error("\(object) : \(message)") }
+            return .error(message)
         default: return message.isEmpty ? nil : .notice(message: message, object: decoded.object)
         }
     }
