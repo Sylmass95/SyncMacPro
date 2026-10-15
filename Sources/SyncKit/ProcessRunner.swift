@@ -16,6 +16,7 @@ public final class RunningProcess: @unchecked Sendable {
     public let pid: pid_t
     private let lock = NSLock()
     private var exitCode: Int32?
+    private var terminating = false
     private var waiters: [CheckedContinuation<Int32, Never>] = []
 
     init(pid: pid_t) { self.pid = pid }
@@ -29,12 +30,21 @@ public final class RunningProcess: @unchecked Sendable {
     /// Si le groupe n'est pas terminé après `grace` secondes (programme qui ignore SIGTERM, nettoyage bloqué),
     /// il est tué (SIGKILL) : sans cela, l'exécution et son verrou resteraient bloqués.
     public func terminate(killAfter grace: TimeInterval = 8) {
+        lock.lock(); terminating = true; lock.unlock()
         killpg(pid, SIGCONT)
         killpg(pid, SIGTERM)
         DispatchQueue.global().asyncAfter(deadline: .now() + grace) { [weak self] in
             guard let self, !self.hasExited else { return }
             killpg(self.pid, SIGKILL)
         }
+    }
+
+    /// Le processus principal est sorti. Pendant un arrêt, un sous-processus lancé au moment du SIGTERM a pu le
+    /// manquer : il retiendrait les tubes (donc la fin) jusqu'au SIGKILL de secours. Le groupe existe tant qu'il a un
+    /// membre, son identifiant ne peut pas désigner un autre processus.
+    func leaderExited() {
+        lock.lock(); let again = terminating; lock.unlock()
+        if again { killpg(pid, SIGTERM) }
     }
 
     private var hasExited: Bool {
@@ -147,6 +157,7 @@ public enum ProcessRunner {
         Thread.detachNewThread {
             var status: Int32 = 0
             while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
+            process.leaderExited()
             readers.wait()                  // toute la sortie est livrée avant d'annoncer la fin
             process.finish(with: decode(status))
         }

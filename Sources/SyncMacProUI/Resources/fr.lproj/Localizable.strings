@@ -460,3 +460,31 @@
 "mini.idle" = "Aucun transfert en cours";
 "mini.offline" = "Agent injoignable";
 "mini.toggle" = "Mode miniature";
+"tasks.copies.dismiss" = "Fermer ce bilan";
+"card.abandon" = "Abandonner";
+"card.eject" = "Éjecter";
+
+/* Disque amovible (1.4.0) */
+"drive.elapsed.min" = "%d min";
+"drive.elapsed.h" = "%d h";
+"drive.elapsed.d" = "%d j";
+"card.drive.suspended" = "En pause : disque « %@ » débranché depuis %@";
+"card.drive.mounted" = "Disque « %@ » branché";
+"card.drive.unplugged" = "Disque « %@ » débranché : la sauvegarde partira au branchement";
+"state.drive.suspended" = "En pause : disque débranché";
+"menubar.drives" = "Disques";
+"editor.drive.title" = "Disque amovible";
+"editor.drive.link" = "Lancer la sauvegarde quand ce disque est branché";
+"editor.drive.identity" = "Disque : %@ (identifiant %@)";
+"editor.drive.nouuid" = "Le disque « %@ » n'a pas d'identifiant de volume : il ne peut pas être reconnu à coup sûr, la tâche ne peut pas lui être liée.";
+"editor.drive.noschedule" = "La sauvegarde part au branchement du disque, sans planification. Elle reste lançable à la main quand le disque est branché.";
+"editor.drive.trigger" = "Déclenchement";
+"editor.drive.trigger.every" = "À chaque branchement";
+"editor.drive.trigger.days" = "Au plus une fois tous les N jours";
+"editor.drive.days" = "Au plus tous les %d jour(s)";
+"editor.drive.window" = "Reprise de la même sauvegarde pendant %d jour(s) après un débranchement";
+"editor.drive.eject" = "En fin de sauvegarde";
+"editor.drive.eject.never" = "Notification seulement";
+"editor.drive.eject.button" = "Bouton « Éjecter »";
+"editor.drive.eject.automatic" = "Éjection automatique";
+"card.schedule.drive" = "Au branchement du disque";

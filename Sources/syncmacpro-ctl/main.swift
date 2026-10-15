@@ -185,6 +185,16 @@ do {
         if queue.items.isEmpty { print("Aucune tâche en file.") }
         for (index, id) in queue.items.enumerated() { print("\(index + 1). \(names[id] ?? id.uuidString)") }
 
+    case .eject(let text):
+        let task = try await resolve(text)
+        try await client.perform(.ejectDrive(task.id))
+        print("Disque de « \(task.name) » éjecté : vous pouvez le débrancher.")
+
+    case .abandon(let text):
+        let task = try await resolve(text)
+        try await client.perform(.abandonSuspended(task.id))
+        print("Sauvegarde en pause de « \(task.name) » abandonnée : la prochaine repartira de zéro.")
+
     case .queueAdd(let text):
         let task = try await resolve(text)
         try await client.perform(.enqueue(task.id))

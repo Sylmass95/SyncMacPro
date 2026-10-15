@@ -121,7 +121,10 @@ public final class TaskRunner: @unchecked Sendable {
                 deletions: deletions, errors: errors,
                 durationSeconds: duration, message: message,
                 directories: snapshot.totalDirs.map { _ in snapshot.dirsDone },
-                averageSpeed: duration > 0 && snapshot.doneBytes > 0 ? Double(snapshot.doneBytes) / duration : nil
+                // Sur le temps actif (pauses exclues), comme la carte pendant la copie ; à défaut, la durée totale.
+                averageSpeed: snapshot.doneBytes > 0
+                    ? Double(snapshot.doneBytes) / (snapshot.activeTime > 0 ? snapshot.activeTime : max(duration, 0.001))
+                    : nil
             ),
             snapshot: snapshot, retryable: retryable
         )

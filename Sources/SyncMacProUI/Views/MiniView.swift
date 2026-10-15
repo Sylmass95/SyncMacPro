@@ -34,7 +34,8 @@ struct MiniBody: View {
 
     var body: some View {
         let text = CardText(localizer: localizer)
-        let ids = MiniView.runningIDs(model.status)
+        // Transferts en cours, puis disques qui demandent un geste (sauvegarde en pause, disque à éjecter).
+        let ids = MiniView.runningIDs(model.status) + DrivePresentation.attentionIDs(status: model.status, tasks: model.tasks)
         let infos = (model.status?.tasks ?? []).filter { ids.contains($0.id) }
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -55,7 +56,9 @@ struct MiniBody: View {
                     actions: TaskCardActions(
                         pause: { Task { await model.pause(info.id) } },
                         resume: { Task { await model.resume(info.id) } },
-                        stop: { Task { await model.stop(info.id) } }
+                        stop: { Task { await model.stop(info.id) } },
+                        abandon: { Task { await model.abandonSuspended(info.id) } },
+                        eject: { Task { await model.ejectDrive(info.id) } }
                     )
                 )
             }

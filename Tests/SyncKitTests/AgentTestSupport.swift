@@ -24,10 +24,14 @@ final class FakeConditions: SystemConditions, @unchecked Sendable {
     let acPower = Locked(true)
     let network = Locked(true)
     let reachable = Locked(true)
+    /// Dossiers absents (le reste suit `reachable`).
+    let missingPaths = Locked<Set<String>>([])
 
     func isOnACPower() -> Bool { acPower.get() }
     func isNetworkAvailable() -> Bool { network.get() }
-    func isReachable(_ endpoint: Endpoint) -> Bool { reachable.get() }
+    func isReachable(_ endpoint: Endpoint) -> Bool {
+        reachable.get() && !(endpoint.filesystemPath.map { missingPaths.get().contains($0) } ?? false)
+    }
 }
 
 final class FakeNotifier: AgentNotifier, @unchecked Sendable {

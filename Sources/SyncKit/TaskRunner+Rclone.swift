@@ -127,8 +127,15 @@ extension TaskRunner {
         control.setBandwidthHook(nil)
         control.clearMain()
         // Le comptage des dossiers finit d'ordinaire bien avant la copie ; sur un petit dossier, on l'attend.
-        if control.stopRequested { control.stopAuxiliary() }
+        // Copie finie (réussie ou arrêtée) : le comptage des dossiers n'a plus d'intérêt, il ne retarde pas la fin.
+        control.stopAuxiliary()
         await counting?.value
+        // Comptage interrompu (copie plus rapide que lui) : une copie réussie a fait tous les dossiers qu'elle a touchés.
+        if countsDirectories, code == 0, !control.stopRequested {
+            directories.update { current in
+                if current == nil { current = RcloneDirectoryProgress(pendingFiles: [], alreadyCopied: copiedEarly.get()) }
+            }
+        }
         if let dirs = directories.get() {
             tracker.perform { $0.setRcloneDirectories(done: dirs.done, total: dirs.total) }
         }

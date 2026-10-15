@@ -106,6 +106,11 @@ public enum CtlFormatter {
         for task in status.tasks {
             let next = task.nextDue.map { date($0, timeZone: timeZone) } ?? "—"
             let last = task.lastRun.map { "\(statusLabel($0.status)) \(date($0.startedAt, timeZone: timeZone))" } ?? "—"
+            if let since = task.driveSuspendedSince {
+                lines.append("• \(task.name)  [en pause : disque débranché depuis \(date(since, timeZone: timeZone))]  "
+                    + "reprend au rebranchement (ou « abandon \(task.name) »)  dernière : \(last)")
+                continue
+            }
             lines.append("• \(task.name)  [\(stateLabel(task.state))]  prochaine : \(next)  dernière : \(last)")
         }
         if status.tasks.isEmpty { lines.append("Aucune tâche.") }

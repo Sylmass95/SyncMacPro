@@ -63,6 +63,7 @@ history [<tâche>] [--limit N]
 history [<tâche>] --clear
 queue | queue add | remove | up | down <tâche> | queue start | stop
 bandwidth [--down N] [--up N] [--local N]   (Mbit/s, « off » pour retirer)
+eject <tâche> | abandon <tâche>   (disque amovible : éjecter, abandonner la sauvegarde en pause)
 add --name N --source P --dest P [--mode M] [--every MIN | --daily HH:MM] [--ac-power]
 remove <tâche>
 simulate <tâche> | log <tâche>
@@ -162,6 +163,27 @@ syncmacpro-ctl remote delete "Google Drive"
 
 Développement : l'agent accepte `--rclone-config FICHIER` ; `SYNCMACPRO_DEV_RCLONE_CONFIG=FICHIER scripts/dev-launchd.sh install`
 le transmet à l'agent de développement (essais sans toucher à la vraie configuration).
+
+## Sauvegarde sur disque amovible (1.4.0)
+
+Pour une sauvegarde physique de temps en temps, sans laisser le disque branché : choisissez un dossier d'un disque
+externe comme destination, puis, à l'étape Planification, cochez **« Lancer la sauvegarde quand ce disque est
+branché »**.
+- Le disque est reconnu par l'identifiant de son volume : monté sous un autre nom (« Extreme Pro 1 »), il est
+  retrouvé ; un autre disque du même nom ne l'est pas.
+- Déclenchement : **à chaque branchement**, ou **au plus une fois tous les N jours** (rien si la dernière réussite est
+  plus récente). Les conditions habituelles (secteur, plage horaire) s'appliquent ; la tâche reste lançable à la main.
+- Débranché en pleine copie : la tâche passe « En pause : disque débranché » (ni échec, ni nouvel essai). Rebranché
+  dans le délai de reprise (3 jours par défaut, 1 à 30), la même exécution continue et finit avec un seul bilan ;
+  au-delà, elle est close et une nouvelle repart sur une comparaison complète (rien d'identique n'est recopié).
+  « Abandonner » clôt la sauvegarde en pause.
+- En fin de sauvegarde : notification « vous pouvez éjecter », bouton **Éjecter** (carte, miniature, barre de menus)
+  ou **éjection automatique** (seulement si rien d'autre n'écrit sur le disque ; un refus de macOS est signalé).
+
+```bash
+syncmacpro-ctl eject "Sauvegarde"      # éjecter le disque de la tâche
+syncmacpro-ctl abandon "Sauvegarde"    # abandonner la sauvegarde en pause
+```
 
 ## Construire et publier
 

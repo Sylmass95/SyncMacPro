@@ -61,6 +61,8 @@ public struct SyncTask: Codable, Equatable, Identifiable, Sendable {
     public var notifications: NotificationPolicy
     public var conditions: TaskConditions
     public var isEnabled: Bool
+    /// Destination sur un disque amovible (1.4.0) ; `nil` pour une tâche ordinaire.
+    public var removableDrive: RemovableDrive?
 
     public init(
         id: UUID = UUID(),
@@ -102,5 +104,6 @@ public struct SyncTask: Codable, Equatable, Identifiable, Sendable {
         // Les fichiers écrits avant le sous-projet 2 n'ont pas cette clé.
         conditions = try container.decodeIfPresent(TaskConditions.self, forKey: .conditions) ?? TaskConditions()
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        removableDrive = try container.decodeIfPresent(RemovableDrive.self, forKey: .removableDrive)
     }
 }

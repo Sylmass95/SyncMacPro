@@ -279,29 +279,41 @@ struct ScheduleStepView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Picker(l.text("editor.schedule.kind"), selection: $draft.scheduleDraft.kind) {
-                ForEach(ScheduleKind.allCases, id: \.self) { Text(text.scheduleKind($0)).tag($0) }
+            // Liée à un disque : la sauvegarde part au branchement, la planification n'a plus de sens.
+            if draft.removable?.drive == nil {
+                scheduleChoice
+                Text(l.format("editor.next.run", text.nextRun(for: draft.task(resolver: resolver))))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
-            .pickerStyle(.radioGroup)
-            switch draft.scheduleDraft.kind {
-            case .daily:
-                timePicker
-            case .weekdays:
-                weekdayPicker
-                timePicker
-            case .everyMinutes:
-                Stepper(
-                    l.format("editor.schedule.every", draft.scheduleDraft.interval),
-                    value: $draft.scheduleDraft.interval, in: 1...1440, step: 5
+            if let removable = draft.removable {
+                RemovableDriveSection(
+                    drive: Binding(get: { draft.removable ?? removable }, set: { draft.removable = $0 }), localizer: l
                 )
-            case .manual, .whenAvailable:
-                EmptyView()
             }
-            Text(l.format("editor.next.run", text.nextRun(for: draft.task(resolver: resolver))))
-                .font(.callout)
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var scheduleChoice: some View {
+        Picker(l.text("editor.schedule.kind"), selection: $draft.scheduleDraft.kind) {
+            ForEach(ScheduleKind.allCases, id: \.self) { Text(text.scheduleKind($0)).tag($0) }
+        }
+        .pickerStyle(.radioGroup)
+        switch draft.scheduleDraft.kind {
+        case .daily:
+            timePicker
+        case .weekdays:
+            weekdayPicker
+            timePicker
+        case .everyMinutes:
+            Stepper(
+                l.format("editor.schedule.every", draft.scheduleDraft.interval),
+                value: $draft.scheduleDraft.interval, in: 1...1440, step: 5
+            )
+        case .manual, .whenAvailable:
+            EmptyView()
+        }
     }
 
     private var timePicker: some View {
@@ -340,6 +352,50 @@ struct ScheduleStepView: View {
                 if on { draft.scheduleDraft.days.insert(day) } else { draft.scheduleDraft.days.remove(day) }
             }
         )
+    }
+}
+
+/// Section « Disque amovible » : lien au disque, déclenchement, délai de reprise, éjection.
+@MainActor
+struct RemovableDriveSection: View {
+    @Binding var drive: RemovableDraft
+    let localizer: Localizer
+
+    private var l: Localizer { localizer }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(l.text("editor.drive.title"), systemImage: "externaldrive").font(.headline)
+            if let uuid = drive.volumeUUID {
+                Text(l.format("editor.drive.identity", drive.volumeName, String(uuid.prefix(8))))
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle(l.text("editor.drive.link"), isOn: $drive.linked)
+                if drive.linked {
+                    Picker(l.text("editor.drive.trigger"), selection: $drive.everyConnection) {
+                        Text(l.text("editor.drive.trigger.every")).tag(true)
+                        Text(l.text("editor.drive.trigger.days")).tag(false)
+                    }
+                    .pickerStyle(.radioGroup)
+                    if !drive.everyConnection {
+                        Stepper(l.format("editor.drive.days", drive.everyDays), value: $drive.everyDays, in: 1...365)
+                    }
+                    Stepper(l.format("editor.drive.window", drive.resumeWindowDays), value: $drive.resumeWindowDays, in: 1...30)
+                    Picker(l.text("editor.drive.eject"), selection: $drive.eject) {
+                        Text(l.text("editor.drive.eject.never")).tag(RemovableDrive.Eject.never)
+                        Text(l.text("editor.drive.eject.button")).tag(RemovableDrive.Eject.button)
+                        Text(l.text("editor.drive.eject.automatic")).tag(RemovableDrive.Eject.automatic)
+                    }
+                    .frame(maxWidth: 420)
+                    Text(l.text("editor.drive.noschedule")).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Text(l.format("editor.drive.nouuid", drive.volumeName)).font(.callout).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(12)
+        .glassCard(cornerRadius: 12)
     }
 }
 

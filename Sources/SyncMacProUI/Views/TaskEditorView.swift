@@ -75,6 +75,9 @@ public struct TaskEditorView: View {
         }
         // Fermer l'éditeur (Annuler, Échap, enregistrement) arrête la simulation en cours.
         .onDisappear { cancelRunningSimulation() }
+        // Destination sur un disque externe : la section « Disque amovible » est proposée (étape Planification).
+        .onAppear { draft.refreshRemovable(adopting: false) }
+        .onChange(of: draft.destination) { _, _ in draft.refreshRemovable() }
         .task { await model.reloadRemotes() }
         .sheet(item: Binding(get: { wizard.map(WizardSession.init) }, set: { if $0 == nil { wizard = nil } })) { session in
             ConnectionWizardView(wizard: session.wizard, localizer: localizer) {

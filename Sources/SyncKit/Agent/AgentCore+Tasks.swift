@@ -8,6 +8,7 @@ extension AgentCore {
         do { try taskStore.upsert(task) } catch { throw AgentError.internalFailure("tasks.json non enregistré : \(error)") }
         // Une tâche modifiée doit être replanifiée : une validation de suppressions ne vaut que pour l'ancienne version.
         state.tasks[task.id.uuidString]?.awaitingApproval = false
+        if !task.isEnabled { state.userQueue.removeAll { $0 == task.id } }   // désactivée : elle sort de la file
         queue.removeAll { $0.id == task.id && $0.overrideGuard }
         loadTasks()
         persist()

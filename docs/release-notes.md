@@ -1,4 +1,18 @@
-SyncMacPro 1.3.0 — file d'attente, progression détaillée, mode miniature et plafonds de débit.
+SyncMacPro 1.4.0 — sauvegarde sur disque amovible.
+
+**Nouveau (1.4.0)**
+- Sauvegarde sur disque externe : une tâche liée à un disque part quand vous le branchez (à chaque fois, ou au plus une fois tous les N jours), se met en pause si vous le débranchez, et reprend au rebranchement ; après plusieurs jours (3 par défaut), une nouvelle sauvegarde repart sur une comparaison complète. Le disque est reconnu par son identifiant, même monté sous un autre nom.
+- En fin de sauvegarde : notification, bouton « Éjecter » ou éjection automatique, au choix ; « Abandonner » pour une sauvegarde en pause.
+- `syncmacpro-ctl eject <tâche>` et `syncmacpro-ctl abandon <tâche>`.
+
+**Corrections (1.4.0)**
+- Une tâche désactivée est retirée de la file et ne peut plus y être mise ; une tâche lancée hors de la file en est retirée.
+- Une copie ponctuelle en file n'affiche plus « Lancer » ; le bilan d'une copie terminée reste dans Tâches › Copies jusqu'à ce que vous le fermiez.
+- La fin d'une copie vers un service en ligne n'attend plus le comptage des dossiers.
+- La vitesse moyenne du bilan ne compte plus le temps passé en pause.
+- Le garde-fou des fichiers vides gère les noms qui contiennent « \ ».
+- Réglages › Réseau n'envoie plus rien à l'agent à la simple ouverture ; fermer la miniature rouvre la grande fenêtre.
+- Au démarrage, la file attend de connaître les connexions avant de répartir les plafonds de débit ; message clair pour un élément absent de la file.
 
 **Nouveau (1.3.0)**
 - File d'attente : « Mettre en file » sur une tâche ou une copie, puis « Lancer la file » ; les tâches partent une par une, dans l'ordre que vous choisissez (monter, descendre, retirer). Un échec ne bloque pas la file.

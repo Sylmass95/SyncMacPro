@@ -14,6 +14,9 @@ public struct AgentConfiguration: Sendable {
     public var historyRetentionDays = 90
     /// Dossier de travail des moteurs (état de bisync, liens courts) : nettoyé quand une tâche est supprimée.
     public var workDirectory: URL?
+    /// Disque amovible : un échec du moteur alors que le volume est encore listé est réexaminé après ce délai
+    /// (disque arraché : l'erreur d'entrée/sortie précède l'avis de démontage).
+    public var driveFailureRecheck: TimeInterval = 3
 
     public init() {}
 }
@@ -50,6 +53,12 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case invalidRemote(String)
     case remoteBusy
     case rcloneMissing
+    /// La tâche n'est pas dans la file d'attente (1.4.0).
+    case notInQueue
+    /// Le disque amovible de la tâche n'est pas branché (1.4.0).
+    case driveNotConnected(String)
+    /// Le système a refusé d'éjecter le disque (fichier ouvert, Spotlight) (1.4.0).
+    case ejectRefused(String)
 
     public var errorDescription: String? {
         switch self {
@@ -69,6 +78,9 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .invalidRemote(let reason): return reason
         case .remoteBusy: return "Cette connexion est déjà en cours de configuration."
         case .rcloneMissing: return "rclone est introuvable : installez-le avec « brew install rclone »."
+        case .notInQueue: return "Cette tâche n'est pas dans la file."
+        case .driveNotConnected(let name): return "Le disque « \(name) » n'est pas branché."
+        case .ejectRefused(let reason): return "Le disque n'a pas pu être éjecté : \(reason)"
         }
     }
 }
@@ -94,11 +106,17 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     public var isOneOff: Bool
     /// Place dans la file d'attente explicite (1 = la prochaine) ; `nil` hors de la file.
     public var queuePosition: Int?
+    /// Disque amovible : suspendue depuis (disque débranché) ; disque branché ou non. `nil` hors disque amovible.
+    public var driveSuspendedSince: Date?
+    public var driveMounted: Bool?
 
     public init(
         id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,
-        progress: ProgressInfo? = nil, isOneOff: Bool = false, queuePosition: Int? = nil
+        progress: ProgressInfo? = nil, isOneOff: Bool = false, queuePosition: Int? = nil,
+        driveSuspendedSince: Date? = nil, driveMounted: Bool? = nil
     ) {
+        self.driveSuspendedSince = driveSuspendedSince
+        self.driveMounted = driveMounted
         self.queuePosition = queuePosition
         self.id = id
         self.name = name

@@ -59,6 +59,12 @@ public struct MenuBarPanel: View {
                     ForEach(active) { activeRow($0) }
                 }
             }
+            let drives = DrivePresentation.attentionIDs(status: model.status, tasks: model.tasks)
+            if !drives.isEmpty {
+                section(l.text("menubar.drives")) {
+                    ForEach(tasks.filter { drives.contains($0.id) }) { driveRow($0) }
+                }
+            }
             section(l.text("menubar.upcoming")) {
                 if upcoming.isEmpty {
                     Text(l.text("menubar.nonext")).foregroundStyle(.secondary)
@@ -105,6 +111,28 @@ public struct MenuBarPanel: View {
                     .accessibilityLabel(info.name)
                 Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             }
+        }
+        .font(.callout)
+    }
+
+    private func driveRow(_ info: AgentTaskInfo) -> some View {
+        let task = model.tasks[info.id]
+        let actions = TaskCard.availableActions(info: info, task: task, driveMounted: info.driveMounted)
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(info.name).lineLimit(1)
+            if let line = DrivePresentation(localizer: l, now: text.now).line(info: info, task: task) {
+                Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
+            HStack {
+                if actions.contains(.abandon) {
+                    Button(l.text("card.abandon")) { Task { await model.abandonSuspended(info.id) } }
+                }
+                if actions.contains(.eject) {
+                    Button { Task { await model.ejectDrive(info.id) } } label: { Label(l.text("card.eject"), systemImage: "eject.fill") }
+                }
+            }
+            .controlSize(.small)
+            .disabled(model.busyTasks.contains(info.id))
         }
         .font(.callout)
     }

@@ -28,13 +28,20 @@ public struct NetworkSettingsSection: View {
         }
         .disabled(model.connection != .connected && model.bandwidth == nil)
         .onChange(of: draft) { _, new in
+            guard let limits = Self.limitsToSend(draft: new, current: model.bandwidth) else { return }
             edited = true
-            if let limits = new.limits, limits != model.bandwidth { model.setBandwidth(limits) }
+            model.setBandwidth(limits)
         }
         .onChange(of: model.bandwidth) { _, new in
             // Valeur changée ailleurs (ctl, autre fenêtre) : reprise tant que l'utilisateur n'a rien saisi ici.
             if !edited { draft = BandwidthDraft(new) }
         }
+    }
+
+    /// Plafonds à envoyer : `nil` si la saisie est invalide ou ne change rien (lecture initiale, valeur venue de `ctl`).
+    static func limitsToSend(draft: BandwidthDraft, current: BandwidthLimits?) -> BandwidthLimits? {
+        guard draft != BandwidthDraft(current), let limits = draft.limits, limits != current else { return nil }
+        return limits
     }
 
     private func row(_ key: String, on: Binding<Bool>, text: Binding<String>) -> some View {
