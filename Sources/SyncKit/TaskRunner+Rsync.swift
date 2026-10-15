@@ -141,7 +141,7 @@ extension TaskRunner {
                 control.requestRestart()
             }
         }
-        var code: Int32
+        var code: Int32 = 0   // toujours donné par la boucle ; Swift 5.10 ne le voit pas à travers `while true`
         var attemptNumber = 0
         while true {
             var current = runOptions
