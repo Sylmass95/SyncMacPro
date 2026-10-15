@@ -20,6 +20,8 @@ public actor AgentCore {
         var lastProgressEmit: Date?
         var latest: ProgressInfo?
         var logWriter: RunLogWriter?
+        /// Élément de la file d'attente explicite.
+        var fromUserQueue = false
     }
 
     let configuration: AgentConfiguration
@@ -61,6 +63,9 @@ public actor AgentCore {
     var creatingRemotes: Set<String> = []
     /// Annulations reçues pendant une étape (avant que rclone soit lancé).
     var cancelledRemotes: Set<String> = []
+    /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
+    var queuedOneOffs: [UUID: SyncTask] = [:]
+    var userQueueCurrent: UUID?
 
     public init(
         configuration: AgentConfiguration, taskStore: TaskStore, stateStore: SchedulerStateStore,
@@ -101,7 +106,9 @@ public actor AgentCore {
             state.tasks[key]?.retryAt = now
         }
         if configuration.startupHold > 0 { holdUntil = now.addingTimeInterval(configuration.startupHold) }
+        state.userQueueRunning = state.userQueueRunning && !state.userQueue.isEmpty
         persist()
+        advanceUserQueue()
     }
 
     /// Relit `tasks.json`. En cas d'erreur de lecture, on garde la liste précédente et on le signale.
@@ -128,6 +135,8 @@ public actor AgentCore {
         state.tasks = state.tasks.filter { key, _ in
             known.contains(key) || UUID(uuidString: key).map { jobs[$0] != nil } == true
         }
+        // Une tâche supprimée ne reste pas dans la file d'attente.
+        state.userQueue = state.userQueue.filter { known.contains($0.uuidString) || queuedOneOffs[$0] != nil }
     }
 
     // MARK: évaluation
@@ -170,6 +179,7 @@ public actor AgentCore {
         queue.sort { $0.dueDate < $1.dueDate }
         if changed { persist() }
         startQueued()
+        advanceUserQueue()   // après une pause globale levée, ou une place libérée
     }
 
     /// Échéance d'une tâche : le prochain essai s'il y en a un, sinon la prochaine occurrence de son horaire.
@@ -415,6 +425,8 @@ public actor AgentCore {
         refreshActivity()
         emit(.taskFinished(id, status, summary.message))
         startQueued()
+        if userQueueCurrent == id { userQueueCurrent = nil }
+        advanceUserQueue()
     }
 
     func notify(_ task: SyncTask, _ status: RunStatus, _ summary: RunSummary, oneOff: Bool = false) {
@@ -455,7 +467,7 @@ public actor AgentCore {
 
     public func status() -> AgentStatus {
         let now = clock.now()
-        let ponctual = oneOffs.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let ponctual = (Array(oneOffs.values) + Array(queuedOneOffs.values)).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         let infos = (tasks + ponctual).map { task -> AgentTaskInfo in
             let entry = state.tasks[task.id.uuidString]
             let runState: TaskRunState
@@ -476,11 +488,13 @@ public actor AgentCore {
             let last = (try? history.list(taskID: task.id, limit: 1))?.first
             return AgentTaskInfo(
                 id: task.id, name: task.name, state: runState, nextDue: next, lastRun: last,
-                progress: jobs[task.id]?.latest, isOneOff: oneOffs[task.id] != nil
+                progress: jobs[task.id]?.latest, isOneOff: oneOffs[task.id] != nil || queuedOneOffs[task.id] != nil,
+                queuePosition: state.userQueue.firstIndex(of: task.id).map { $0 + 1 }
             )
         }
         return AgentStatus(
-            globalPause: state.paused, stateRecovered: stateRecovered, taskLoadError: taskLoadError, tasks: infos
+            globalPause: state.paused, stateRecovered: stateRecovered, taskLoadError: taskLoadError, tasks: infos,
+            queue: queueInfo, bandwidth: nil
         )
     }
 
