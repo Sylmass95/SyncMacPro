@@ -3,6 +3,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION="$(tr -d '[:space:]' < VERSION)"
+# Clé publique de mise à jour (voir README) : vérifiée avant toute construction, l'app ne s'assemble pas sans elle.
+KEY_FILE="${SPARKLE_PUBLIC_KEY_FILE:-scripts/sparkle-public-key.txt}"
+if [ -z "${SPARKLE_PUBLIC_KEY:-}" ] && [ ! -s "$KEY_FILE" ]; then
+  echo "Clé publique de mise à jour absente ($KEY_FILE) : voir README, « Clé de mise à jour »." >&2; exit 1
+fi
 BUILD_NUMBER="$(git rev-list --count HEAD)"
 OUT=build
 APP="$OUT/stage/SyncMacPro.app"
