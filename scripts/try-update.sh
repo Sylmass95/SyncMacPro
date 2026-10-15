@@ -15,8 +15,8 @@ ID=com.sylvain.syncmacpro.updateprobe
 LOG="$WORK/probe.log"
 
 scripts/fetch-sparkle-tools.sh >/dev/null
-swift build --product update-probe >/dev/null
-BIN="$(swift build --show-bin-path)"
+swift build --package-path Tools/update-probe --product update-probe >/dev/null
+BIN="$(swift build --package-path Tools/update-probe --show-bin-path)"
 
 # Clé d'essai jetable (jamais celle de l'auteur).
 cat > "$WORK/cle.swift" <<'SWIFT'

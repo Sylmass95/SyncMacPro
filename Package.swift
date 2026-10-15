@@ -7,6 +7,8 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "SyncKit", targets: ["SyncKit"]),
+        // Pour l'outil d'essai des mises à jour (Tools/update-probe), paquet à part.
+        .library(name: "SyncMacProUI", targets: ["SyncMacProUI"]),
         .executable(name: "synckit-cli", targets: ["synckit-cli"]),
         .executable(name: "syncmacpro-ctl", targets: ["syncmacpro-ctl"]),
         .executable(name: "syncmacpro-agent", targets: ["syncmacpro-agent"]),
@@ -23,8 +25,6 @@ let package = Package(
         .executableTarget(name: "syncmacpro-agent", dependencies: ["SyncKit"]),
         .target(name: "SyncMacProUI", dependencies: ["SyncKit", .product(name: "Sparkle", package: "Sparkle")], resources: [.process("Resources")]),
         .executableTarget(name: "SyncMacPro", dependencies: ["SyncMacProUI"]),
-        // Essai des mises à jour automatiques (scripts/try-update.sh), jamais embarqué dans l'app.
-        .executableTarget(name: "update-probe", dependencies: ["SyncMacProUI"]),
         .testTarget(
             name: "SyncKitTests",
             dependencies: ["SyncKit"],
