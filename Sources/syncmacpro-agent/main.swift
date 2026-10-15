@@ -41,6 +41,7 @@ var agentConfiguration = AgentConfiguration()
 agentConfiguration.workDirectory = paths.work
 if let hold = option("--startup-hold").flatMap(Double.init) { agentConfiguration.startupHold = hold }
 
+let driveMonitor = DiskArbitrationMonitor()
 let core = AgentCore(
     configuration: agentConfiguration,
     taskStore: TaskStore(url: paths.tasks),
@@ -54,9 +55,20 @@ let core = AgentCore(
     logDirectory: paths.logs,
     remotes: rclonePath.map { RcloneConfigurator(rclonePath: $0, configPath: rcloneConfig) },
     settingsStore: AgentSettingsStore(url: paths.settings),
+    drives: driveMonitor,
     makeRunner: { TaskRunner(configuration: runnerConfiguration) }
 )
 await core.start()
+// Disque amovible : chaque montage ou démontage est repris tout de suite, puis une seconde fois après le délai
+// d'attente (le départ attend que le disque soit prêt).
+driveMonitor.start {
+    Task.detached {
+        await core.drivesChanged()
+        try? await Task.sleep(nanoseconds: UInt64((AgentCore.driveSettleDelay + 1) * 1_000_000_000))
+        await core.drivesChanged()
+    }
+}
+await core.drivesChanged()
 await core.refreshRemoteTypes()   // réseau local ou internet : pour répartir les plafonds de débit
 log("agent \(AppInfo.version()) démarré (données : \(paths.root.path), rsync : \(runnerConfiguration.rsyncPath ?? "introuvable"), rclone : \(rclonePath ?? "introuvable"))")
 

@@ -15,7 +15,11 @@ extension AgentCore {
 
     private func enqueueNow(_ id: UUID, overrideGuard: Bool) throws {
         guard !state.paused else { throw AgentError.globallyPaused }
-        guard tasks.contains(where: { $0.id == id }) else { throw AgentError.unknownTask }
+        guard let task = tasks.first(where: { $0.id == id }) else { throw AgentError.unknownTask }
+        // Disque amovible absent : aucun dossier n'est créé sous /Volumes, on le dit.
+        if let drive = task.removableDrive, drives != nil, mountedDrives[drive.volumeUUID] == nil {
+            throw AgentError.driveNotConnected(drive.volumeName)
+        }
         guard jobs[id] == nil, !queue.contains(where: { $0.id == id }) else { throw AgentError.alreadyRunning }
         queue.insert(QueuedRun(id: id, dueDate: .distantPast, overrideGuard: overrideGuard, manual: true), at: 0)
         startQueued()

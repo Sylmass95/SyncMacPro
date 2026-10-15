@@ -13,10 +13,14 @@ public final class RunLogWriter: @unchecked Sendable {
     private var closed = false
     private var failed = false
 
-    public init(url: URL, limit: Int = RunLogWriter.defaultLimit, now: @escaping @Sendable () -> Date = { Date() }) {
+    /// `append` : reprise d'une exécution suspendue, le journal existant est complété.
+    public init(url: URL, limit: Int = RunLogWriter.defaultLimit, now: @escaping @Sendable () -> Date = { Date() }, append: Bool = false) {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: url.path, contents: nil)
+        if !append || !FileManager.default.fileExists(atPath: url.path) {
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+        }
         handle = try? FileHandle(forWritingTo: url)
+        if append, let end = try? handle?.seekToEnd() { written = Int(end) }
         self.limit = limit
         self.now = now
     }

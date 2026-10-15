@@ -98,6 +98,8 @@ final class RunControl: @unchecked Sendable {
     private let lock = NSLock()
     private var main: RunningProcess?
     private var auxiliary: [RunningProcess] = []
+    /// Posé par `stopAuxiliary` : un processus annexe lancé après coup est arrêté dès son départ.
+    private var auxiliaryStopped = false
     private var stopRequestedFlag = false
     private var pausedFlag = false
     private var stalledFor: TimeInterval?
@@ -156,6 +158,7 @@ final class RunControl: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         main = nil
         auxiliary = []
+        auxiliaryStopped = false
         stopRequestedFlag = false
         pausedFlag = false
         stalledFor = nil
@@ -174,7 +177,7 @@ final class RunControl: @unchecked Sendable {
     func registerAuxiliary(_ process: RunningProcess) {
         lock.lock(); defer { lock.unlock() }
         auxiliary.append(process)
-        if stopRequestedFlag { process.terminate() }
+        if stopRequestedFlag || auxiliaryStopped { process.terminate() }
     }
 
     func clearMain() { lock.lock(); main = nil; lock.unlock() }
@@ -208,6 +211,7 @@ final class RunControl: @unchecked Sendable {
     /// Arrête les processus annexes (calcul du total) quand la copie principale est finie.
     func stopAuxiliary() {
         lock.lock(); defer { lock.unlock() }
+        auxiliaryStopped = true
         auxiliary.forEach { $0.terminate() }
         auxiliary = []
     }

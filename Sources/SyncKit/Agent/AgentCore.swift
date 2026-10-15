@@ -22,6 +22,9 @@ public actor AgentCore {
         var logWriter: RunLogWriter?
         /// Élément de la file d'attente explicite.
         var fromUserQueue = false
+        /// Disque amovible : débranché pendant l'exécution ; exécution suspendue reprise.
+        var driveLost = false
+        var resumed: SuspendedRun?
     }
 
     let configuration: AgentConfiguration
@@ -68,6 +71,10 @@ public actor AgentCore {
     var settingsLimits = BandwidthLimits()
     var remoteTypes: [String: String] = [:]
     var remoteTypesLoaded = false
+    /// Disques amovibles : moniteur, volumes montés (UUID → point de montage) et date de leur branchement.
+    let drives: DriveMonitor?
+    var mountedDrives: [String: String] = [:]
+    var mountSeen: [String: Date] = [:]
     /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
     var queuedOneOffs: [UUID: SyncTask] = [:]
     var userQueueCurrent: UUID? {
@@ -83,8 +90,10 @@ public actor AgentCore {
         logDirectory: URL? = nil,
         remotes: RemoteConfiguring? = nil,
         settingsStore: AgentSettingsStore? = nil,
+        drives: DriveMonitor? = nil,
         makeRunner: @escaping @Sendable () -> TaskRunning
     ) {
+        self.drives = drives
         self.settingsStore = settingsStore
         self.logDirectory = logDirectory
         self.remotes = remotes
@@ -168,7 +177,8 @@ public actor AgentCore {
             holdUntil = nil
         }
         var changed = false
-        for task in tasks where task.isEnabled {
+        // Les tâches d'un disque amovible partent au branchement (`handleDrives`), pas selon une échéance.
+        for task in tasks where task.isEnabled && task.removableDrive == nil {
             let key = task.id.uuidString
             guard jobs[task.id] == nil, !queue.contains(where: { $0.id == task.id }),
                   var entry = state.tasks[key], !entry.awaitingApproval else { continue }
@@ -192,6 +202,7 @@ public actor AgentCore {
         queue.sort { $0.dueDate < $1.dueDate }
         if changed { persist() }
         startQueued()
+        handleDrives(now)
         advanceUserQueue()   // après une pause globale levée, ou une place libérée
     }
 
@@ -215,6 +226,9 @@ public actor AgentCore {
         if let range = required.allowedHours,
            !range.contains(hour: clock.calendar.component(.hour, from: now)) {
             return "hors de la plage horaire autorisée"
+        }
+        if let drive = task.removableDrive, drives != nil, mountedDrives[drive.volumeUUID] == nil {
+            return "disque « \(drive.volumeName) » non branché"
         }
         if !conditions.isReachable(task.source) { return "source inaccessible" }
         if !conditions.isReachable(task.destination) { return "destination inaccessible" }
@@ -294,15 +308,22 @@ public actor AgentCore {
         }
     }
 
-    func startJob(_ task: SyncTask, overrideGuard: Bool) {
+    func startJob(_ original: SyncTask, overrideGuard: Bool, resuming: SuspendedRun? = nil) {
+        // Disque amovible : la destination suit le point de montage actuel du volume.
+        let task = resolvedForDrive(original)
         var runTask = task
         if overrideGuard { runTask.options.deleteThresholdPercent = 100 }
         let now = clock.now()
         let key = task.id.uuidString
         let engine = (try? EngineSelector.engine(for: runTask)) ?? .rsync
         var record = RunRecord(taskID: task.id, taskName: task.name, engine: engine, mode: task.mode, startedAt: now)
+        if let resuming, var previous = try? history.record(id: resuming.recordID) {
+            previous.status = .running
+            previous.finishedAt = nil
+            record = previous   // même ligne d'historique : l'exécution suspendue continue
+        }
         var writer: RunLogWriter?
-        if let logDirectory {
+        if let logDirectory, resuming == nil || record.logPath == nil {
             let url = logDirectory.appendingPathComponent("\(record.id.uuidString).log")
             record.logPath = url.path
             let clock = self.clock
@@ -323,7 +344,13 @@ public actor AgentCore {
         persist()
 
         let runner = makeRunner()
-        jobs[task.id] = Job(task: task, runner: runner, record: record, logWriter: writer)
+        if resuming != nil, writer == nil, let path = record.logPath {
+            let clock = self.clock
+            let reopened = RunLogWriter(url: URL(fileURLWithPath: path), now: { clock.now() }, append: true)
+            reopened.append("Reprise : disque rebranché.")
+            writer = reopened
+        }
+        jobs[task.id] = Job(task: task, runner: runner, record: record, logWriter: writer, resumed: resuming)
         applyBandwidth()   // la limite de départ est connue avant `run`
         waiting[task.id] = nil
         refreshActivity()
@@ -373,7 +400,7 @@ public actor AgentCore {
         applyBandwidth()   // une exécution de moins : les autres récupèrent sa part
         let now = clock.now()
         var status: RunStatus
-        let summary: RunSummary
+        var summary: RunSummary
         var retryable = true
         switch outcome {
         case .success(let result):
@@ -388,6 +415,12 @@ public actor AgentCore {
             )
         }
         if shuttingDown && status == .stopped { status = .interrupted }
+        if let previous = job.resumed { summary = Self.combine(previous.summary, summary) }
+        if let drive = job.task.removableDrive, status != .succeeded, !shuttingDown,
+           job.driveLost || (status == .failed && currentMountPath(drive) == nil) {
+            suspendForDrive(job, drive: drive, summary: summary, now: now)
+            return
+        }
 
         job.record.status = status
         job.record.summary = summary
@@ -497,6 +530,8 @@ public actor AgentCore {
                 runState = .disabled
             } else if entry?.awaitingApproval == true {
                 runState = .awaitingApproval
+            } else if let suspended = entry?.suspendedRun {
+                runState = .waiting(reason: "disque débranché depuis \(Self.elapsed(since: suspended.since, now: now))")
             } else if let reason = waiting[task.id] {
                 runState = .waiting(reason: reason)
             } else {
@@ -507,7 +542,9 @@ public actor AgentCore {
             return AgentTaskInfo(
                 id: task.id, name: task.name, state: runState, nextDue: next, lastRun: last,
                 progress: jobs[task.id]?.latest, isOneOff: oneOffs[task.id] != nil || queuedOneOffs[task.id] != nil,
-                queuePosition: state.userQueue.firstIndex(of: task.id).map { $0 + 1 }
+                queuePosition: state.userQueue.firstIndex(of: task.id).map { $0 + 1 },
+                driveSuspendedSince: entry?.suspendedRun?.since,
+                driveMounted: task.removableDrive.flatMap { drive in drives == nil ? nil : mountedDrives[drive.volumeUUID] != nil }
             )
         }
         return AgentStatus(

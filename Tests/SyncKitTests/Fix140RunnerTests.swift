@@ -37,4 +37,15 @@ final class Fix140RunnerTests: IntegrationTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(started), 5)
         XCTAssertEqual(result.snapshot.totalDirs, 0, "comptage interrompu : rien de copié, aucun dossier")
     }
+
+    // Course : la copie finit avant que le comptage ait lancé son processus ; celui-ci est arrêté dès son départ.
+    func testAuxiliaryStartedAfterStopIsTerminated() async throws {
+        let control = RunControl()
+        control.stopAuxiliary()
+        let process = try ProcessRunner.spawn(executable: "/bin/sleep", arguments: ["20"]) { _ in }
+        let started = Date()
+        control.registerAuxiliary(process)
+        _ = await process.waitForExit()
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+    }
 }
