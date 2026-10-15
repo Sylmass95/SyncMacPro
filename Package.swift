@@ -23,6 +23,8 @@ let package = Package(
         .executableTarget(name: "syncmacpro-agent", dependencies: ["SyncKit"]),
         .target(name: "SyncMacProUI", dependencies: ["SyncKit", .product(name: "Sparkle", package: "Sparkle")], resources: [.process("Resources")]),
         .executableTarget(name: "SyncMacPro", dependencies: ["SyncMacProUI"]),
+        // Essai des mises à jour automatiques (scripts/try-update.sh), jamais embarqué dans l'app.
+        .executableTarget(name: "update-probe", dependencies: ["SyncMacProUI"]),
         .testTarget(
             name: "SyncKitTests",
             dependencies: ["SyncKit"],

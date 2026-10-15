@@ -223,6 +223,10 @@ K="$(mktemp)"; .build/sparkle-tools/bin/generate_keys -x "$K" && gh secret set S
 installées ne pourraient plus être mises à jour automatiquement (nouvelle clé = une installation manuelle pour tous).
 Sans `scripts/sparkle-public-key.txt`, l'app ne s'assemble pas ; sans le secret, la publication s'arrête.
 
+Essai de bout en bout avant de publier (app d'essai à part, clé jetable, rien d'installé n'est touché) :
+`scripts/try-update.sh` — mise à jour 1 → 2 par un DMG et un flux produits par `make-appcast.sh`, puis version
+falsifiée refusée.
+
 ## Confidentialité
 
 SyncMacPro ne collecte aucune donnée : voir [`PRIVACY.md`](PRIVACY.md).
