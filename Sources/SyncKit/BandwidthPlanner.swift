@@ -38,9 +38,16 @@ public enum BandwidthPlanner {
         var result: [UUID: BandwidthRate] = [:]
         for entry in directions {
             var rate = BandwidthRate.unlimited
+            // Chaque octet d'une copie entre puis ressort, et rclone ne range pas toujours une copie dans le sens attendu
+            // (essai réel : un plafond « envoi » seul était ignoré). Le plafond du sens de la tâche s'applique donc aux
+            // deux côtés de son exécution : c'est bien son débit qui est limité.
             switch entry.direction {
-            case .download: rate.downBytesPerSecond = share(limits.downloadMbps, among: downloaders)
-            case .upload: rate.upBytesPerSecond = share(limits.uploadMbps, among: uploaders)
+            case .download:
+                let cap = share(limits.downloadMbps, among: downloaders)
+                rate = BandwidthRate(upBytesPerSecond: cap, downBytesPerSecond: cap)
+            case .upload:
+                let cap = share(limits.uploadMbps, among: uploaders)
+                rate = BandwidthRate(upBytesPerSecond: cap, downBytesPerSecond: cap)
             case .both:
                 rate.downBytesPerSecond = share(limits.downloadMbps, among: downloaders)
                 rate.upBytesPerSecond = share(limits.uploadMbps, among: uploaders)

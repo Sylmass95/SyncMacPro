@@ -30,7 +30,7 @@ final class BandwidthTests: XCTestCase {
         ], limits: limits, remoteTypes: types)
         XCTAssertEqual(rates[a]?.downBytesPerSecond, 6_250_000, "100 Mbit/s partagés par deux")
         XCTAssertEqual(rates[b]?.downBytesPerSecond, 1_024_000, "la limite de la tâche (1000 Ko/s) est plus basse")
-        XCTAssertNil(rates[a]?.upBytesPerSecond)
+        XCTAssertEqual(rates[a]?.upBytesPerSecond, 6_250_000, "le plafond du sens de la tâche vaut pour les deux côtés")
         XCTAssertEqual(rates[c], .unlimited, "pas de plafond local")
     }
 
