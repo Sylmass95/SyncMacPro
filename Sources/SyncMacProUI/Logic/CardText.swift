@@ -103,6 +103,12 @@ public struct CardText {
         return localizer.format("last.format", label, when)
     }
 
+    /// Ligne « Prochaine : … » ; `nil` pour une tâche manuelle ou une copie (rien à annoncer).
+    public func nextRunLine(info: AgentTaskInfo, task: SyncTask?) -> String? {
+        if info.isOneOff || task?.schedule == .manual { return nil }
+        return localizer.format("card.next", nextRun(info.nextDue))
+    }
+
     /// « 3 fichier(s), 5,0 Mo » ; ajoute « , 2 erreur(s) » s'il y en a.
     public func summaryLine(_ summary: RunSummary?) -> String {
         guard let summary else { return "" }
