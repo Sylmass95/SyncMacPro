@@ -22,7 +22,12 @@ public enum EmptySourceGuard {
     }
 
     /// Motifs rsync : `*`, `?`, `[` et `\` sont spéciaux.
-    static func rsyncEscape(_ path: String) -> String { escape(path, special: "*?[\\") }
+    /// rsync ne lit « \\ » comme échappement que dans un motif qui contient `*`, `?` ou `[` : ailleurs, le chemin
+    /// est rendu tel quel.
+    static func rsyncEscape(_ path: String) -> String {
+        guard path.contains(where: { "*?[".contains($0) }) else { return path }
+        return escape(path, special: "*?[\\")
+    }
 
     /// Motifs rclone : `*`, `?`, `[`, `]`, `{`, `}` et `\` sont spéciaux.
     static func rcloneEscape(_ path: String) -> String { escape(path, special: "*?[]{}\\") }
