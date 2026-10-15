@@ -448,3 +448,10 @@
 "card.inqueue" = "En file (%d)";
 "copy.enqueue" = "Mettre en file";
 "tasks.copies" = "Copies";
+"settings.network" = "Réseau";
+"network.download" = "Réception internet";
+"network.upload" = "Envoi internet";
+"network.local" = "Réseau local";
+"network.unit" = "Mbit/s";
+"network.invalid" = "Nombre positif attendu (en Mbit/s).";
+"network.help" = "En Mbit/s, comme speedtest. La réception vaut pour les copies depuis un service en ligne, l’envoi pour les copies vers un service en ligne, le réseau local pour les copies entre disques et NAS. Les copies d’un même sens se partagent le plafond ; un changement s’applique aux copies en cours.";

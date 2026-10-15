@@ -448,3 +448,10 @@
 "card.inqueue" = "Queued (%d)";
 "copy.enqueue" = "Add to queue";
 "tasks.copies" = "Copies";
+"settings.network" = "Network";
+"network.download" = "Internet download";
+"network.upload" = "Internet upload";
+"network.local" = "Local network";
+"network.unit" = "Mbit/s";
+"network.invalid" = "A positive number is expected (in Mbit/s).";
+"network.help" = "In Mbit/s, like speedtest. Download applies to copies from an online service, upload to copies to an online service, local network to copies between disks and NAS. Copies in the same direction share the cap; a change applies to running copies.";

@@ -95,7 +95,7 @@ public struct RootView: View {
                 CopyView(model: model, localizer: localizer) { open($0, isNew: true) }
             case .history: HistoryView(model: model, localizer: localizer)
             case .connections: ConnectionsView(model: model, localizer: localizer)
-            case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
+            case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates, model: model)
             }
         }
     }
