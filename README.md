@@ -216,7 +216,7 @@ scripts/fetch-sparkle-tools.sh
 Puis la clé privée dans les secrets GitHub (fichier temporaire supprimé aussitôt) :
 
 ```bash
-K="$(mktemp)"; .build/sparkle-tools/bin/generate_keys -x "$K" && gh secret set SPARKLE_ED_PRIVATE_KEY --repo Sylmass95/SyncMacPro < "$K"; rm -P "$K"
+D="$(mktemp -d)"; .build/sparkle-tools/bin/generate_keys -x "$D/cle.txt" && gh secret set SPARKLE_ED_PRIVATE_KEY --repo Sylmass95/SyncMacPro < "$D/cle.txt"; rm -P "$D/cle.txt"; rmdir "$D"
 ```
 
 **Sauvegardez la clé privée** (export `-x` rangé dans un gestionnaire de mots de passe) : perdue, les apps
