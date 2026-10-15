@@ -29,7 +29,7 @@ final class AppcastScriptTests: IntegrationTestCase {
     }
 
     /// DMG d'essai : une app factice (build 42, version 1.6.0), comme le DMG publié.
-    func makeDMG() throws -> URL {
+    func makeDMG(publicKey: Curve25519.Signing.PublicKey) throws -> URL {
         let stage = sandbox.appendingPathComponent("stage")
         let contents = stage.appendingPathComponent("SyncMacPro.app/Contents")
         try FileManager.default.createDirectory(at: contents.appendingPathComponent("MacOS"), withIntermediateDirectories: true)
@@ -37,6 +37,7 @@ final class AppcastScriptTests: IntegrationTestCase {
         let plist: [String: Any] = [
             "CFBundleIdentifier": "com.sylvain.syncmacpro", "CFBundleVersion": "42", "CFBundleShortVersionString": "1.6.0",
             "CFBundleExecutable": "SyncMacPro", "LSMinimumSystemVersion": "14.0",
+            "SUPublicEDKey": publicKey.rawRepresentation.base64EncodedString(),
         ]
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
         let dmg = sandbox.appendingPathComponent("SyncMacPro-1.6.0.dmg")
@@ -69,8 +70,8 @@ final class AppcastScriptTests: IntegrationTestCase {
 
     func testFeedDescribesAndSignsThePublishedDMG() throws {
         try requireTools()
-        let dmg = try makeDMG()
         let (key, publicKey) = try makeKey()
+        let dmg = try makeDMG(publicKey: publicKey)
         let (code, output, out) = try makeAppcast(dmg, key)
         XCTAssertEqual(code, 0, output)
         let feed = try String(contentsOf: out, encoding: .utf8)
@@ -90,8 +91,8 @@ final class AppcastScriptTests: IntegrationTestCase {
 
     func testTamperedFeedOrDMGFailsVerification() throws {
         try requireTools()
-        let dmg = try makeDMG()
-        let (key, _) = try makeKey()
+        let (key, publicKey) = try makeKey()
+        let dmg = try makeDMG(publicKey: publicKey)
         let (code, output, out) = try makeAppcast(dmg, key)
         XCTAssertEqual(code, 0, output)
         let signUpdate = tools.appendingPathComponent("sign_update").path
@@ -107,8 +108,18 @@ final class AppcastScriptTests: IntegrationTestCase {
 
     func testMissingKeyStopsThePublication() throws {
         try requireTools()
-        let (code, output, _) = try makeAppcast(try makeDMG(), nil)
+        let (code, output, _) = try makeAppcast(try makeDMG(publicKey: Curve25519.Signing.PrivateKey().publicKey), nil)
         XCTAssertNotEqual(code, 0)
         XCTAssertTrue(output.lowercased().contains("clé privée"), output)
+    }
+
+    // Relecture finale : un secret qui n'est pas la clé de l'app ferait refuser la mise à jour par toutes les apps.
+    func testSecretThatDoesNotMatchTheAppKeyStopsThePublication() throws {
+        try requireTools()
+        let (key, _) = try makeKey()
+        let dmg = try makeDMG(publicKey: Curve25519.Signing.PrivateKey().publicKey)
+        let (code, output, _) = try makeAppcast(dmg, key)
+        XCTAssertNotEqual(code, 0)
+        XCTAssertTrue(output.lowercased().contains("clé publique"), output)
     }
 }

@@ -48,7 +48,9 @@ struct SyncMacProApp: App {
         }
         _installer = State(initialValue: installer)
         // Mises à jour (Sparkle, app installée seulement) : installées quand l'agent est au repos.
-        let updates = UpdateModel(driver: SparkleUpdateDriver.makeIfBundled())
+        let updates = UpdateModel(driver: SparkleUpdateDriver.makeIfBundled(), isIdle: {
+            UpdatePolicy.agentIdleness(connection: model.connection, status: model.status)
+        })
         _updates = State(initialValue: updates)
         updates.start()
         Task { @MainActor in

@@ -50,4 +50,13 @@ final class ReleaseWorkflowTests: IntegrationTestCase {
         XCTAssertTrue(output.lowercased().contains("clé publique"), output)
         XCTAssertLessThan(Date().timeIntervalSince(started), 10, "refus avant toute construction")
     }
+
+    // Relecture finale : le bundle de développement désinscrivait l'agent avant d'échouer faute de clé.
+    // (Le script n'est pas lancé : il désinscrirait l'agent réellement installé.)
+    func testDevBundleChecksTheKeyBeforeTouchingTheAgent() throws {
+        let script = try text("scripts/make-dev-bundle.sh")
+        let key = try XCTUnwrap(script.range(of: "sparkle-public-key.txt")).lowerBound
+        XCTAssertLessThan(key, try XCTUnwrap(script.range(of: "agent uninstall")).lowerBound)
+        XCTAssertLessThan(key, try XCTUnwrap(script.range(of: "swift build")).lowerBound)
+    }
 }

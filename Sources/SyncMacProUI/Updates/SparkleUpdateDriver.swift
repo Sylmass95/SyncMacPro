@@ -3,6 +3,8 @@ import Sparkle
 
 /// Sparkle sans aucune fenêtre : les mises à jour trouvées sont téléchargées, puis installées quand l'app le décide
 /// (`installNow`, agent au repos). Erreurs et états remontent à `UpdateModel`.
+/// Si l'app est quittée (⌘Q, fermeture de session) avec une mise à jour prête, Sparkle l'installe à la fermeture : c'est
+/// voulu (spec) ; l'agent, lui, n'est redémarré qu'au repos (`AgentInstaller.reRegisterAfterUpdate`).
 @MainActor
 public final class SparkleUpdateDriver: UpdateDriving {
     public var onEvent: ((UpdateEvent) -> Void)?
@@ -30,7 +32,7 @@ public final class SparkleUpdateDriver: UpdateDriving {
         let userDriver = SilentUserDriver(owner: self)
         let updater = SPUUpdater(hostBundle: bundle, applicationBundle: bundle, userDriver: userDriver, delegate: nil)
         updater.automaticallyChecksForUpdates = automaticallyChecks
-        // Le téléchargement est décidé ici (`updateFound`) : Sparkle n'installe jamais seul à la fermeture de l'app.
+        // Le téléchargement est décidé ici (`updateFound`), l'installation par l'app (`installNow`).
         updater.automaticallyDownloadsUpdates = false
         do {
             try updater.start()
@@ -59,8 +61,13 @@ public final class SparkleUpdateDriver: UpdateDriving {
         onEvent?(.failed(message))
     }
 
-    func updateFound(version: String, reply: @escaping (SPUUserUpdateChoice) -> Void) {
+    /// `resuming` : Sparkle reprend une installation déjà commencée ; elle attend, elle aussi, la décision de l'app.
+    func updateFound(version: String, resuming: Bool = false, reply: @escaping (SPUUserUpdateChoice) -> Void) {
         foundVersion = version
+        if resuming {
+            readyToInstall(reply: reply)
+            return
+        }
         onEvent?(.downloading(version))
         reply(.install)
     }
@@ -101,7 +108,8 @@ final class SilentUserDriver: NSObject, SPUUserDriver {
 
     func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
         let version = appcastItem.displayVersionString
-        onMain { $0.updateFound(version: version, reply: reply) }
+        let resuming = state.stage == .installing
+        onMain { $0.updateFound(version: version, resuming: resuming, reply: reply) }
     }
 
     func showUpdateReleaseNotes(with downloadData: SPUDownloadData) {}

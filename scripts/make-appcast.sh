@@ -24,7 +24,9 @@ plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Contents/Info.plist"; }
 BUILD="$(plist CFBundleVersion)"
 VERSION="$(plist CFBundleShortVersionString)"
 MINIMUM="$(plist LSMinimumSystemVersion 2>/dev/null || echo 14.0)"
+APP_KEY="$(plist SUPublicEDKey 2>/dev/null || true)"
 hdiutil detach "$MOUNT" -quiet
+[ -n "$APP_KEY" ] || { echo "Clé publique absente de l'app du DMG (SUPublicEDKey)" >&2; exit 1; }
 
 NAME="$(basename "$DMG")"
 PREFIX="${APPCAST_DOWNLOAD_PREFIX:-https://github.com/Sylmass95/SyncMacPro/releases/download/v$VERSION/}"
@@ -53,4 +55,19 @@ XML
 "$SIGN" --ed-key-file "$KEY" "$OUT" >/dev/null
 "$SIGN" --verify --ed-key-file "$KEY" "$OUT" >/dev/null || { echo "Flux : vérification impossible" >&2; exit 1; }
 "$SIGN" --verify --ed-key-file "$KEY" "$DMG" "$SIGNATURE" >/dev/null || { echo "DMG : vérification impossible" >&2; exit 1; }
+# La signature doit se vérifier avec la clé publique *de l'app* : une autre clé dans le secret ferait refuser la mise à
+# jour par toutes les apps installées.
+CHECK="$(mktemp -d)"
+cat > "$CHECK/verifier.swift" <<'SWIFT'
+import CryptoKit
+import Foundation
+let arguments = CommandLine.arguments
+guard let keyData = Data(base64Encoded: arguments[1]), let signature = Data(base64Encoded: arguments[2]),
+      let key = try? Curve25519.Signing.PublicKey(rawRepresentation: keyData),
+      let file = FileManager.default.contents(atPath: arguments[3]), key.isValidSignature(signature, for: file) else { exit(1) }
+SWIFT
+if ! swift "$CHECK/verifier.swift" "$APP_KEY" "$SIGNATURE" "$DMG" 2>/dev/null; then
+  rm -rf "$CHECK"; echo "La clé privée ne correspond pas à la clé publique de l'app (SUPublicEDKey) : publication arrêtée" >&2; exit 1
+fi
+rm -rf "$CHECK"
 echo "Flux de mise à jour : $OUT (SyncMacPro $VERSION, build $BUILD)"

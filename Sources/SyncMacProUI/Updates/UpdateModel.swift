@@ -33,14 +33,17 @@ public final class UpdateModel {
     /// Inconnu tant que l'app ne l'a pas dit : on n'installe pas à l'aveugle.
     @ObservationIgnored private var agentIdle = false
     @ObservationIgnored private var installRequested = false
+    /// État de l'agent relu au moment d'installer (`nil` : pas encore joint) ; sans lui, le dernier `agentActivity`.
+    @ObservationIgnored private let isIdle: (@MainActor () -> Bool?)?
 
     static let automaticKey = "checkUpdates"
     static let autoInstallKey = "installUpdates"
     static let lastLaunchKey = "lastLaunchedVersion"
 
-    public init(driver: UpdateDriving?, defaults: UserDefaults = .standard) {
+    public init(driver: UpdateDriving?, defaults: UserDefaults = .standard, isIdle: (@MainActor () -> Bool?)? = nil) {
         self.driver = driver
         self.defaults = defaults
+        self.isIdle = isIdle
         automatic = defaults.object(forKey: Self.automaticKey) as? Bool ?? true
         autoInstall = defaults.object(forKey: Self.autoInstallKey) as? Bool ?? true
         driver?.automaticallyChecks = automatic
@@ -91,6 +94,8 @@ public final class UpdateModel {
     }
 
     private func considerInstall() {
+        // Relu maintenant : une copie a pu partir depuis le dernier `agentActivity` (toutes les 30 s).
+        if let isIdle { agentIdle = isIdle() ?? false }
         if UpdatePolicy.shouldInstall(ready: readyVersion != nil, autoInstall: autoInstall, idle: agentIdle) { installNow() }
     }
 

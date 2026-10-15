@@ -57,4 +57,16 @@ final class SparkleDriverTests: XCTestCase {
                                tasks: [AgentTaskInfo(id: UUID(), name: "t", state: .running)])
         XCTAssertEqual(UpdatePolicy.agentIdleness(connection: .connected, status: busy), false)
     }
+
+    // Relecture finale : Sparkle reprend une installation déjà commencée par « mise à jour trouvée » au stade
+    // « installation » ; répondre tout de suite installerait sans vérifier le repos de l'agent.
+    func testResumedInstallationWaitsForTheApp() {
+        let (driver, events) = driver()
+        var replies: [SPUUserUpdateChoice] = []
+        driver.updateFound(version: "1.6.1", resuming: true) { replies.append($0) }
+        XCTAssertTrue(replies.isEmpty)
+        XCTAssertEqual(events().last, .ready("1.6.1"))
+        driver.installNow()
+        XCTAssertEqual(replies, [.install])
+    }
 }

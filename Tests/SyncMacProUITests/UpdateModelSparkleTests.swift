@@ -103,4 +103,21 @@ final class UpdateModelSparkleTests: XCTestCase {
         XCTAssertEqual(UpdateModel.launchAnnouncement(current: "1.6.1 (205)", defaults: store), "1.6.1")
         XCTAssertNil(UpdateModel.launchAnnouncement(current: "1.6.1 (205)", defaults: store), "une seule fois")
     }
+
+    // Relecture finale : l'état « au repos » pouvait dater de 30 s ; il est relu au moment d'installer.
+    func testIdlenessIsReadAtInstallTime() {
+        let driver = FakeUpdateDriver()
+        var idle: Bool? = true
+        let model = UpdateModel(driver: driver, defaults: defaults(), isIdle: { idle })
+        model.agentActivity(idle: true)
+        idle = false   // une copie vient de partir
+        driver.send(.ready("1.6.1"))
+        XCTAssertEqual(driver.installs, 0)
+        idle = nil     // agent pas encore joint
+        model.agentActivity(idle: true)
+        XCTAssertEqual(driver.installs, 0)
+        idle = true
+        model.agentActivity(idle: true)
+        XCTAssertEqual(driver.installs, 1)
+    }
 }
