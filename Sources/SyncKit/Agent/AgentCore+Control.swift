@@ -16,6 +16,9 @@ extension AgentCore {
     private func enqueueNow(_ id: UUID, overrideGuard: Bool) throws {
         guard !state.paused else { throw AgentError.globallyPaused }
         guard let task = tasks.first(where: { $0.id == id }) else { throw AgentError.unknownTask }
+        if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) {
+            throw AgentError.ejectRefused("Le disque est en cours d'éjection.")
+        }
         // Disque amovible absent : aucun dossier n'est créé sous /Volumes, on le dit.
         if let drive = task.removableDrive, drives != nil, mountedDrives[drive.volumeUUID] == nil {
             throw AgentError.driveNotConnected(drive.volumeName)

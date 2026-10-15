@@ -22,6 +22,10 @@ public struct DrivePresentation {
     /// La ligne « disque » d'une carte ; `nil` pour une tâche sans disque amovible.
     public func line(info: AgentTaskInfo, task: SyncTask?) -> String? {
         guard let drive = task?.removableDrive else { return nil }
+        // Disque revenu, la reprise attend une condition (secteur, plage horaire) : on dit laquelle.
+        if info.driveSuspendedSince != nil, info.driveMounted == true, case .waiting(let reason) = info.state {
+            return localizer.format("card.drive.suspended.back", drive.volumeName, reason)
+        }
         if let since = info.driveSuspendedSince {
             return localizer.format("card.drive.suspended", drive.volumeName, elapsed(since: since))
         }

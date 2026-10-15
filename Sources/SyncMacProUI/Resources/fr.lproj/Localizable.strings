@@ -488,3 +488,4 @@
 "editor.drive.eject.button" = "Bouton « Éjecter »";
 "editor.drive.eject.automatic" = "Éjection automatique";
 "card.schedule.drive" = "Au branchement du disque";
+"card.drive.suspended.back" = "En pause sur « %@ » (branché) : reprise en attente (%@)";

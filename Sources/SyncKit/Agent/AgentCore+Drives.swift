@@ -11,9 +11,14 @@ extension AgentCore {
         guard let drives else { return }
         let now = clock.now()
         let current = drives.mountedVolumes()
-        for uuid in current.keys where mountedDrives[uuid] == nil { mountSeen[uuid] = now }
+        // Branchement daté du montage si on le connaît : un redémarrage de l'agent n'est pas un nouveau branchement.
+        for (uuid, path) in current where mountedDrives[uuid] == nil {
+            mountSeen[uuid] = min(now, drives.mountDate(path: path) ?? now)
+        }
         for uuid in mountedDrives.keys where current[uuid] == nil {
             mountSeen[uuid] = nil
+            // Une condition attendue disque branché n'a plus de sens : c'est le disque qu'on attend.
+            for task in tasks where task.removableDrive?.volumeUUID == uuid { waiting[task.id] = nil }
             // Débranché en pleine exécution : le moteur est arrêté, `finish` suspend l'exécution.
             for (id, job) in jobs where job.task.removableDrive?.volumeUUID == uuid {
                 jobs[id]?.driveLost = true
@@ -32,6 +37,7 @@ extension AgentCore {
             // Deux exécutions au plus : le branchement attend une place (rappelé à la fin de chaque exécution).
             guard jobs.count < configuration.maxParallel else { return }
             guard let drive = task.removableDrive, mountedDrives[drive.volumeUUID] != nil,
+                  !ejectingVolumes.contains(drive.volumeUUID),
                   let seen = mountSeen[drive.volumeUUID], now.timeIntervalSince(seen) >= Self.driveSettleDelay,
                   jobs[task.id] == nil, !queue.contains(where: { $0.id == task.id }) else { continue }
             let key = task.id.uuidString
@@ -66,7 +72,7 @@ extension AgentCore {
     /// Tâche liée à un disque qui n'est pas branché (toujours faux sans moniteur de disques).
     func driveMissing(_ task: SyncTask) -> Bool {
         guard let drive = task.removableDrive, drives != nil else { return false }
-        return mountedDrives[drive.volumeUUID] == nil
+        return mountedDrives[drive.volumeUUID] == nil || ejectingVolumes.contains(drive.volumeUUID)
     }
 
     /// La tâche avec sa destination sur le point de montage actuel du volume (inchangée sans disque amovible).
@@ -138,7 +144,9 @@ extension AgentCore {
     /// « Abandonner » : l'exécution suspendue est close, la prochaine sauvegarde repartira de zéro.
     public func abandonSuspended(_ id: UUID) throws {
         let key = id.uuidString
-        guard let suspended = state.tasks[key]?.suspendedRun else { throw AgentError.notRunning }
+        guard let suspended = state.tasks[key]?.suspendedRun else {
+            throw AgentError.invalidTask("Aucune sauvegarde en pause pour cette tâche.")
+        }
         close(suspended, message: "Abandonnée : disque débranché.", at: clock.now())
         state.tasks[key]?.suspendedRun = nil
         persist()
@@ -152,10 +160,14 @@ extension AgentCore {
         guard !jobs.values.contains(where: { $0.task.removableDrive?.volumeUUID == drive.volumeUUID }) else {
             throw AgentError.alreadyRunning
         }
-        if let refusal = await drives.eject(mountPath: mount) {
-            throw AgentError.ejectRefused(refusal)
+        guard !ejectingVolumes.contains(drive.volumeUUID) else {
+            throw AgentError.ejectRefused("Une éjection de ce disque est déjà en cours.")
         }
+        ejectingVolumes.insert(drive.volumeUUID)
+        let refusal = await drives.eject(mountPath: mount)
+        ejectingVolumes.remove(drive.volumeUUID)
         drivesChanged()
+        if let refusal { throw AgentError.ejectRefused(refusal) }
     }
 
     /// Réussite d'une sauvegarde sur disque : éjection automatique si demandée et si rien d'autre n'écrit sur le
@@ -167,6 +179,7 @@ extension AgentCore {
             return
         }
         let id = task.id
+        ejectingVolumes.insert(drive.volumeUUID)
         ejectTasks[id] = Task { [weak self] in
             let refusal = await drives.eject(mountPath: mount)
             await self?.autoEjected(task, drive: drive, summary: summary, refusal: refusal)
@@ -175,6 +188,7 @@ extension AgentCore {
 
     func autoEjected(_ task: SyncTask, drive: RemovableDrive, summary: RunSummary, refusal: String?) {
         ejectTasks[task.id] = nil
+        ejectingVolumes.remove(drive.volumeUUID)
         if let refusal {
             log("éjection de « \(drive.volumeName) » refusée : \(refusal)")
             // Un refus est un incident : signalé même quand seules les erreurs sont notifiées.
@@ -192,12 +206,18 @@ extension AgentCore {
     static func combine(_ first: RunSummary, _ second: RunSummary) -> RunSummary {
         let duration = first.durationSeconds + second.durationSeconds
         let bytes = first.bytesTransferred + second.bytesTransferred
+        // Temps actif de chaque partie (pauses exclues, comme le bilan d'une exécution simple).
+        func active(_ part: RunSummary) -> Double {
+            if let speed = part.averageSpeed, speed > 0 { return Double(part.bytesTransferred) / speed }
+            return part.durationSeconds
+        }
+        let activeTime = active(first) + active(second)
         return RunSummary(
             filesTransferred: first.filesTransferred + second.filesTransferred, bytesTransferred: bytes,
             deletions: first.deletions + second.deletions, errors: first.errors + second.errors,
             durationSeconds: duration, message: second.message,
             directories: second.directories ?? first.directories,
-            averageSpeed: duration > 0 && bytes > 0 ? Double(bytes) / duration : second.averageSpeed
+            averageSpeed: activeTime > 0 && bytes > 0 ? Double(bytes) / activeTime : second.averageSpeed
         )
     }
 

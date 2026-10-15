@@ -74,6 +74,32 @@ final class RemovableDriveUITests: XCTestCase {
         XCTAssertEqual(draft.removable?.volumeUUID, "BBBB-2222")
     }
 
+    // 1.5.0 : un dossier pas encore créé sur le disque propose quand même la section (volume du premier parent existant).
+    func testFolderNotYetCreatedOnTheDriveOffersTheSection() throws {
+        var draft = TaskDraft()
+        draft.destination = SideDraft(kind: .folder, path: "/Volumes/Extreme Pro/Nouveau/Photos")
+        draft.refreshRemovable { path in path == "/Volumes/Extreme Pro" ? self.external : nil }
+        let removable = try XCTUnwrap(draft.removable)
+        XCTAssertEqual(removable.relativePath, "Nouveau/Photos")
+        // Disque absent : « /Volumes » est sur le disque interne, ce n'est pas une raison de retirer la section.
+        var unplugged = TaskDraft(task: backupTask())
+        unplugged.refreshRemovable { path in
+            path == "/Volumes" ? VolumeInfo(uuid: "X", name: "Macintosh HD", rootPath: "/", isInternal: true, isNetwork: false) : nil
+        }
+        XCTAssertEqual(unplugged.task(resolver: .localOnly).removableDrive, backupTask().removableDrive)
+    }
+
+    // 1.5.0 : sauvegarde en pause dont le disque est revenu (la reprise attend une condition).
+    func testSuspendedLineWhenTheDriveIsBack() {
+        let now = Date(timeIntervalSince1970: 100_000)
+        let back = AgentTaskInfo(id: UUID(), name: "Sauvegarde", state: .waiting(reason: "branchement secteur requis"),
+                                 driveSuspendedSince: now.addingTimeInterval(-3_600), driveMounted: true)
+        XCTAssertEqual(DrivePresentation(localizer: fr, now: now).line(info: back, task: backupTask()),
+                       "En pause sur « Extreme Pro » (branché) : reprise en attente (branchement secteur requis)")
+        XCTAssertEqual(DrivePresentation(localizer: en, now: now).line(info: back, task: backupTask()),
+                       "Paused on “Extreme Pro” (connected): resume waiting (branchement secteur requis)")
+    }
+
     func testInternalNetworkOrCloudDestinationHasNoSection() {
         var draft = draftOnDrive()
         draft.refreshRemovable { _ in VolumeInfo(uuid: "X", name: "Macintosh HD", rootPath: "/", isInternal: true, isNetwork: false) }

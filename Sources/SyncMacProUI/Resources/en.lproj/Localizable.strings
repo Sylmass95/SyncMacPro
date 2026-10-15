@@ -488,3 +488,4 @@
 "editor.drive.eject.button" = "“Eject” button";
 "editor.drive.eject.automatic" = "Eject automatically";
 "card.schedule.drive" = "When the drive is plugged in";
+"card.drive.suspended.back" = "Paused on “%@” (connected): resume waiting (%@)";

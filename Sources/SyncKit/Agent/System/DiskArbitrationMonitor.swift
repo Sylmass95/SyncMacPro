@@ -59,6 +59,13 @@ public final class DiskArbitrationMonitor: DriveMonitor, @unchecked Sendable {
 
     private func fire() { handler.get()?() }
 
+    /// Le dossier d'un point de montage sous /Volumes est créé au montage (et retiré au démontage) : sa date de
+    /// création est celle du branchement. Ailleurs (point de montage fixe), elle ne dit rien.
+    public func mountDate(path: String) -> Date? {
+        guard path.hasPrefix("/Volumes/") else { return nil }
+        return (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.creationDateKey]))?.creationDate
+    }
+
     /// `diskutil eject` : démonte tous les volumes du disque puis l'éjecte.
     public func eject(mountPath: String) async -> String? {
         let output = LineBox()

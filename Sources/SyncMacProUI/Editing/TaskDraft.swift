@@ -245,10 +245,21 @@ public struct TaskDraft: Equatable, Sendable {
     /// un partage réseau ou un service en ligne ; disque débranché (chemin introuvable) : le lien est gardé.
     /// `adopting` faux (ouverture de l'éditeur, destination inchangée) : un lien existant n'est jamais changé, même si un
     /// autre disque du même nom répond au chemin enregistré.
+    /// Volume du chemin, ou de son premier parent existant (dossier pas encore créé sur le disque). On s'arrête avant
+    /// « /Volumes » et « / » : un disque débranché n'est pas le disque interne.
+    static func volume(containing path: String, lookup: (String) -> VolumeInfo?) -> VolumeInfo? {
+        var current = path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
+        while !current.isEmpty, current != "/", current != "/Volumes" {
+            if let found = lookup(current) { return found }
+            current = (current as NSString).deletingLastPathComponent
+        }
+        return nil
+    }
+
     public mutating func refreshRemovable(adopting: Bool = true, lookup: (String) -> VolumeInfo? = VolumeLookup.info(forPath:)) {
         let path = (destination.path.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
         guard destination.kind == .folder, !path.isEmpty else { removable = nil; return }
-        guard let volume = lookup(path) else { return }
+        guard let volume = Self.volume(containing: path, lookup: lookup) else { return }
         if !adopting, removable?.linked == true { return }
         guard volume.isRemovable else { removable = nil; return }
         if removable == nil { removable = RemovableDraft(volume: volume, path: path) } else { removable?.adopt(volume, path: path) }

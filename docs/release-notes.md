@@ -1,4 +1,14 @@
-SyncMacPro 1.4.0 — sauvegarde sur disque amovible.
+SyncMacPro 1.5.0 — finitions de la sauvegarde sur disque amovible.
+
+**Corrections (1.5.0)**
+- Un redémarrage de l'agent (connexion à la session, mise à jour) ne compte plus comme un nouveau branchement : un disque resté branché n'est pas sauvegardé une fois de plus.
+- La simulation d'une tâche liée compare avec le dossier du disque là où il est monté ; disque absent, elle est refusée clairement.
+- Supprimer une tâche, ou la délier de son disque, clôt sa sauvegarde en pause (plus de ligne « En pause » qui traîne).
+- Disque rebranché mais reprise en attente (secteur requis, plage horaire) : la carte dit ce qu'elle attend au lieu de « débranché ».
+- Une seule éjection à la fois ; aucune sauvegarde ne démarre sur un disque en cours d'éjection.
+- Agent redémarré pendant une sauvegarde sur disque : pas de nouvel essai fantôme, et la file d'attente passe à la suite.
+- Vitesse moyenne d'une sauvegarde reprise calculée sans les pauses ; message exact pour « Abandonner » sans sauvegarde en pause.
+- Éditeur : la section « Disque amovible » est proposée même si le dossier n'existe pas encore sur le disque.
 
 **Nouveau (1.4.0)**
 - Sauvegarde sur disque externe : une tâche liée à un disque part quand vous le branchez (à chaque fois, ou au plus une fois tous les N jours), se met en pause si vous le débranchez, et reprend au rebranchement ; après plusieurs jours (3 par défaut), une nouvelle sauvegarde repart sur une comparaison complète. Le disque est reconnu par son identifiant, même monté sous un autre nom.

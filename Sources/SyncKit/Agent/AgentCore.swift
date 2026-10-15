@@ -75,6 +75,8 @@ public actor AgentCore {
     let drives: DriveMonitor?
     /// Éjections automatiques en cours (attendues par `waitForIdle`).
     var ejectTasks: [UUID: Task<Void, Never>] = [:]
+    /// Volumes en cours d'éjection : ni seconde éjection ni nouvelle exécution dessus.
+    var ejectingVolumes: Set<String> = []
     var mountedDrives: [String: String] = [:]
     var mountSeen: [String: Date] = [:]
     /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
@@ -125,11 +127,16 @@ public actor AgentCore {
         // Une tâche encore « en cours » dans l'état : l'agent a été tué en route. Elle sera rattrapée.
         for key in state.tasks.keys where state.tasks[key]?.runningSince != nil {
             state.tasks[key]?.runningSince = nil
-            state.tasks[key]?.retryAt = now
+            // Une tâche liée à un disque repart au branchement, pas par un nouvel essai.
+            let linked = tasks.contains { $0.id.uuidString == key && $0.removableDrive != nil }
+            state.tasks[key]?.retryAt = linked ? nil : now
         }
         if configuration.startupHold > 0 { holdUntil = now.addingTimeInterval(configuration.startupHold) }
         // L'élément en cours au moment de l'arrêt est repris par le rattrapage : la file l'attend. Disparu : oublié.
-        if let current = userQueueCurrent, !tasks.contains(where: { $0.id == current }) { userQueueCurrent = nil }
+        // Une tâche liée n'est pas rattrapée (elle repart au branchement) : la file ne l'attend pas.
+        if let current = userQueueCurrent, !tasks.contains(where: { $0.id == current && $0.removableDrive == nil }) {
+            userQueueCurrent = nil
+        }
         state.userQueueRunning = state.userQueueRunning && (!state.userQueue.isEmpty || userQueueCurrent != nil)
         persist()
         advanceUserQueue()
@@ -581,7 +588,7 @@ public actor AgentCore {
                 runState = .disabled
             } else if entry?.awaitingApproval == true {
                 runState = .awaitingApproval
-            } else if let suspended = entry?.suspendedRun {
+            } else if let suspended = entry?.suspendedRun, waiting[task.id] == nil || driveMissing(task) {
                 runState = .waiting(reason: "disque débranché depuis \(Self.elapsed(since: suspended.since, now: now))")
             } else if let reason = waiting[task.id] {
                 runState = .waiting(reason: reason)
