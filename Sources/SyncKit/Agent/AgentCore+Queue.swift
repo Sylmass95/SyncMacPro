@@ -7,7 +7,8 @@ extension AgentCore {
     }
 
     public func enqueue(_ id: UUID) throws {
-        guard tasks.contains(where: { $0.id == id }) else { throw AgentError.unknownTask }
+        guard let task = tasks.first(where: { $0.id == id }) else { throw AgentError.unknownTask }
+        guard task.isEnabled else { throw AgentError.invalidTask("Tâche désactivée : activez-la avant de la mettre en file.") }
         try ensureNotBusy(id)
         state.userQueue.append(id)
         persist()
@@ -28,7 +29,7 @@ extension AgentCore {
     }
 
     public func dequeue(_ id: UUID) throws {
-        guard let index = state.userQueue.firstIndex(of: id) else { throw AgentError.notRunning }
+        guard let index = state.userQueue.firstIndex(of: id) else { throw AgentError.notInQueue }
         state.userQueue.remove(at: index)
         queuedOneOffs[id] = nil
         persist()
@@ -36,7 +37,7 @@ extension AgentCore {
     }
 
     public func moveInQueue(_ id: UUID, to index: Int) throws {
-        guard let from = state.userQueue.firstIndex(of: id) else { throw AgentError.notRunning }
+        guard let from = state.userQueue.firstIndex(of: id) else { throw AgentError.notInQueue }
         state.userQueue.remove(at: from)
         state.userQueue.insert(id, at: max(0, min(index, state.userQueue.count)))
         persist()
@@ -61,6 +62,8 @@ extension AgentCore {
     /// L'élément quitte la file au démarrage.
     func advanceUserQueue() {
         guard state.userQueueRunning, !state.paused, !shuttingDown, userQueueCurrent == nil else { return }
+        // Les plafonds dépendent des types de connexion (réseau local ou internet) : on les attend.
+        guard remotes == nil || remoteTypesLoaded else { return }
         // Attente du démarrage ou du réveil : le NAS ou le réseau n'est peut-être pas encore là (comme pour `tick`).
         if let hold = holdUntil, clock.now() < hold { return }
         // Éléments devenus impossibles (tâche supprimée ou désactivée) : sautés.

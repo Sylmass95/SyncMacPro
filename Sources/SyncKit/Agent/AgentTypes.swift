@@ -50,6 +50,10 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case invalidRemote(String)
     case remoteBusy
     case rcloneMissing
+    /// La tâche n'est pas dans la file d'attente (1.4.0).
+    case notInQueue
+    /// Le disque amovible de la tâche n'est pas branché (1.4.0).
+    case driveNotConnected(String)
 
     public var errorDescription: String? {
         switch self {
@@ -69,6 +73,8 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .invalidRemote(let reason): return reason
         case .remoteBusy: return "Cette connexion est déjà en cours de configuration."
         case .rcloneMissing: return "rclone est introuvable : installez-le avec « brew install rclone »."
+        case .notInQueue: return "Cette tâche n'est pas dans la file."
+        case .driveNotConnected(let name): return "Le disque « \(name) » n'est pas branché."
         }
     }
 }

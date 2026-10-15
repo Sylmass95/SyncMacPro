@@ -67,6 +67,7 @@ public actor AgentCore {
     let settingsStore: AgentSettingsStore?
     var settingsLimits = BandwidthLimits()
     var remoteTypes: [String: String] = [:]
+    var remoteTypesLoaded = false
     /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
     var queuedOneOffs: [UUID: SyncTask] = [:]
     var userQueueCurrent: UUID? {
@@ -311,6 +312,8 @@ public actor AgentCore {
         }
         try? history.save(record)
 
+        // Lancée hors de la file (« Lancer », horaire) : elle n'y attend plus son tour.
+        if userQueueCurrent != task.id { state.userQueue.removeAll { $0 == task.id } }
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
         entry.lastStart = now
         entry.runningSince = now
@@ -536,9 +539,14 @@ public actor AgentCore {
 
     /// Types des connexions rclone (réseau local ou internet) : relus au démarrage et après une modification.
     public func refreshRemoteTypes() async {
-        guard let remotes, let list = try? await remotes.listRemotes() else { return }
-        remoteTypes = Dictionary(list.map { ($0.name, $0.type) }, uniquingKeysWith: { first, _ in first })
+        guard let remotes else { return }
+        // Liste illisible : on garde les types connus, mais la file n'attend pas indéfiniment.
+        if let list = try? await remotes.listRemotes() {
+            remoteTypes = Dictionary(list.map { ($0.name, $0.type) }, uniquingKeysWith: { first, _ in first })
+        }
+        remoteTypesLoaded = true
         applyBandwidth()
+        advanceUserQueue()
     }
 
     // MARK: observateurs
