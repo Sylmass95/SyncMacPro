@@ -40,7 +40,8 @@ jobs:
     needs: dmg
     # Uniquement quand une étiquette vX.Y.Z est poussée (jamais sur une PR ni un lancement manuel).
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    # macOS : les outils de Sparkle (signature du flux de mise à jour) sont des programmes macOS.
+    runs-on: macos-14
     permissions:
       contents: write
     steps:
@@ -51,16 +52,27 @@ jobs:
         with:
           name: SyncMacPro-dmg
           path: dist
+      - name: Outils de Sparkle
+        run: scripts/fetch-sparkle-tools.sh
       - name: Publier
         env:
           GH_TOKEN: ${{ github.token }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: |
           VERSION="$(tr -d '[:space:]' < VERSION)"
           [ "v$VERSION" = "$GITHUB_REF_NAME" ] || { echo "VERSION ($VERSION) ≠ étiquette ($GITHUB_REF_NAME)"; exit 1; }
           DMG="$(find dist -name "SyncMacPro-$VERSION.dmg" | head -1)"
           RSYNC_SRC="$(find dist -name 'rsync-*.tar.gz' | head -1)"
           [ -n "$DMG" ] && [ -n "$RSYNC_SRC" ] || { echo "Fichiers à publier introuvables"; exit 1; }
+          # Flux de mise à jour signé : sans la clé privée, pas de publication (les apps installées ne pourraient pas
+          # vérifier la version). La clé ne passe que par un fichier privé, supprimé à la sortie.
+          [ -n "$SPARKLE_ED_PRIVATE_KEY" ] || { echo "Secret SPARKLE_ED_PRIVATE_KEY absent : publication arrêtée"; exit 1; }
+          KEY="$RUNNER_TEMP/sparkle-cle.txt"
+          trap 'rm -f "$KEY"' EXIT
+          (umask 077; printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$KEY")
+          scripts/make-appcast.sh "$DMG" "$KEY" dist/appcast.xml
+          rm -f "$KEY"
           cp docs/release-notes.md notes.md
-          printf '\n**Empreinte SHA-256 du DMG** : `%s`\n' "$(sha256sum "$DMG" | cut -d' ' -f1)" >> notes.md
-          gh release create "$GITHUB_REF_NAME" "$DMG" "$RSYNC_SRC" --repo "$GITHUB_REPOSITORY" \
+          printf '\n**Empreinte SHA-256 du DMG** : `%s`\n' "$(shasum -a 256 "$DMG" | cut -d' ' -f1)" >> notes.md
+          gh release create "$GITHUB_REF_NAME" "$DMG" "$RSYNC_SRC" dist/appcast.xml --repo "$GITHUB_REPOSITORY" \
             --title "SyncMacPro $VERSION" --notes-file notes.md

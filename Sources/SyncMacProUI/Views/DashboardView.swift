@@ -10,7 +10,7 @@ struct DashboardContent: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
-    var update: ReleaseInfo?
+    var update: UpdateBannerInfo?
 
     var body: some View {
         ScrollView {
@@ -26,8 +26,8 @@ struct DashboardBody: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
-    /// Une version plus récente est publiée.
-    var update: ReleaseInfo?
+    /// Une mise à jour est prête (installation à la demande, ou en attente de la fin des copies).
+    var update: UpdateBannerInfo?
 
     private var l: Localizer { text.localizer }
 
@@ -39,8 +39,8 @@ struct DashboardBody: View {
                 onRetry: { model.restart() }, onInstall: onInstall
             )
             if let update {
-                Banner(systemImage: "arrow.down.circle", tint: .blue, title: l.format("update.banner", update.version.description)) {
-                    Button(l.text("update.download")) { NSWorkspace.shared.open(update.url) }
+                Banner(systemImage: "arrow.down.circle", tint: .blue, title: UpdateText(localizer: l).banner(update)) {
+                    if let install = update.install { Button(l.text("update.install"), action: install) }
                 }
             }
             if model.status?.stateRecovered == true {
@@ -166,8 +166,23 @@ public struct DashboardView: View {
                 text: CardText(localizer: localizer, now: context.date),
                 onInstall: { installer.install(); model.restart() },
                 onCreate: onCreate,
-                update: updates?.available
+                update: updates.flatMap(UpdateBannerInfo.make)
             )
         }
+    }
+}
+
+/// Bannière de mise à jour : prête et à installer à la demande (bouton), ou prête et en attente de la fin des copies.
+struct UpdateBannerInfo {
+    let version: String
+    let waitingForCopies: Bool
+    let install: (() -> Void)?
+
+    @MainActor
+    static func make(_ updates: UpdateModel) -> UpdateBannerInfo? {
+        guard let version = updates.readyVersion else { return nil }
+        if updates.waitingForCopies { return UpdateBannerInfo(version: version, waitingForCopies: true, install: nil) }
+        if updates.autoInstall { return nil }   // elle s'installe d'elle-même
+        return UpdateBannerInfo(version: version, waitingForCopies: false, install: { updates.installNow() })
     }
 }

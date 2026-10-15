@@ -14,15 +14,28 @@ case "$APP" in
 esac
 LABEL="com.sylvain.syncmacpro.agent"
 
+# Mises à jour (Sparkle, mode strict) : la clé publique EdDSA de l'auteur. Sans elle, pas d'app : une app sans clé ne
+# pourrait jamais vérifier ses mises à jour.
+KEY_FILE="${SPARKLE_PUBLIC_KEY_FILE:-scripts/sparkle-public-key.txt}"
+PUBLIC_KEY="${SPARKLE_PUBLIC_KEY:-}"
+if [ -z "$PUBLIC_KEY" ] && [ -f "$KEY_FILE" ]; then PUBLIC_KEY="$(tr -d '[:space:]' < "$KEY_FILE")"; fi
+[ -n "$PUBLIC_KEY" ] || { echo "Clé publique de mise à jour absente ($KEY_FILE) : voir README, « Clé de mise à jour »." >&2; exit 1; }
+FEED_URL="${SPARKLE_FEED_URL:-https://github.com/Sylmass95/SyncMacPro/releases/latest/download/appcast.xml}"
+[ -d "$BIN/Sparkle.framework" ] || { echo "Sparkle.framework absent de $BIN" >&2; exit 1; }
+
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Library/LaunchAgents" "$APP/Contents/Resources/Licenses"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Library/LaunchAgents" "$APP/Contents/Resources/Licenses" "$APP/Contents/Frameworks"
 cp "$BIN/SyncMacPro" "$BIN/syncmacpro-ctl" "$BIN/syncmacpro-agent" "$APP/Contents/MacOS/"
+# Sparkle : sans ses services XPC (app non sandboxée) ; l'exécutable le trouve dans Contents/Frameworks.
+cp -R "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/"
+rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices"
+install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/SyncMacPro"
 # Ressources de l'interface (chaînes fr / en) : SwiftPM les place dans des « .bundle » à côté des exécutables.
 for resources in "$BIN"/*.bundle; do
   case "$resources" in *Tests.bundle) continue ;; esac   # ressources des tests : pas dans l'app
   [ -e "$resources" ] && cp -R "$resources" "$APP/Contents/Resources/"
 done
-cp THIRD_PARTY_NOTICES.md LICENSE "$APP/Contents/Resources/Licenses/"
+cp THIRD_PARTY_NOTICES.md LICENSE scripts/licenses/Sparkle-LICENSE.txt "$APP/Contents/Resources/Licenses/"
 
 if [ -n "$VENDOR" ]; then
   mkdir -p "$APP/Contents/Resources/bin"
@@ -52,6 +65,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key><string>© Sylvain Masson — licence MIT. rsync (GPL v3) et rclone (MIT) embarqués.</string>
   <key>CFBundleDevelopmentRegion</key><string>fr</string>
   <key>CFBundleLocalizations</key><array><string>fr</string><string>en</string></array>
+  <key>SUFeedURL</key><string>$FEED_URL</string>
+  <key>SUPublicEDKey</key><string>$PUBLIC_KEY</string>
+  <key>SUVerifyUpdateBeforeExtraction</key><true/>
+  <key>SURequireSignedFeed</key><true/>
+  <key>SUEnableAutomaticChecks</key><true/>
+  <key>SUAllowsAutomaticUpdates</key><true/>
 </dict></plist>
 PLIST
 
@@ -72,6 +91,7 @@ PLIST
 if [ -d "$APP/Contents/Resources/bin" ]; then
   for tool in "$APP"/Contents/Resources/bin/*; do codesign --force --sign - "$tool"; done
 fi
+codesign --force --deep --sign - "$APP/Contents/Frameworks/Sparkle.framework"
 # L'exécutable principal en dernier : sa signature couvre les autres programmes de Contents/MacOS.
 for exe in syncmacpro-agent syncmacpro-ctl SyncMacPro; do codesign --force --sign - "$APP/Contents/MacOS/$exe"; done
 codesign --force --sign - "$APP"

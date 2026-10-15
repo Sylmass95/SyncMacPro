@@ -13,7 +13,10 @@ SyncMacPro est signée « ad hoc » (sans compte Apple Developer) : au premier l
 L'accueil installe ensuite l'agent d'arrière-plan (macOS peut demander de l'autoriser dans Réglages Système ›
 Général › Ouverture). rsync et rclone sont inclus : rien d'autre à installer.
 
-Licences : SyncMacPro (MIT), rsync (GPL v3), rclone (MIT) — Réglages › À propos › Licences.
+Mises à jour : les versions suivantes s'installent seules (vérifiées, jamais pendant une copie) ;
+Réglages › À propos pour les régler.
+
+Licences : SyncMacPro (MIT), rsync (GPL v3), rclone (MIT), Sparkle (MIT) — Réglages › À propos › Licences.
 Code source : https://github.com/Sylmass95/SyncMacPro
 
 
@@ -32,5 +35,7 @@ SyncMacPro is "ad hoc" signed (no Apple Developer account): macOS stops it on fi
 The welcome screen then installs the background agent (macOS may ask you to allow it in System Settings ›
 General › Login Items). rsync and rclone are included: nothing else to install.
 
-Licenses: SyncMacPro (MIT), rsync (GPL v3), rclone (MIT) — Settings › About › Licenses.
+Updates: later versions install themselves (verified, never during a copy); Settings › About to adjust.
+
+Licenses: SyncMacPro (MIT), rsync (GPL v3), rclone (MIT), Sparkle (MIT) — Settings › About › Licenses.
 Source code: https://github.com/Sylmass95/SyncMacPro

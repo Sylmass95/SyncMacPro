@@ -195,9 +195,37 @@ scripts/make-dev-bundle.sh   # bundle de développement dans ~/Applications (bin
 
 Publier une version : mettre à jour `VERSION` et `docs/release-notes.md`, fusionner, puis pousser l'étiquette
 `vX.Y.Z` (`git tag v1.0.0 && git push origin v1.0.0`). Le workflow **Publication** construit le DMG et crée la
-publication GitHub avec le DMG et l'archive source de rsync. Lancé à la main (onglet Actions), il construit seulement
+publication GitHub avec le DMG, l'archive source de rsync et le flux de mise à jour `appcast.xml` (signé). Lancé à la main (onglet Actions), il construit seulement
 et garde le DMG comme artefact. Changer de version de rsync ou rclone : modifier `scripts/vendor.lock` (versions,
 adresses, empreintes SHA-256 officielles).
+
+### Mises à jour automatiques (Sparkle)
+
+L'app (1.6.0 et suivantes) lit `appcast.xml` de la dernière publication, télécharge la nouvelle version, vérifie sa
+signature EdDSA en mode strict (`SUVerifyUpdateBeforeExtraction`, `SURequireSignedFeed` : une archive ou un flux
+modifié est refusé), puis l'installe quand aucune copie ne tourne. Pas de compte Apple Developer nécessaire.
+
+**Clé de mise à jour** (une fois, par l'auteur, sur son Mac) :
+
+```bash
+scripts/fetch-sparkle-tools.sh
+.build/sparkle-tools/bin/generate_keys                     # crée la clé dans le trousseau (et l'affiche)
+.build/sparkle-tools/bin/generate_keys -p > scripts/sparkle-public-key.txt   # clé publique, versionnée
+```
+
+Puis la clé privée dans les secrets GitHub (fichier temporaire supprimé aussitôt) :
+
+```bash
+D="$(mktemp -d)"; .build/sparkle-tools/bin/generate_keys -x "$D/cle.txt" && gh secret set SPARKLE_ED_PRIVATE_KEY --repo Sylmass95/SyncMacPro < "$D/cle.txt"; rm -P "$D/cle.txt"; rmdir "$D"
+```
+
+**Sauvegardez la clé privée** (export `-x` rangé dans un gestionnaire de mots de passe) : perdue, les apps
+installées ne pourraient plus être mises à jour automatiquement (nouvelle clé = une installation manuelle pour tous).
+Sans `scripts/sparkle-public-key.txt`, l'app ne s'assemble pas ; sans le secret, la publication s'arrête.
+
+Essai de bout en bout avant de publier (app d'essai à part, clé jetable, rien d'installé n'est touché) :
+`scripts/try-update.sh` — mise à jour 1 → 2 par un DMG et un flux produits par `make-appcast.sh`, puis version
+falsifiée refusée.
 
 ## Confidentialité
 
