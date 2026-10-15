@@ -72,6 +72,8 @@ public final class ProgressTracker {
     private var activeSince: Date?
     private var finished = false
     private var rclone: RcloneStats?
+    /// Dossiers faits / à faire d'une exécution rclone (voir `RcloneDirectoryProgress`).
+    private var rcloneDirs: (done: Int, total: Int)?
 
     /// - Parameter fileInfo: pour un nom de fichier, sa taille (0 si inconnue) et si sa progression peut être
     ///   mesurée en direct sur la destination (fichier nouveau).
@@ -199,6 +201,8 @@ public final class ProgressTracker {
         rclone = stats
     }
 
+    public func setRcloneDirectories(done: Int, total: Int) { rcloneDirs = (done, total) }
+
     // MARK: résultat
 
     public func snapshot() -> TransferSnapshot {
@@ -275,5 +279,9 @@ public final class ProgressTracker {
             }
         }
         snap.totalETA = stats.eta
+        if let dirs = rcloneDirs {
+            snap.dirsDone = dirs.done
+            snap.totalDirs = dirs.total
+        }
     }
 }

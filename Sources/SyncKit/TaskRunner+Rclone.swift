@@ -50,6 +50,33 @@ extension TaskRunner {
             options.maxDeleteCount = DeleteGuard.maxDeleteCount(existing: guardResult.existing, thresholdPercent: threshold)
         }
 
+        // Dossiers à faire : une simulation en arrière-plan liste les fichiers à copier (la copie démarre tout de suite).
+        let directories = Locked<RcloneDirectoryProgress?>(nil)
+        let copiedEarly = Locked<[String]>([])   // fichiers copiés avant la fin du comptage
+        let countsDirectories = !dryRun && [.copy, .mirror, .versioned, .move].contains(task.mode)
+        var counting: Task<Void, Never>?
+        if countsDirectories {
+            var simulated = options
+            simulated.dryRun = true
+            simulated.rcSocketPath = nil
+            let planCommand = try RcloneCommandBuilder.command(for: task, run: simulated)
+            let pending = Locked<[String: Int]>([:])
+            let control = self.control
+            counting = Task.detached { [self] in
+                let code = try? await self.stream(planCommand, errors: { line in
+                    pending.update { RcloneDirectoryProgress.notePending(line, into: &$0) }
+                }) { line in pending.update { RcloneDirectoryProgress.notePending(line, into: &$0) } }
+                guard code == 0, !control.stopRequested else { return }
+                let counted = RcloneDirectoryProgress(directoriesOfPendingFiles: pending.get())
+                directories.update { current in
+                    // Fichiers copiés pendant le comptage : rejoués sur le compte tout neuf (même verrou que la copie).
+                    var fresh = counted
+                    for name in copiedEarly.get() { fresh.fileCopied(name) }
+                    current = fresh
+                }
+            }
+        }
+
         // Limite de départ, et prise de contrôle pour la changer en route (pas pour une simulation).
         options.bandwidth = control.bandwidth
         let socket = dryRun ? nil : RcloneRemoteControl.socketPath()
@@ -71,12 +98,18 @@ extension TaskRunner {
             switch event {
             case .stats(let stats):
                 lastStats.set(stats)
+                let dirs = directories.get()
                 onUpdate(.snapshot(tracker.perform { tracker -> TransferSnapshot in
                     tracker.apply(stats)
+                    if let dirs { tracker.setRcloneDirectories(done: dirs.done, total: dirs.total) }
                     return tracker.snapshot()
                 }))
             case .error(let text): log.addError(text)
             case .notice: break
+            case .copied(let name):
+                directories.update { current in
+                    if current != nil { current?.fileCopied(name) } else { copiedEarly.update { $0.append(name) } }
+                }
             }
         }
         control.registerMain(process)
@@ -88,6 +121,12 @@ extension TaskRunner {
         let code = await process.waitForExit()
         control.setBandwidthHook(nil)
         control.clearMain()
+        // Le comptage des dossiers finit d'ordinaire bien avant la copie ; sur un petit dossier, on l'attend.
+        if control.stopRequested { control.stopAuxiliary() }
+        await counting?.value
+        if let dirs = directories.get() {
+            tracker.perform { $0.setRcloneDirectories(done: dirs.done, total: dirs.total) }
+        }
 
         var status: RunStatus
         var message: String?

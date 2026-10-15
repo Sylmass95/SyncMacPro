@@ -19,13 +19,13 @@ public enum RcloneCommandBuilder {
 
         switch task.mode {
         case .copy:
-            args = ["copy", source, destination] + loggingFlags
+            args = ["copy", source, destination, "-v"] + loggingFlags
         case .mirror, .versioned:
-            args = ["sync", source, destination] + loggingFlags
+            args = ["sync", source, destination, "-v"] + loggingFlags
                 + ["--backup-dir", archiveRoot(task.destination), "--exclude", archiveFilter]
             if let maxDelete = run.maxDeleteCount { args += ["--max-delete", String(maxDelete)] }
         case .move:
-            args = ["move", source, destination, "--delete-empty-src-dirs"] + loggingFlags
+            args = ["move", source, destination, "--delete-empty-src-dirs", "-v"] + loggingFlags
         case .bidirectional:
             // bisync nomme son verrou et ses listes d'après les deux chemins : au-delà de 255 caractères il échoue.
             // Un côté sur le disque passe donc par un lien court (`run.bisyncPath1`, `run.bisyncPath2`), préparé par le runner.
