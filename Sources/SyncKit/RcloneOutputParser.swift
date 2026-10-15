@@ -86,7 +86,10 @@ public enum RcloneOutputParser {
             return .copied(name: object)
         }
         switch decoded.level {
-        case "error", "critical", "alert", "emergency": return .error(message)
+        // Le fichier fait partie de l'erreur : deux fichiers qui échouent pour la même raison sont deux erreurs.
+        case "error", "critical", "alert", "emergency":
+            if let object = decoded.object, !object.isEmpty, !message.contains(object) { return .error("\(object) : \(message)") }
+            return .error(message)
         default: return message.isEmpty ? nil : .notice(message: message, object: decoded.object)
         }
     }

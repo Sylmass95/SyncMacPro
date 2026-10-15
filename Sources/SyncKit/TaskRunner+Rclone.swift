@@ -53,7 +53,7 @@ extension TaskRunner {
         // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
         var protectedEmpty: [String] = []
         if !dryRun, [.copy, .mirror, .versioned, .move].contains(task.mode) {
-            protectedEmpty = await protectedEmptyFiles(task, options: options)
+            protectedEmpty = await protectedEmptyFiles(task, options: options, onUpdate: onUpdate)
             options.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rcloneEscape)
             protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
         }
@@ -123,9 +123,8 @@ extension TaskRunner {
         }
         control.registerMain(process)
         if let socket {
-            control.setBandwidthHook { rate in
-                Task.detached { await RcloneRemoteControl.setRate(rclone: rclone, socket: socket, rate: rate) }
-            }
+            let sender = LatestRateSender { rate in await RcloneRemoteControl.setRate(rclone: rclone, socket: socket, rate: rate) }
+            control.setBandwidthHook { sender.submit($0) }
         }
         let code = await process.waitForExit()
         control.setBandwidthHook(nil)
@@ -207,17 +206,20 @@ extension TaskRunner {
     }
 
     /// Fichiers vides de la source dont la destination a une version non vide (listes de rclone, sans rien copier).
-    private func protectedEmptyFiles(_ task: SyncTask, options: RunOptions) async -> [String] {
+    private func protectedEmptyFiles(
+        _ task: SyncTask, options: RunOptions, onUpdate: @escaping @Sendable (RunUpdate) -> Void
+    ) async -> [String] {
         let empty = Locked<[String]>([])
         let code = try? await stream(RcloneCommandBuilder.emptyFilesCommand(for: task, run: options)) { line in
             empty.update { $0.append(line) }
         }
-        guard code == 0, !empty.get().isEmpty else { return [] }
+        // Liste partielle (un sous-dossier illisible, une erreur passagère) : on protège quand même ce qui a été lu.
+        if code != 0 { onUpdate(.line("Liste des fichiers vides incomplète (code \(code.map(String.init) ?? "?")) : protection partielle.")) }
+        guard !empty.get().isEmpty else { return [] }
         let list = FileManager.default.temporaryDirectory.appendingPathComponent("smp-liste-\(UUID().uuidString).txt")
         defer { try? FileManager.default.removeItem(at: list) }
         guard (try? empty.get().joined(separator: "\n").write(to: list, atomically: true, encoding: .utf8)) != nil,
               let outcome = try? await collect(RcloneCommandBuilder.destinationSizesCommand(for: task, file: list.path, run: options)),
-              outcome.code == 0,
               let entries = try? JSONSerialization.jsonObject(with: Data(outcome.output.utf8)) as? [[String: Any]]
         else { return [] }
         var sizes: [String: Int64] = [:]

@@ -27,10 +27,12 @@ public struct SchedulerState: Codable, Equatable, Sendable {
     /// File d'attente explicite (1.3.0) et son état (lancée ou suspendue).
     public var userQueue: [UUID] = []
     public var userQueueRunning: Bool = false
+    /// Élément de la file en cours : enregistré pour qu'après un redémarrage le suivant attende sa reprise.
+    public var userQueueCurrent: UUID?
 
     public init() {}
 
-    private enum CodingKeys: String, CodingKey { case paused, lastPurge, tasks, userQueue, userQueueRunning }
+    private enum CodingKeys: String, CodingKey { case paused, lastPurge, tasks, userQueue, userQueueRunning, userQueueCurrent }
 
     /// Un état d'avant 1.3.0 (sans file) se lit tel quel.
     public init(from decoder: Decoder) throws {
@@ -40,6 +42,7 @@ public struct SchedulerState: Codable, Equatable, Sendable {
         tasks = try c.decodeIfPresent([String: TaskScheduleState].self, forKey: .tasks) ?? [:]
         userQueue = try c.decodeIfPresent([UUID].self, forKey: .userQueue) ?? []
         userQueueRunning = try c.decodeIfPresent(Bool.self, forKey: .userQueueRunning) ?? false
+        userQueueCurrent = try c.decodeIfPresent(UUID.self, forKey: .userQueueCurrent)
     }
 }
 

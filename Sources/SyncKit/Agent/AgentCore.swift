@@ -69,7 +69,10 @@ public actor AgentCore {
     var remoteTypes: [String: String] = [:]
     /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
     var queuedOneOffs: [UUID: SyncTask] = [:]
-    var userQueueCurrent: UUID?
+    var userQueueCurrent: UUID? {
+        get { state.userQueueCurrent }
+        set { state.userQueueCurrent = newValue }
+    }
 
     public init(
         configuration: AgentConfiguration, taskStore: TaskStore, stateStore: SchedulerStateStore,
@@ -113,7 +116,9 @@ public actor AgentCore {
             state.tasks[key]?.retryAt = now
         }
         if configuration.startupHold > 0 { holdUntil = now.addingTimeInterval(configuration.startupHold) }
-        state.userQueueRunning = state.userQueueRunning && !state.userQueue.isEmpty
+        // L'élément en cours au moment de l'arrêt est repris par le rattrapage : la file l'attend. Disparu : oublié.
+        if let current = userQueueCurrent, !tasks.contains(where: { $0.id == current }) { userQueueCurrent = nil }
+        state.userQueueRunning = state.userQueueRunning && (!state.userQueue.isEmpty || userQueueCurrent != nil)
         persist()
         advanceUserQueue()
     }
@@ -434,7 +439,8 @@ public actor AgentCore {
         refreshActivity()
         emit(.taskFinished(id, status, summary.message))
         startQueued()
-        if userQueueCurrent == id { userQueueCurrent = nil }
+        // À l'arrêt de l'agent, l'élément interrompu reste « en cours » : il sera repris avant le suivant.
+        if userQueueCurrent == id && !shuttingDown { userQueueCurrent = nil; persist() }
         advanceUserQueue()
     }
 

@@ -61,6 +61,8 @@ extension AgentCore {
     /// L'élément quitte la file au démarrage.
     func advanceUserQueue() {
         guard state.userQueueRunning, !state.paused, !shuttingDown, userQueueCurrent == nil else { return }
+        // Attente du démarrage ou du réveil : le NAS ou le réseau n'est peut-être pas encore là (comme pour `tick`).
+        if let hold = holdUntil, clock.now() < hold { return }
         // Éléments devenus impossibles (tâche supprimée ou désactivée) : sautés.
         while let first = state.userQueue.first,
               queuedOneOffs[first] == nil, !tasks.contains(where: { $0.id == first && $0.isEnabled }) {

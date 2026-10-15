@@ -65,7 +65,17 @@ extension TaskRunner {
         // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
         var protectedEmpty: [String] = []
         if [.copy, .mirror, .move].contains(task.mode) {
-            let empty = EmptySourceGuard.emptyFiles(in: source, items: task.sourceItems)
+            // rsync lui-même liste les fichiers vides qui seraient copiés (`-n --max-size=0`) : même parcours que la copie,
+            // arrêtable, et seuls ces fichiers sont ensuite regardés à la destination.
+            let found = Locked<[String]>([])
+            let code = try await stream(RsyncCommandBuilder.emptyFilesCommand(for: task, run: runOptions)) { line in
+                if !line.hasSuffix("/") { found.update { $0.append(line) } }
+            }
+            if control.stopRequested { return result(status: .stopped, engine: .rsync, snapshot: TransferSnapshot(), started: started) }
+            if code != 0 && code != 23 && code != 24 {
+                onUpdate(.line("Liste des fichiers vides impossible (code \(code)) : pas de protection pour cette exécution."))
+            }
+            let empty = found.get()
             protectedEmpty = EmptySourceGuard.protectedPaths(
                 sourceEmpty: empty, destinationSizes: EmptySourceGuard.sizes(of: empty, in: destination)
             )
@@ -85,8 +95,9 @@ extension TaskRunner {
 
         // Sans plan connu, le total se calcule en arrière-plan : la copie démarre tout de suite.
         if knownPlan == nil {
+            let planOptions = runOptions   // copie immuable : Swift 5.10 refuse une `var` capturée dans une closure concurrente
             Task.detached { [self] in
-                guard let plan = try? await self.rsyncPlan(task, runOptions), !self.control.stopRequested else { return }
+                guard let plan = try? await self.rsyncPlan(task, planOptions), !self.control.stopRequested else { return }
                 tracker.perform { $0.setPlan(files: plan.files, directories: plan.directories) }
             }
         }
@@ -111,15 +122,34 @@ extension TaskRunner {
         // du miroir ne sont pas refaits.
         let control = self.control
         let lastRestart = Locked(Date.distantPast)
+        let deferred = Locked(false)
+        // Un changement arrivé moins de 5 s après une relance n'est pas perdu : la relance est différée, et lit alors la
+        // limite la plus récente.
         control.setBandwidthHook { _ in
-            guard Date().timeIntervalSince(lastRestart.get()) > 5 else { return }
-            lastRestart.set(Date())
-            control.requestRestart()
+            let wait = 5 - Date().timeIntervalSince(lastRestart.get())
+            if wait <= 0 {
+                lastRestart.set(Date())
+                control.requestRestart()
+                return
+            }
+            var schedule = false
+            deferred.update { if !$0 { $0 = true; schedule = true } }
+            guard schedule else { return }
+            DispatchQueue.global().asyncAfter(deadline: .now() + wait) {
+                deferred.set(false)
+                lastRestart.set(Date())
+                control.requestRestart()
+            }
         }
         var code: Int32
+        var attemptNumber = 0
         while true {
             var current = runOptions
             current.bandwidth = control.bandwidth
+            // Chaque relance archive dans son propre dossier : la version d'avant, déjà archivée par la première tentative,
+            // n'est jamais remplacée par un fichier à moitié réécrit.
+            if attemptNumber > 0 { current.archiveStamp = "\(stamp)-r\(attemptNumber + 1)" }
+            attemptNumber += 1
             let attempt = try RsyncCommandBuilder.command(for: task, run: current)
             let watch = makeWatch(for: .rsync)
             // Les erreurs d'une tentative arrêtée pour relance (« received SIGTERM ») ne comptent pas.

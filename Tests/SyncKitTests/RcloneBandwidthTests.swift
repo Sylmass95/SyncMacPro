@@ -32,8 +32,9 @@ final class RcloneBandwidthTests: IntegrationTestCase {
         runner.setBandwidth(BandwidthRate(upBytesPerSecond: 1_000_000, downBytesPerSecond: 1_000_000))
         let started = Date()
         let finished = Locked(false)
+        let frozen = copy   // Swift 5.10 : pas de `var` capturée dans une closure concurrente
         let running = Task { () -> RunResult in
-            let result = try await runner.run(copy)
+            let result = try await runner.run(frozen)
             finished.set(true)
             return result
         }

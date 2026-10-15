@@ -36,31 +36,6 @@ public enum EmptySourceGuard {
         return result
     }
 
-    /// Fichiers vides d'une source sur le disque (dossier entier ou éléments choisis), en chemins relatifs à la source.
-    static func emptyFiles(in source: String, items: [String]) -> [String] {
-        let roots = items.isEmpty ? [""] : items.map { PathText.withoutTrailingSlash($0) }
-        var result: [String] = []
-        let keys: [URLResourceKey] = [.fileSizeKey, .isRegularFileKey]
-        for root in roots {
-            let base = URL(fileURLWithPath: Endpoint.join(source, root))
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: base.path, isDirectory: &isDirectory) else { continue }
-            if !isDirectory.boolValue {
-                if (try? base.resourceValues(forKeys: Set(keys)))?.fileSize == 0 { result.append(root) }
-                continue
-            }
-            guard let walker = FileManager.default.enumerator(at: base, includingPropertiesForKeys: keys) else { continue }
-            let prefix = base.standardizedFileURL.path + "/"
-            for case let url as URL in walker {
-                guard let values = try? url.resourceValues(forKeys: Set(keys)), values.isRegularFile == true,
-                      values.fileSize == 0 else { continue }
-                let relative = String(url.standardizedFileURL.path.dropFirst(prefix.count))
-                result.append(root.isEmpty ? relative : Endpoint.join(root, relative))
-            }
-        }
-        return result
-    }
-
     /// Tailles à la destination sur le disque des chemins donnés (absents : ignorés).
     static func sizes(of paths: [String], in destination: String) -> [String: Int64] {
         var sizes: [String: Int64] = [:]

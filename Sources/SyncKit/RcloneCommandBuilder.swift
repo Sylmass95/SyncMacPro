@@ -19,13 +19,13 @@ public enum RcloneCommandBuilder {
 
         switch task.mode {
         case .copy:
-            args = ["copy", source, destination, "-v"] + loggingFlags
+            args = ["copy", source, destination] + verbosity(task) + loggingFlags
         case .mirror, .versioned:
-            args = ["sync", source, destination, "-v"] + loggingFlags
+            args = ["sync", source, destination] + verbosity(task) + loggingFlags
                 + ["--backup-dir", archiveRoot(task.destination), "--exclude", archiveFilter]
             if let maxDelete = run.maxDeleteCount { args += ["--max-delete", String(maxDelete)] }
         case .move:
-            args = ["move", source, destination, "--delete-empty-src-dirs", "-v"] + loggingFlags
+            args = ["move", source, destination, "--delete-empty-src-dirs"] + verbosity(task) + loggingFlags
         case .bidirectional:
             // bisync nomme son verrou et ses listes d'après les deux chemins : au-delà de 255 caractères il échoue.
             // Un côté sur le disque passe donc par un lien court (`run.bisyncPath1`, `run.bisyncPath2`), préparé par le runner.
@@ -63,6 +63,15 @@ public enum RcloneCommandBuilder {
         if run.dryRun, task.mode != .verify { args.append("--dry-run") }
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
+    }
+
+    /// `-v` (lignes « Copied » pour les dossiers faits), sauf si l'utilisateur a choisi un niveau de journal : rclone refuse
+    /// `-v` avec `--log-level` ou `-q`.
+    static func verbosity(_ task: SyncTask) -> [String] {
+        let chosen = task.options.extraArguments.contains { argument in
+            ["-q", "--quiet", "-v", "-vv", "-vvv", "--verbose", "--log-level"].contains(argument) || argument.hasPrefix("--log-level=")
+        }
+        return chosen ? [] : ["-v"]
     }
 
     /// `--bwlimit` de rclone : « ENVOI:RÉCEPTION » en Kio/s, `off` pour un côté sans limite.

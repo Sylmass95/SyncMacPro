@@ -54,6 +54,16 @@ public enum RsyncCommandBuilder {
         return Int(max(1, lowest / 1024))
     }
 
+    /// Fichiers vides qui seraient copiés (`-rn --max-size=0`), un nom par ligne, mêmes exclusions que la copie.
+    public static func emptyFilesCommand(for task: SyncTask, run: RunOptions) throws -> EngineCommand {
+        let (sources, destination, _) = try paths(for: task)
+        var args = ["-rn", "--max-size=0", "--out-format=%n"]
+        if task.mode == .mirror { args.append("--exclude=/\(task.options.archiveFolder)/") }
+        args += task.options.excludes.map { "--exclude=\($0)" }
+        args += sources + [destination]
+        return EngineCommand(engine: .rsync, arguments: args)
+    }
+
     /// Simulation qui liste ce qui serait copié (`taille|nom`) et les suppressions, avec les statistiques.
     public static func planCommand(for task: SyncTask, run: RunOptions) throws -> EngineCommand {
         let (sources, destination, _) = try paths(for: task)
