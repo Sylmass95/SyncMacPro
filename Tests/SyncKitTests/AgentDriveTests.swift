@@ -301,4 +301,56 @@ final class AgentDriveTests: XCTestCase {
         let info = await core.status().tasks[0]
         XCTAssertNil(info.nextDue, "la sauvegarde part au branchement, pas à une heure")
     }
+
+    // Disque neuf : le dossier de destination n'existe pas encore (le moteur le crée) ; le disque branché suffit.
+    func testNewDriveWithoutTheDestinationFolderStillStarts() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        h.conditions.missingPaths.set(["/Volumes/Extreme Pro/Sauvegardes"])
+        let drives = FakeDriveMonitor()
+        try h.save([backup()])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        await core.waitForIdle()
+        XCTAssertEqual(h.factory.runCount, 1)
+    }
+
+    func testResumedRunNoLongerSaysPaused() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0), gated: true)
+        let drives = FakeDriveMonitor()
+        try h.save([backup()])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        drives.unplug(uuid); await core.drivesChanged(); await core.waitForIdle()
+        await plugged(h, drives, core)
+        let record = try XCTUnwrap(h.history.list(limit: 1).first)
+        XCTAssertEqual(record.status, .running)
+        XCTAssertNil(record.summary?.message, "en cours : plus « En pause »")
+        h.factory.runners.get()[1].release()
+        await core.waitForIdle()
+    }
+
+    // L'erreur d'entrée/sortie du débranchement n'est pas une erreur de la sauvegarde.
+    func testUnplugErrorIsNotCountedInTheFinalSummary() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0), gated: true)
+        let drives = FakeDriveMonitor()
+        try h.save([backup()])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        drives.volumes.set([:])
+        let first = h.factory.runners.get()[0]
+        first.failure.set(AgentError.internalFailure("Input/output error"))
+        first.release()
+        await core.waitForIdle()
+        await core.drivesChanged()   // l'avis de démontage arrive après l'erreur
+        h.clock.advance(3_600)
+        await plugged(h, drives, core)
+        h.factory.runners.get()[1].release()
+        await core.waitForIdle()
+        let record = try XCTUnwrap(h.history.list(limit: 1).first)
+        XCTAssertEqual(record.status, .succeeded)
+        XCTAssertEqual(record.summary?.errors, 0)
+    }
 }

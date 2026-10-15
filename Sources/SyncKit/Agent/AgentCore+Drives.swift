@@ -34,7 +34,7 @@ extension AgentCore {
                   jobs[task.id] == nil, !queue.contains(where: { $0.id == task.id }) else { continue }
             let key = task.id.uuidString
             var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
-            if let handled = entry.lastMountHandled, handled >= seen { continue }   // ce branchement est déjà traité
+            if let handled = entry.lastMountHandled, handled > seen { continue }   // ce branchement est déjà traité
             if let reason = unmetCondition(task, now: now) {
                 waiting[task.id] = reason   // secteur, plage horaire : on réessaie au prochain passage
                 continue
@@ -90,7 +90,10 @@ extension AgentCore {
         entry.runningSince = nil
         entry.retryAt = nil
         entry.attempts = 0
-        entry.suspendedRun = SuspendedRun(recordID: record.id, since: now, summary: summary)
+        // L'erreur d'entrée/sortie du débranchement n'est pas une erreur de la sauvegarde : pas reportée sur le bilan final.
+        var done = summary
+        done.errors = 0
+        entry.suspendedRun = SuspendedRun(recordID: record.id, since: now, summary: done)
         state.tasks[key] = entry
         persist()
         if job.task.notifications != .never {

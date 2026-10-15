@@ -138,6 +138,22 @@ final class ProcessRunnerTests: XCTestCase {
             return first
         }
     }
+
+    /// Un sous-processus créé pendant l'arrêt (SIGTERM reçu par le parent pendant qu'il le lance) ne doit pas retenir
+    /// la fin jusqu'au SIGKILL de secours : le parent sorti, le reste du groupe reçoit à son tour SIGTERM.
+    func testLateChildDoesNotHoldTheEndUntilKill() async throws {
+        let script = """
+        perl -e '$SIG{TERM} = sub { exit 0 if $n++ }; sleep 1 while 1' &
+        trap 'sleep 0.3; exit 0' TERM
+        while :; do sleep 0.1; done
+        """
+        let process = try ProcessRunner.spawn(executable: "/bin/bash", arguments: ["-c", script]) { _ in }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let started = Date()
+        process.terminate()
+        _ = await process.waitForExit()
+        XCTAssertLessThan(Date().timeIntervalSince(started), 4, "pas d'attente du SIGKILL (8 s)")
+    }
 }
 
 final class BinaryLocatorTests: XCTestCase {

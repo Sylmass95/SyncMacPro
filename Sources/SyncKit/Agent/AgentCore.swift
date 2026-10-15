@@ -233,7 +233,10 @@ public actor AgentCore {
             return "disque « \(drive.volumeName) » non branché"
         }
         if !conditions.isReachable(task.source) { return "source inaccessible" }
-        if !conditions.isReachable(task.destination) { return "destination inaccessible" }
+        // Disque amovible branché : il suffit (le dossier d'un disque neuf est créé par le moteur, et le chemin
+        // enregistré peut viser un ancien point de montage).
+        let onDrive = task.removableDrive != nil && drives != nil
+        if !onDrive && !conditions.isReachable(task.destination) { return "destination inaccessible" }
         return nil
     }
 
@@ -322,6 +325,7 @@ public actor AgentCore {
         if let resuming, var previous = try? history.record(id: resuming.recordID) {
             previous.status = .running
             previous.finishedAt = nil
+            previous.summary = nil   // le bilan cumulé est reposé à la fin (`combine`)
             record = previous   // même ligne d'historique : l'exécution suspendue continue
         }
         var writer: RunLogWriter?
