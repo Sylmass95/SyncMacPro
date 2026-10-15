@@ -17,6 +17,15 @@ public enum UpdatePolicy {
         return true
     }
 
+    /// `nil` tant que l'agent n'a pas répondu (lancement, reconnexion) : on attend avant de décider.
+    public static func agentIdleness(connection: ConnectionState, status: AgentStatus?) -> Bool? {
+        switch connection {
+        case .connecting, .reconnecting: return nil
+        case .connected: return agentIsIdle(connected: true, status: status)
+        case .unreachable, .versionMismatch: return true
+        }
+    }
+
     public static func shouldInstall(ready: Bool, autoInstall: Bool, idle: Bool) -> Bool {
         ready && autoInstall && idle
     }

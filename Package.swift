@@ -28,6 +28,6 @@ let package = Package(
             dependencies: ["SyncKit"],
             resources: [.copy("Fixtures")]
         ),
-        .testTarget(name: "SyncMacProUITests", dependencies: ["SyncMacProUI", "SyncKit"], resources: [.copy("Fixtures")]),
+        .testTarget(name: "SyncMacProUITests", dependencies: ["SyncMacProUI", "SyncKit", .product(name: "Sparkle", package: "Sparkle")], resources: [.copy("Fixtures")]),
     ]
 )

@@ -20,7 +20,7 @@ struct SyncMacProApp: App {
     @State private var model: AgentModel
     @State private var installer: AgentInstaller
     @State private var loginItem = LoginItemModel()
-    @State private var updates = UpdateModel(driver: nil)
+    @State private var updates: UpdateModel
     @AppStorage("appearance") private var appearance = Appearance.auto.rawValue
 
     private let localizer = Localizer.system
@@ -31,15 +31,38 @@ struct SyncMacProApp: App {
         if Bundle.main.bundlePath.hasSuffix(".app"), InstallLocation.problem(bundlePath: Bundle.main.bundlePath) == nil {
             Quarantine.clear(bundle: Bundle.main.bundleURL)
         }
-        // App mise à jour : l'agent enregistré par l'ancienne version ne démarrerait plus, on le réenregistre.
-        let installer = AgentInstaller()
-        if Bundle.main.bundlePath.hasSuffix(".app") { Task { await installer.reRegisterAfterUpdate() } }
-        _installer = State(initialValue: installer)
         let model = AgentModel(agent: AgentClient.machService(AgentIdentifiers.service()))
         _model = State(initialValue: model)
         // Le modèle démarre avec l'app, pas avec la fenêtre : l'icône de la barre de menus reste vivante même si
         // macOS relance l'app sans ouvrir sa fenêtre (restauration, ouverture à la connexion).
         model.start()
+        // App mise à jour : l'agent enregistré par l'ancienne version ne démarrerait plus, on le réenregistre — quand
+        // il est au repos, pour ne jamais couper une copie.
+        let installer = AgentInstaller()
+        if Bundle.main.bundlePath.hasSuffix(".app") {
+            Task {
+                await installer.reRegisterAfterUpdate(isIdle: {
+                    UpdatePolicy.agentIdleness(connection: model.connection, status: model.status) ?? false
+                })
+            }
+        }
+        _installer = State(initialValue: installer)
+        // Mises à jour (Sparkle, app installée seulement) : installées quand l'agent est au repos.
+        let updates = UpdateModel(driver: SparkleUpdateDriver.makeIfBundled())
+        _updates = State(initialValue: updates)
+        updates.start()
+        Task { @MainActor in
+            while true {
+                if let idle = UpdatePolicy.agentIdleness(connection: model.connection, status: model.status) {
+                    updates.agentActivity(idle: idle)
+                }
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
+            }
+        }
+        if Bundle.main.bundlePath.hasSuffix(".app"), let version = UpdateModel.launchAnnouncement(current: AppInfo.version()) {
+            let text = Localizer.system
+            UserNotifier().notify(title: text.text("update.done.title"), body: text.format("update.done.body", version))
+        }
     }
 
     var body: some Scene {
