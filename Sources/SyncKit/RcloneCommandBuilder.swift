@@ -46,8 +46,13 @@ public enum RcloneCommandBuilder {
             args = ["check", source, destination, "--combined", "-"]
         }
 
-        if let limit = task.options.bandwidthLimitKBps, task.mode != .verify {
-            args += ["--bwlimit", "\(limit)K"]
+        if task.mode != .verify {
+            if let rate = run.bandwidth, let value = bwlimitValue(rate) {
+                args += ["--bwlimit", value]
+            } else if let limit = task.options.bandwidthLimitKBps {
+                args += ["--bwlimit", "\(limit)K"]
+            }
+            if let socket = run.rcSocketPath { args += ["--rc", "--rc-addr", "unix://\(socket)", "--rc-no-auth"] }
         }
         if let quota = task.options.maxTransferGB, task.mode != .verify {
             args += ["--max-transfer", "\(quota)G", "--cutoff-mode", "soft"]
@@ -57,6 +62,13 @@ public enum RcloneCommandBuilder {
         if run.dryRun, task.mode != .verify { args.append("--dry-run") }
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
+    }
+
+    /// `--bwlimit` de rclone : « ENVOI:RÉCEPTION » en Kio/s, `off` pour un côté sans limite.
+    public static func bwlimitValue(_ rate: BandwidthRate) -> String? {
+        guard rate.upBytesPerSecond != nil || rate.downBytesPerSecond != nil else { return nil }
+        func side(_ bytes: Int64?) -> String { bytes.map { "\(max(1, $0 / 1024))K" } ?? "off" }
+        return "\(side(rate.upBytesPerSecond)):\(side(rate.downBytesPerSecond))"
     }
 
     /// Compte les fichiers d'un côté (`rclone size --json`) : sert à calculer le pourcentage de suppressions.

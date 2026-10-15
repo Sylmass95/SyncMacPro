@@ -50,6 +50,11 @@ extension TaskRunner {
             options.maxDeleteCount = DeleteGuard.maxDeleteCount(existing: guardResult.existing, thresholdPercent: threshold)
         }
 
+        // Limite de départ, et prise de contrôle pour la changer en route (pas pour une simulation).
+        options.bandwidth = control.bandwidth
+        let socket = dryRun ? nil : RcloneRemoteControl.socketPath()
+        options.rcSocketPath = socket
+        defer { if let socket { try? FileManager.default.removeItem(atPath: socket) } }
         let command = try RcloneCommandBuilder.command(for: task, run: options)
         let tracker = SafeTracker(now: configuration.now, fileInfo: { _ in (0, false) })
         tracker.perform { $0.start() }
@@ -75,7 +80,13 @@ extension TaskRunner {
             }
         }
         control.registerMain(process)
+        if let socket {
+            control.setBandwidthHook { rate in
+                Task.detached { await RcloneRemoteControl.setRate(rclone: rclone, socket: socket, rate: rate) }
+            }
+        }
         let code = await process.waitForExit()
+        control.setBandwidthHook(nil)
         control.clearMain()
 
         var status: RunStatus
