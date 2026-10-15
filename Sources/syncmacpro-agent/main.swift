@@ -53,9 +53,11 @@ let core = AgentCore(
     log: { log($0) },
     logDirectory: paths.logs,
     remotes: rclonePath.map { RcloneConfigurator(rclonePath: $0, configPath: rcloneConfig) },
+    settingsStore: AgentSettingsStore(url: paths.settings),
     makeRunner: { TaskRunner(configuration: runnerConfiguration) }
 )
 await core.start()
+await core.refreshRemoteTypes()   // réseau local ou internet : pour répartir les plafonds de débit
 log("agent \(AppInfo.version()) démarré (données : \(paths.root.path), rsync : \(runnerConfiguration.rsyncPath ?? "introuvable"), rclone : \(rclonePath ?? "introuvable"))")
 
 // XPC : le service doit être déclaré par launchd ; sans lui, rien à écouter.

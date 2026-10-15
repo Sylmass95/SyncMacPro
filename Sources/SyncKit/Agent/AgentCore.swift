@@ -63,6 +63,10 @@ public actor AgentCore {
     var creatingRemotes: Set<String> = []
     /// Annulations reçues pendant une étape (avant que rclone soit lancé).
     var cancelledRemotes: Set<String> = []
+    /// Plafonds de débit des réglages, et type de chaque connexion rclone (réseau local ou internet).
+    let settingsStore: AgentSettingsStore?
+    var settingsLimits = BandwidthLimits()
+    var remoteTypes: [String: String] = [:]
     /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
     var queuedOneOffs: [UUID: SyncTask] = [:]
     var userQueueCurrent: UUID?
@@ -74,8 +78,10 @@ public actor AgentCore {
         log: @escaping @Sendable (String) -> Void = { _ in },
         logDirectory: URL? = nil,
         remotes: RemoteConfiguring? = nil,
+        settingsStore: AgentSettingsStore? = nil,
         makeRunner: @escaping @Sendable () -> TaskRunning
     ) {
+        self.settingsStore = settingsStore
         self.logDirectory = logDirectory
         self.remotes = remotes
         self.configuration = configuration
@@ -99,6 +105,7 @@ public actor AgentCore {
     public func start() {
         let now = clock.now()
         loadTasks()
+        settingsLimits = settingsStore?.load() ?? BandwidthLimits()
         _ = try? history.markRunningAsInterrupted(at: now)
         // Une tâche encore « en cours » dans l'état : l'agent a été tué en route. Elle sera rattrapée.
         for key in state.tasks.keys where state.tasks[key]?.runningSince != nil {
@@ -309,6 +316,7 @@ public actor AgentCore {
 
         let runner = makeRunner()
         jobs[task.id] = Job(task: task, runner: runner, record: record, logWriter: writer)
+        applyBandwidth()   // la limite de départ est connue avant `run`
         waiting[task.id] = nil
         refreshActivity()
         emit(.taskStarted(task.id))
@@ -354,6 +362,7 @@ public actor AgentCore {
     func finish(_ id: UUID, _ outcome: Result<RunResult, Error>) {
         jobTasks[id] = nil
         guard var job = jobs.removeValue(forKey: id) else { return }
+        applyBandwidth()   // une exécution de moins : les autres récupèrent sa part
         let now = clock.now()
         var status: RunStatus
         let summary: RunSummary
@@ -494,13 +503,36 @@ public actor AgentCore {
         }
         return AgentStatus(
             globalPause: state.paused, stateRecovered: stateRecovered, taskLoadError: taskLoadError, tasks: infos,
-            queue: queueInfo, bandwidth: nil
+            queue: queueInfo, bandwidth: settingsLimits
         )
     }
 
     /// Attend la fin de toutes les exécutions en cours (tests, arrêt de l'agent).
     public func waitForIdle() async {
         while let running = jobTasks.values.first { await running.value }
+    }
+
+    // MARK: débit
+
+    public func setBandwidth(_ limits: BandwidthLimits) {
+        settingsLimits = limits
+        do { try settingsStore?.save(limits) } catch { log("réglages non enregistrés : \(error)") }
+        applyBandwidth()
+        emit(.stateChanged)
+    }
+
+    /// Recalcule la part de chaque exécution et la transmet (départ, fin, réglage modifié).
+    func applyBandwidth() {
+        let running = jobs.map { (id: $0.key, task: $0.value.task) }
+        let rates = BandwidthPlanner.rates(for: running, limits: settingsLimits, remoteTypes: remoteTypes)
+        for (id, rate) in rates { jobs[id]?.runner.setBandwidth(rate) }
+    }
+
+    /// Types des connexions rclone (réseau local ou internet) : relus au démarrage et après une modification.
+    public func refreshRemoteTypes() async {
+        guard let remotes, let list = try? await remotes.listRemotes() else { return }
+        remoteTypes = Dictionary(list.map { ($0.name, $0.type) }, uniquingKeysWith: { first, _ in first })
+        applyBandwidth()
     }
 
     // MARK: observateurs

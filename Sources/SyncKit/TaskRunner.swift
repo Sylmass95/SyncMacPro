@@ -15,6 +15,7 @@ public final class TaskRunner: @unchecked Sendable {
     public func pause() { control.pause() }
     public func resume() { control.resume() }
     public func stop() { control.stop() }
+    public func setBandwidth(_ rate: BandwidthRate) { control.setBandwidth(rate) }
 
     // MARK: exécution
 

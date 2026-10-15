@@ -47,7 +47,10 @@ extension AgentCore {
         }
         do {
             let outcome = try await rclone.configure(step)
-            if outcome == .done { creatingRemotes.remove(name) }
+            if outcome == .done {
+                creatingRemotes.remove(name)
+                await refreshRemoteTypes()   // une nouvelle connexion : son type compte pour les plafonds
+            }
             return outcome
         } catch {
             if creatingRemotes.remove(name) != nil { try? await rclone.delete(name) }
@@ -71,6 +74,7 @@ extension AgentCore {
         let users = tasks.filter { $0.remoteNames.contains(name) }.map(\.name).sorted()
         guard users.isEmpty else { throw AgentError.remoteInUse(users) }
         do { try await rclone.delete(name) } catch { throw Self.agentError(error) }
+        await refreshRemoteTypes()
     }
 
     public func testRemote(_ name: String) async throws -> RemoteTestResult {

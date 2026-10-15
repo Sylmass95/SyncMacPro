@@ -101,6 +101,9 @@ final class RunControl: @unchecked Sendable {
     private var stopRequestedFlag = false
     private var pausedFlag = false
     private var stalledFor: TimeInterval?
+    private var bandwidthValue = BandwidthRate.unlimited
+    /// Appelé (hors verrou) quand la limite change pendant l'exécution : le moteur l'applique à chaud.
+    private var bandwidthHook: (@Sendable (BandwidthRate) -> Void)?
     /// Appelés (hors verrou) quand l'exécution est mise en pause ou reprise : arrêtent / relancent le chronomètre.
     private var pauseHook: (@Sendable () -> Void)?
     private var resumeHook: (@Sendable () -> Void)?
@@ -117,6 +120,21 @@ final class RunControl: @unchecked Sendable {
     var stalledAfter: TimeInterval? { lock.lock(); defer { lock.unlock() }; return stalledFor }
     func markStalled(after timeout: TimeInterval) { lock.lock(); stalledFor = timeout; lock.unlock() }
 
+    var bandwidth: BandwidthRate { lock.lock(); defer { lock.unlock() }; return bandwidthValue }
+
+    func setBandwidth(_ rate: BandwidthRate) {
+        lock.lock()
+        let changed = rate != bandwidthValue
+        bandwidthValue = rate
+        let hook = bandwidthHook
+        lock.unlock()
+        if changed { hook?(rate) }
+    }
+
+    func setBandwidthHook(_ hook: (@Sendable (BandwidthRate) -> Void)?) {
+        lock.lock(); bandwidthHook = hook; lock.unlock()
+    }
+
     func reset() {
         lock.lock(); defer { lock.unlock() }
         main = nil
@@ -124,6 +142,7 @@ final class RunControl: @unchecked Sendable {
         stopRequestedFlag = false
         pausedFlag = false
         stalledFor = nil
+        bandwidthHook = nil
         pauseHook = nil
         resumeHook = nil
     }
