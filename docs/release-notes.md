@@ -1,3 +1,9 @@
+SyncMacPro 1.6.2 — autorisations de macOS après une mise à jour.
+
+**Corrections (1.6.2)**
+- Après une mise à jour, macOS peut redemander d'autoriser SyncMacPro à accéder à un dossier protégé (Bureau, Documents, disque…). Une copie attendait alors la réponse sans rien dire ; elle s'arrête maintenant au bout de 15 s avec un message qui explique quoi faire, et elle est retentée plus tard.
+- La notification « SyncMacPro a été mis à jour » prévient de cette demande d'autorisation.
+
 SyncMacPro 1.6.1 — première mise à jour automatique.
 
 **1.6.1**

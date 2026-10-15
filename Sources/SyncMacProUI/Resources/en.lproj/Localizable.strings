@@ -494,4 +494,4 @@
 "update.banner.ready" = "SyncMacPro %@ is ready to install.";
 "update.banner.waiting" = "SyncMacPro %@ will install once the current copies finish.";
 "update.done.title" = "SyncMacPro was updated";
-"update.done.body" = "Version %@ installed.";
+"update.done.body" = "Version %@ installed. macOS may ask you again to allow SyncMacPro to access your folders: accept so backups keep running.";
