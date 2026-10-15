@@ -12,7 +12,7 @@ extension TaskRunner {
         if task.mode == .verify {
             return try await verifyWithRsync(task, options: runOptions, started: started, onUpdate: onUpdate)
         }
-        let command = try RsyncCommandBuilder.command(for: task, run: runOptions)   // refuse tôt les modes non pris en charge
+        _ = try RsyncCommandBuilder.command(for: task, run: runOptions)   // refuse tôt les modes non pris en charge
         let source = task.source.filesystemPath ?? ""
         let destination = task.destination.filesystemPath ?? ""
 
@@ -82,22 +82,6 @@ extension TaskRunner {
         onUpdate(.phase(.running))
         let log = RunLog()
         let lastStarted = Locked<String?>(nil)
-        let watch = makeWatch(for: .rsync)
-        let process = try ProcessRunner.spawn(executable: rsync, arguments: command.arguments) { output in
-            watch.note()
-            onUpdate(.line(output.text))
-            guard let event = RsyncOutputParser.parse(line: output.text) else { return }
-            switch event {
-            case .fileStarted(let name, _): lastStarted.set(name)
-            case .deleting: log.addDeletion()
-            case .error(let text): log.addError(text)
-            default: break
-            }
-            tracker.perform { $0.apply(event) }
-        }
-        control.registerMain(process)
-        watch.attach(process)
-
         let interval = configuration.sampleInterval
         let sampler = Task.detached {
             while !Task.isCancelled {
@@ -110,9 +94,48 @@ extension TaskRunner {
             }
         }
 
-        let code = await process.waitForExit()
-        watch.stop()
-        control.clearMain()
+        // rsync ne change pas sa limite en route : une nouvelle limite l'arrête et il est relancé aussitôt ; avec
+        // `--partial --inplace` il reprend où il en était. Au plus une relance toutes les 5 s. Le plan et le garde-fou
+        // du miroir ne sont pas refaits.
+        let control = self.control
+        let lastRestart = Locked(Date.distantPast)
+        control.setBandwidthHook { _ in
+            guard Date().timeIntervalSince(lastRestart.get()) > 5 else { return }
+            lastRestart.set(Date())
+            control.requestRestart()
+        }
+        var code: Int32
+        while true {
+            var current = runOptions
+            current.bandwidth = control.bandwidth
+            let attempt = try RsyncCommandBuilder.command(for: task, run: current)
+            let watch = makeWatch(for: .rsync)
+            // Les erreurs d'une tentative arrêtée pour relance (« received SIGTERM ») ne comptent pas.
+            let attemptErrors = Locked<[String]>([])
+            let process = try ProcessRunner.spawn(executable: rsync, arguments: attempt.arguments) { output in
+                watch.note()
+                onUpdate(.line(output.text))
+                guard let event = RsyncOutputParser.parse(line: output.text) else { return }
+                switch event {
+                case .fileStarted(let name, _): lastStarted.set(name)
+                case .deleting: log.addDeletion()
+                case .error(let text): attemptErrors.update { $0.append(text) }
+                default: break
+                }
+                tracker.perform { $0.apply(event) }
+            }
+            control.registerMain(process)
+            watch.attach(process)
+            code = await process.waitForExit()
+            watch.stop()
+            control.clearMain()
+            guard control.consumeRestart(), !control.stopRequested else {
+                attemptErrors.get().forEach(log.addError)
+                break
+            }
+            onUpdate(.line("Limite de débit modifiée : rsync est relancé et reprend où il en était."))
+        }
+        control.setBandwidthHook(nil)
         sampler.cancel()
         control.stopAuxiliary()
 

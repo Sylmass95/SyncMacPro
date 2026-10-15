@@ -102,6 +102,7 @@ final class RunControl: @unchecked Sendable {
     private var pausedFlag = false
     private var stalledFor: TimeInterval?
     private var bandwidthValue = BandwidthRate.unlimited
+    private var restartFlag = false
     /// Appelé (hors verrou) quand la limite change pendant l'exécution : le moteur l'applique à chaud.
     private var bandwidthHook: (@Sendable (BandwidthRate) -> Void)?
     /// Appelés (hors verrou) quand l'exécution est mise en pause ou reprise : arrêtent / relancent le chronomètre.
@@ -131,6 +132,22 @@ final class RunControl: @unchecked Sendable {
         if changed { hook?(rate) }
     }
 
+    /// rsync : arrête le processus principal pour qu'il soit relancé aussitôt (nouvelle limite de débit).
+    func requestRestart() {
+        lock.lock(); defer { lock.unlock() }
+        guard !stopRequestedFlag, let main else { return }
+        restartFlag = true
+        main.terminate()
+    }
+
+    /// Vrai une fois si une relance a été demandée.
+    func consumeRestart() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        let value = restartFlag
+        restartFlag = false
+        return value
+    }
+
     func setBandwidthHook(_ hook: (@Sendable (BandwidthRate) -> Void)?) {
         lock.lock(); bandwidthHook = hook; lock.unlock()
     }
@@ -142,6 +159,7 @@ final class RunControl: @unchecked Sendable {
         stopRequestedFlag = false
         pausedFlag = false
         stalledFor = nil
+        restartFlag = false
         bandwidthHook = nil
         pauseHook = nil
         resumeHook = nil
