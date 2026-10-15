@@ -1,7 +1,14 @@
 # Programmes tiers inclus dans SyncMacPro
 
-SyncMacPro (licence MIT, voir `LICENSE`) embarque deux programmes indépendants, lancés comme des programmes séparés.
-Ils ne sont pas modifiés.
+SyncMacPro (licence MIT, voir `LICENSE`) embarque deux programmes indépendants, lancés comme des programmes séparés,
+et la bibliothèque Sparkle (mises à jour automatiques). Ils ne sont pas modifiés.
+
+## Sparkle 2.10.0
+
+- Licence : **MIT**, avec les licences des composants qu'elle inclut (texte complet : `Sparkle-LICENSE.txt`).
+- © Andy Matuschak, Elgato Systems, Kornel Lesiński, Mayur Pawashe et les contributeurs de Sparkle —
+  https://sparkle-project.org/ — code source : https://github.com/sparkle-project/Sparkle
+- Distribution officielle 2.10.0 (paquet Swift Package Manager), services XPC retirés, signée ad hoc avec l'app.
 
 ## rsync 3.5.1
 
