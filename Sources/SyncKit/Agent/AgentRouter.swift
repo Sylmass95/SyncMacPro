@@ -44,6 +44,8 @@ public enum AgentRouter {
             case .listRemoteFolders(let remote, let path):
                 return .folders(try await core.listRemoteFolders(remote: remote, path: path))
             case .clearHistory(let id): return .cleared(try await core.clearHistory(taskID: id))
+            case .enqueue, .enqueueOnce, .dequeue, .moveInQueue, .setQueueRunning, .setBandwidth:
+                return .error(.internalFailure("non pris en charge"))
             }
             return .ok
         } catch let error as AgentError {

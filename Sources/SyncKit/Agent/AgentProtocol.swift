@@ -44,6 +44,13 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case listRemoteFolders(remote: String, path: String)
     /// Vider l'historique, tout (`nil`) ou celui d'une tâche (1.2.4 : ajout, aucun message existant ne change).
     case clearHistory(taskID: UUID?)
+    // File d'attente explicite et plafonds de débit (1.3.0 : ajouts, aucun message existant ne change)
+    case enqueue(UUID)
+    case enqueueOnce(SyncTask)
+    case dequeue(UUID)
+    case moveInQueue(UUID, to: Int)
+    case setQueueRunning(Bool)
+    case setBandwidth(BandwidthLimits)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {

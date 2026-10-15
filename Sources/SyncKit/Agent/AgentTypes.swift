@@ -92,11 +92,14 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     public var progress: ProgressInfo?
     /// Copie manuelle : présente le temps de son exécution, jamais enregistrée.
     public var isOneOff: Bool
+    /// Place dans la file d'attente explicite (1 = la prochaine) ; `nil` hors de la file.
+    public var queuePosition: Int?
 
     public init(
         id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,
-        progress: ProgressInfo? = nil, isOneOff: Bool = false
+        progress: ProgressInfo? = nil, isOneOff: Bool = false, queuePosition: Int? = nil
     ) {
+        self.queuePosition = queuePosition
         self.id = id
         self.name = name
         self.state = state
@@ -113,8 +116,17 @@ public struct AgentStatus: Codable, Equatable, Sendable {
     public var stateRecovered: Bool
     public var taskLoadError: String?
     public var tasks: [AgentTaskInfo]
+    /// File d'attente explicite ; `nil` pour un agent plus ancien.
+    public var queue: QueueInfo?
+    /// Plafonds de débit des réglages ; `nil` pour un agent plus ancien.
+    public var bandwidth: BandwidthLimits?
 
-    public init(globalPause: Bool, stateRecovered: Bool, taskLoadError: String?, tasks: [AgentTaskInfo]) {
+    public init(
+        globalPause: Bool, stateRecovered: Bool, taskLoadError: String?, tasks: [AgentTaskInfo],
+        queue: QueueInfo? = nil, bandwidth: BandwidthLimits? = nil
+    ) {
+        self.queue = queue
+        self.bandwidth = bandwidth
         self.globalPause = globalPause
         self.stateRecovered = stateRecovered
         self.taskLoadError = taskLoadError
@@ -135,8 +147,15 @@ public struct ProgressInfo: Codable, Equatable, Sendable {
     public var overallPercent: Int?
     public var totalETA: TimeInterval?
     public var activeTime: TimeInterval
+    /// Dossiers faits / à faire, vitesse moyenne (octets/s) : facultatifs, absents d'un agent plus ancien.
+    public var dirsDone: Int?
+    public var totalDirs: Int?
+    public var averageSpeed: Double?
 
     public init(_ snapshot: TransferSnapshot) {
+        dirsDone = snapshot.totalDirs == nil ? nil : snapshot.dirsDone
+        totalDirs = snapshot.totalDirs
+        averageSpeed = snapshot.averageSpeed > 0 ? snapshot.averageSpeed : nil
         currentName = snapshot.currentName
         currentBytes = snapshot.currentBytes
         currentSize = snapshot.currentSize
