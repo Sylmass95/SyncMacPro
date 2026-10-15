@@ -68,14 +68,19 @@ public struct SettingsView: View {
             Section(localizer.text("settings.about")) {
                 Text(localizer.format("settings.version", version))
                 if let updates {
-                    Toggle(localizer.text("update.automatic"), isOn: Binding(get: { updates.automatic }, set: { updates.automatic = $0 }))
-                    HStack {
-                        Button(localizer.text("update.checkNow")) { updates.checkNow() }
-                            .disabled(updates.state == .checking || !updates.isAvailable)
-                        Text(updateText(updates.state)).font(.callout).foregroundStyle(.secondary)
-                        if updates.readyVersion != nil {
-                            Button(localizer.text("update.download")) { updates.installNow() }
+                    if updates.isAvailable {
+                        Toggle(localizer.text("update.automatic"), isOn: Binding(get: { updates.automatic }, set: { updates.automatic = $0 }))
+                        Toggle(localizer.text("update.autoInstall"), isOn: Binding(get: { updates.autoInstall }, set: { updates.autoInstall = $0 }))
+                        HStack {
+                            Button(localizer.text("update.checkNow")) { updates.checkNow() }
+                                .disabled(updates.state == .checking || updates.state == .installing)
+                            Text(UpdateText(localizer: localizer).state(updates.state)).font(.callout).foregroundStyle(.secondary)
+                            if updates.readyVersion != nil {
+                                Button(localizer.text("update.install")) { updates.installNow() }
+                            }
                         }
+                    } else {
+                        Text(localizer.text("update.unavailable")).font(.callout).foregroundStyle(.secondary)
                     }
                 }
                 HStack {
@@ -96,17 +101,6 @@ public struct SettingsView: View {
     static let repository = URL(string: "https://github.com/Sylmass95/SyncMacPro")!
 
     private var version: String { AppInfo.version(executable: Bundle.main.executablePath ?? "") }
-
-    private func updateText(_ state: UpdateState) -> String {
-        switch state {
-        case .idle: return ""
-        case .checking: return localizer.text("update.checking")
-        case .upToDate: return localizer.text("update.upToDate")
-        case .downloading(let version), .ready(let version): return localizer.format("update.available", version)
-        case .installing: return localizer.text("update.checking")
-        case .failed(let message): return localizer.format("update.failed", message)
-        }
-    }
 
     /// Les licences des programmes embarqués (dans l'app ; sur GitHub en développement).
     private func openLicenses() {

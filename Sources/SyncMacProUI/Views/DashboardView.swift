@@ -39,8 +39,8 @@ struct DashboardBody: View {
                 onRetry: { model.restart() }, onInstall: onInstall
             )
             if let update {
-                Banner(systemImage: "arrow.down.circle", tint: .blue, title: l.format("update.banner", update.version)) {
-                    if let install = update.install { Button(l.text("update.download"), action: install) }
+                Banner(systemImage: "arrow.down.circle", tint: .blue, title: UpdateText(localizer: l).banner(update)) {
+                    if let install = update.install { Button(l.text("update.install"), action: install) }
                 }
             }
             if model.status?.stateRecovered == true {

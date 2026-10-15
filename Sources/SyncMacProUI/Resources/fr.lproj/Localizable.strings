@@ -407,14 +407,6 @@
 "remote.choose" = "Choisir ce dossier";
 "remote.pick" = "Choisir…";
 "remote.add" = "Ajouter une connexion…";
-"update.banner" = "SyncMacPro %@ est disponible.";
-"update.download" = "Télécharger";
-"update.automatic" = "Vérifier les mises à jour chaque jour";
-"update.checkNow" = "Vérifier maintenant";
-"update.checking" = "Vérification…";
-"update.upToDate" = "SyncMacPro est à jour.";
-"update.available" = "Version %@ disponible.";
-"update.failed" = "Vérification impossible : %@";
 "settings.licenses" = "Licences";
 "settings.source" = "Code source";
 "onboarding.location.diskImage" = "SyncMacPro est ouverte depuis l’image disque : glissez-la dans le dossier Applications, puis rouvrez-la depuis là.";
@@ -426,9 +418,6 @@
 "copy.drop.refused.title" = "Rien à copier ici";
 "copy.drop.refused.body" = "Ces éléments sont déjà dans ce dossier, ou c’est ce dossier lui-même (ou un de ses parents) : un dossier ne peut pas être copié dans lui-même.";
 "wizard.error.loop" = "rclone repose sans cesse la même question : la configuration a été arrêtée. Réessayez, ou créez la connexion avec rclone en ligne de commande.";
-"update.failed.rateLimit" = "trop de demandes à GitHub, nouvel essai plus tard";
-"update.failed.http" = "GitHub ne répond pas correctement";
-"update.failed.unreadable" = "réponse de GitHub illisible";
 
 /* 1.3.0 : progression façon RsyncGUI */
 "progress.files" = "Fichiers %@ / %@";
@@ -489,3 +478,20 @@
 "editor.drive.eject.automatic" = "Éjection automatique";
 "card.schedule.drive" = "Au branchement du disque";
 "card.drive.suspended.back" = "En pause sur « %@ » (branché) : reprise en attente (%@)";
+
+/* Mises à jour (Sparkle, 1.6.0) */
+"update.automatic" = "Vérifier les mises à jour chaque jour";
+"update.autoInstall" = "Installer automatiquement (jamais pendant une copie)";
+"update.checkNow" = "Vérifier maintenant";
+"update.checking" = "Vérification…";
+"update.upToDate" = "SyncMacPro est à jour.";
+"update.downloading" = "Téléchargement de la version %@…";
+"update.ready" = "Version %@ prête à être installée.";
+"update.installing" = "Installation… SyncMacPro va redémarrer.";
+"update.failed" = "Mise à jour impossible : %@";
+"update.install" = "Installer et relancer";
+"update.unavailable" = "Mises à jour automatiques : dans l’app installée seulement.";
+"update.banner.ready" = "SyncMacPro %@ est prête à être installée.";
+"update.banner.waiting" = "SyncMacPro %@ s’installera à la fin des copies en cours.";
+"update.done.title" = "SyncMacPro a été mis à jour";
+"update.done.body" = "Version %@ installée.";
