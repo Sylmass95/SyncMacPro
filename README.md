@@ -63,6 +63,7 @@ history [<tâche>] [--limit N]
 history [<tâche>] --clear
 queue | queue add | remove | up | down <tâche> | queue start | stop
 bandwidth [--down N] [--up N] [--local N]   (Mbit/s, « off » pour retirer)
+eject <tâche> | abandon <tâche>   (disque amovible : éjecter, abandonner la sauvegarde en pause)
 add --name N --source P --dest P [--mode M] [--every MIN | --daily HH:MM] [--ac-power]
 remove <tâche>
 simulate <tâche> | log <tâche>

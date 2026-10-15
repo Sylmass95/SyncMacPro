@@ -39,6 +39,8 @@ public enum CtlCommand: Equatable, Sendable {
     /// File d'attente explicite et plafonds de débit (1.3.0).
     case queue, queueAdd(String), queueRemove(String), queueMove(String, up: Bool), queueRun(Bool)
     case bandwidth, setBandwidth(down: String?, up: String?, local: String?)
+    /// Disque amovible (1.4.0) : éjecter, abandonner l'exécution suspendue.
+    case eject(String), abandon(String)
     case agentInstall, agentUninstall, agentStatus
 }
 
@@ -94,6 +96,8 @@ public enum CtlParser {
       bandwidth                      plafonds de débit (Mbit/s, comme speedtest)
       bandwidth [--down N] [--up N] [--local N]
                                      réception internet, envoi internet, réseau local ; « off » pour retirer
+      eject <tâche>                  éjecte le disque amovible de la tâche
+      abandon <tâche>                abandonne la sauvegarde en pause (disque débranché) : la prochaine repart de zéro
       agent install | uninstall | status
 
     Options : --json   --state-dir DOSSIER   --service NOM
@@ -106,6 +110,7 @@ public enum CtlParser {
         "reprendre-tout": "resume-all", "ajouter": "add", "supprimer": "remove", "aide": "help",
         "simuler": "simulate", "journal": "log", "copier": "copy", "connexions": "remotes", "diagnostic": "doctor",
         "file": "queue", "debit": "bandwidth", "débit": "bandwidth",
+        "ejecter": "eject", "éjecter": "eject", "abandonner": "abandon",
     ]
 
     private static let valued: Set<String> = [
@@ -171,6 +176,8 @@ public enum CtlParser {
         case "resume": return invocation(.resume(try single()))
         case "stop": return invocation(.stop(try single()))
         case "approve": return invocation(.approve(try single()))
+        case "eject": return invocation(.eject(try single()))
+        case "abandon": return invocation(.abandon(try single()))
         case "remove": return invocation(.remove(try single()))
         case "simulate": return invocation(.simulate(try single()))
         case "log": return invocation(.log(try single()))
