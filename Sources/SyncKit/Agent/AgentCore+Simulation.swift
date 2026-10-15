@@ -8,6 +8,9 @@ extension AgentCore {
     /// Une nouvelle simulation de la même tâche remplace la précédente.
     public func simulate(_ original: SyncTask) async throws -> SimulationResult {
         // Disque amovible : la comparaison se fait avec son dossier, là où il est monté maintenant.
+        if let drive = original.removableDrive, ejectingVolumes.contains(drive.volumeUUID) {
+            throw AgentError.ejectRefused("Le disque est en cours d'éjection.")
+        }
         if let drive = original.removableDrive, drives != nil, mountedDrives[drive.volumeUUID] == nil {
             throw AgentError.driveNotConnected(drive.volumeName)
         }

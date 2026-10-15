@@ -70,9 +70,12 @@ extension AgentCore {
         // Éléments devenus impossibles (tâche supprimée ou désactivée, disque amovible débranché) : sautés. Une tâche
         // liée ne part jamais sans son disque : un autre disque du même nom serait écrit à sa place.
         while let first = state.userQueue.first, queuedOneOffs[first] == nil,
-              !tasks.contains(where: { $0.id == first && $0.isEnabled && !driveMissing($0) }) {
+              !tasks.contains(where: { $0.id == first && $0.isEnabled && !driveUnplugged($0) }) {
             state.userQueue.removeFirst()
         }
+        // Disque en cours d'éjection : la file attend (l'éjection peut être refusée, le disque rester là).
+        if let first = state.userQueue.first, let drive = lookupTask(first)?.removableDrive,
+           ejectingVolumes.contains(drive.volumeUUID) { return }
         guard let next = state.userQueue.first else {
             state.userQueueRunning = false
             persist()

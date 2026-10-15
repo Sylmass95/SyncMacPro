@@ -207,4 +207,99 @@ final class AgentDrive150Tests: XCTestCase {
             XCTAssertEqual(error as? AgentError, .invalidTask("Aucune sauvegarde en pause pour cette tâche."))
         }
     }
+
+    // Relecture 1.5.0, important 1 : l'éjection automatique attend les tâches en file sur le même disque.
+    func testAutoEjectWaitsForQueuedTasksOnTheSameDrive() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let drives = FakeDriveMonitor()
+        let a = backup("A", eject: .automatic)
+        var b = backup("B", eject: .automatic)
+        b.id = UUID()
+        try h.save([a, b])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        drives.plug(uuid, at: "/Volumes/Extreme Pro")
+        await core.drivesChanged()
+        try await core.enqueue(a.id)
+        try await core.enqueue(b.id)
+        await core.setQueueRunning(true)
+        await core.waitForIdle()
+        _ = await eventually { h.factory.runCount == 2 }
+        await core.waitForIdle()
+        XCTAssertEqual(h.factory.runCount, 2, "B n'est pas sortie de la file")
+        XCTAssertEqual(drives.ejected.get(), ["/Volumes/Extreme Pro"], "éjecté une fois, après B")
+    }
+
+    // Relecture 1.5.0, important 2 : agent redémarré en pleine sauvegarde, disque resté branché : elle est refaite.
+    func testRestartDuringALinkedRunRedoesTheBackup() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 1_000), gated: true)
+        let drives = FakeDriveMonitor()
+        drives.mountDates.set(["/Volumes/Extreme Pro": Date(timeIntervalSince1970: 990)])
+        try h.save([backup()])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        XCTAssertEqual(h.factory.created, 1)
+        let again = h.makeCore(drives: drives)   // l'agent est tué en route
+        await again.start()
+        await again.drivesChanged()
+        h.clock.advance(6)
+        await again.drivesChanged(); await again.tick()
+        XCTAssertEqual(h.factory.created, 2, "la sauvegarde interrompue repart")
+        h.factory.runners.get().forEach { $0.release() }
+        await again.waitForIdle()
+    }
+
+    // Relecture 1.5.0 : démonté puis remonté sans être débranché (même heure d'apparition) : servi comme un branchement.
+    func testRemountWithoutUnplugIsServed() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 1_000))
+        let drives = FakeDriveMonitor()
+        drives.mountDates.set(["/Volumes/Extreme Pro": Date(timeIntervalSince1970: 990)])
+        try h.save([backup()])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await core.drivesChanged()
+        await plugged(h, drives, core)
+        await core.waitForIdle()
+        drives.unplug(uuid); await core.drivesChanged()
+        h.clock.advance(60)
+        await plugged(h, drives, core)
+        await core.waitForIdle()
+        XCTAssertEqual(h.factory.runCount, 2)
+    }
+
+    // Relecture 1.5.0 : disque revenu, reprise sur le point de partir : pas « débranché ».
+    func testSuspendedWithTheDriveBackSaysResumeIsComing() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0), gated: true)
+        let drives = FakeDriveMonitor()
+        try h.save([backup()])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await suspended(h, drives, core)
+        drives.plug(uuid, at: "/Volumes/Extreme Pro")
+        await core.drivesChanged()
+        let info = await core.status().tasks[0]
+        guard case .waiting(let reason) = info.state else { return XCTFail("\(info.state)") }
+        XCTAssertEqual(reason, "reprise imminente")
+    }
+
+    // Relecture 1.5.0 : pas de simulation sur un disque en cours d'éjection.
+    func testNoSimulationWhileEjecting() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let drives = FakeDriveMonitor()
+        var task = backup(eject: .button)
+        task.removableDrive?.trigger = .atMostEveryDays(30)
+        try h.save([task])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        await core.waitForIdle()
+        drives.ejectDelay.set(300_000_000)
+        let ejecting = Task { try await core.ejectDrive(task.id) }
+        try await Task.sleep(nanoseconds: 100_000_000)
+        do { _ = try await core.simulate(task); XCTFail("éjection en cours") } catch {
+            XCTAssertEqual(error as? AgentError, .ejectRefused("Le disque est en cours d'éjection."))
+        }
+        try await ejecting.value
+    }
 }

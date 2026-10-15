@@ -77,6 +77,9 @@ public actor AgentCore {
     var ejectTasks: [UUID: Task<Void, Never>] = [:]
     /// Volumes en cours d'éjection : ni seconde éjection ni nouvelle exécution dessus.
     var ejectingVolumes: Set<String> = []
+    /// Faux tant que les volumes n'ont pas été lus une première fois : seule cette lecture se fie à l'heure
+    /// d'apparition du disque (redémarrage de l'agent) ; ensuite, un montage signalé est un branchement.
+    var drivesPrimed = false
     var mountedDrives: [String: String] = [:]
     var mountSeen: [String: Date] = [:]
     /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
@@ -127,9 +130,11 @@ public actor AgentCore {
         // Une tâche encore « en cours » dans l'état : l'agent a été tué en route. Elle sera rattrapée.
         for key in state.tasks.keys where state.tasks[key]?.runningSince != nil {
             state.tasks[key]?.runningSince = nil
-            // Une tâche liée à un disque repart au branchement, pas par un nouvel essai.
+            // Une tâche liée à un disque repart au branchement, pas par un nouvel essai : le branchement en cours est
+            // de nouveau à servir (disque resté branché pendant le redémarrage).
             let linked = tasks.contains { $0.id.uuidString == key && $0.removableDrive != nil }
             state.tasks[key]?.retryAt = linked ? nil : now
+            if linked { state.tasks[key]?.lastMountHandled = nil }
         }
         if configuration.startupHold > 0 { holdUntil = now.addingTimeInterval(configuration.startupHold) }
         // L'élément en cours au moment de l'arrêt est repris par le rattrapage : la file l'attend. Disparu : oublié.
@@ -298,6 +303,11 @@ public actor AgentCore {
         while jobs.count < configuration.maxParallel, !queue.isEmpty {
             let next = queue.removeFirst()
             guard let task = lookupTask(next.id), jobs[task.id] == nil else { continue }
+            // Disque en cours d'éjection : l'exécution attend (l'éjection peut être refusée).
+            if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) {
+                queue.insert(next, at: 0)
+                break
+            }
             // Une exécution planifiée peut attendre des heures derrière deux longues copies : on revérifie.
             if !next.manual {
                 guard task.isEnabled else { continue }
@@ -588,8 +598,10 @@ public actor AgentCore {
                 runState = .disabled
             } else if entry?.awaitingApproval == true {
                 runState = .awaitingApproval
-            } else if let suspended = entry?.suspendedRun, waiting[task.id] == nil || driveMissing(task) {
+            } else if let suspended = entry?.suspendedRun, driveMissing(task) {
                 runState = .waiting(reason: "disque débranché depuis \(Self.elapsed(since: suspended.since, now: now))")
+            } else if entry?.suspendedRun != nil, waiting[task.id] == nil {
+                runState = .waiting(reason: "reprise imminente")   // disque revenu : la reprise part après l'attente
             } else if let reason = waiting[task.id] {
                 runState = .waiting(reason: reason)
             } else {

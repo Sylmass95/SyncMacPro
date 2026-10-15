@@ -15,7 +15,8 @@ extension AgentCore {
         for (uuid, path) in current where mountedDrives[uuid] == nil {
             // À la seconde : l'état enregistré garde les dates à la seconde près (sinon, relu après un redémarrage,
             // le branchement servi paraîtrait plus ancien que le branchement vu).
-            let seen = min(now, drives.mountDate(path: path) ?? now).timeIntervalSince1970.rounded(.down)
+            let appeared = drivesPrimed ? nil : drives.mountDate(path: path)
+            let seen = min(now, appeared ?? now).timeIntervalSince1970.rounded(.down)
             mountSeen[uuid] = Date(timeIntervalSince1970: seen)
         }
         for uuid in mountedDrives.keys where current[uuid] == nil {
@@ -29,6 +30,7 @@ extension AgentCore {
             }
         }
         mountedDrives = current
+        drivesPrimed = true
         handleDrives(now)
         emit(.stateChanged)
     }
@@ -70,6 +72,12 @@ extension AgentCore {
             }
             if due { startJob(task, overrideGuard: false) } else { persist() }
         }
+    }
+
+    /// Tâche liée à un disque débranché (sans compter une éjection en cours).
+    func driveUnplugged(_ task: SyncTask) -> Bool {
+        guard let drive = task.removableDrive, drives != nil else { return false }
+        return mountedDrives[drive.volumeUUID] == nil
     }
 
     /// Tâche liée à un disque qui n'est pas branché (toujours faux sans moniteur de disques).
@@ -176,7 +184,10 @@ extension AgentCore {
     /// Réussite d'une sauvegarde sur disque : éjection automatique si demandée et si rien d'autre n'écrit sur le
     /// disque, sinon notification « vous pouvez éjecter ».
     func finishedOnDrive(_ task: SyncTask, drive: RemovableDrive, summary: RunSummary) {
+        // Autres sauvegardes sur ce disque, en cours ou en file : l'éjection attend la dernière.
+        let onDrive = { (id: UUID) in self.lookupTask(id)?.removableDrive?.volumeUUID == drive.volumeUUID }
         let othersOnDrive = jobs.values.contains { $0.task.removableDrive?.volumeUUID == drive.volumeUUID }
+            || state.userQueue.contains(where: onDrive) || queue.contains { onDrive($0.id) }
         guard drive.eject == .automatic, !othersOnDrive, let drives, let mount = mountedDrives[drive.volumeUUID] else {
             notify(task, .succeeded, summary, note: othersOnDrive ? nil : "vous pouvez éjecter « \(drive.volumeName) ».")
             return
