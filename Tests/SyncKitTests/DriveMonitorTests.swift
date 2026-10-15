@@ -19,8 +19,11 @@ final class DriveMonitorTests: IntegrationTestCase {
         let monitor = DiskArbitrationMonitor()
         let changes = Locked(0)
         monitor.start { changes.update { $0 += 1 } }
+        defer { monitor.stop() }
         _ = try hdiutil(["attach", "-nobrowse", "-mountpoint", mount, image])
         defer { _ = try? hdiutil(["detach", "-force", mount]) }
+        // Le volume peut mettre un instant à apparaître après le retour de `hdiutil attach`.
+        _ = await eventually(timeout: 3) { VolumeLookup.info(forPath: mount + "/")?.rootPath == mount }
         let info = try XCTUnwrap(VolumeLookup.info(forPath: mount + "/"))
         XCTAssertTrue(info.isRemovable)
         let uuid = try XCTUnwrap(info.uuid)
@@ -35,5 +38,39 @@ final class DriveMonitorTests: IntegrationTestCase {
         let seenEject = await eventually(timeout: 5) { changes.get() > before }
         XCTAssertTrue(seenEject, "démontage signalé")
         XCTAssertNil(monitor.mountedVolumes()[uuid])
+    }
+
+    /// Un moniteur abandonné sans `stop()` ne doit pas faire planter le processus au disque suivant (rappel
+    /// DiskArbitration sur un objet libéré).
+    func testAbandonedMonitorSurvivesTheNextDiskEvent() async throws {
+        let image = sandbox.appendingPathComponent("usb2.dmg").path
+        let mount = VolumeLookup.canonical(sandbox.appendingPathComponent("BancUSB2").path)
+        _ = try hdiutil(["create", "-size", "20m", "-fs", "APFS", "-volname", "BancUSB2", "-ov", image])
+        do {
+            let abandoned = DiskArbitrationMonitor()
+            abandoned.start {}
+        }
+        let watcher = DiskArbitrationMonitor()
+        let changes = Locked(0)
+        watcher.start { changes.update { $0 += 1 } }
+        defer { watcher.stop() }
+        _ = try hdiutil(["attach", "-nobrowse", "-mountpoint", mount, image])
+        _ = try hdiutil(["detach", "-force", mount])
+        let seen = await eventually(timeout: 5) { changes.get() >= 2 }
+        XCTAssertTrue(seen, "le processus est toujours là et les événements arrivent")
+    }
+
+    func testStoppedMonitorNoLongerCallsBack() async throws {
+        let image = sandbox.appendingPathComponent("usb3.dmg").path
+        let mount = VolumeLookup.canonical(sandbox.appendingPathComponent("BancUSB3").path)
+        _ = try hdiutil(["create", "-size", "20m", "-fs", "APFS", "-volname", "BancUSB3", "-ov", image])
+        let monitor = DiskArbitrationMonitor()
+        let changes = Locked(0)
+        monitor.start { changes.update { $0 += 1 } }
+        monitor.stop()
+        _ = try hdiutil(["attach", "-nobrowse", "-mountpoint", mount, image])
+        _ = try hdiutil(["detach", "-force", mount])
+        try await Task.sleep(nanoseconds: 1_000_000_000)
+        XCTAssertEqual(changes.get(), 0)
     }
 }

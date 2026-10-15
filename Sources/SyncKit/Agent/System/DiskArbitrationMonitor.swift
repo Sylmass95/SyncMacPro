@@ -5,6 +5,9 @@ import Foundation
 public final class DiskArbitrationMonitor: DriveMonitor, @unchecked Sendable {
     private let queue = DispatchQueue(label: "syncmacpro.disques")
     private var session: DASession?
+    /// Démarré, le moniteur se retient lui-même : DiskArbitration garde un pointeur brut vers lui, un rappel sur un
+    /// objet libéré ferait planter l'agent. `stop()` coupe la session puis rend cette retenue.
+    private var retainedSelf: Unmanaged<DiskArbitrationMonitor>?
     private let handler = Locked<(@Sendable () -> Void)?>(nil)
 
     public init() {}
@@ -26,7 +29,9 @@ public final class DiskArbitrationMonitor: DriveMonitor, @unchecked Sendable {
         handler.set(onChange)
         guard session == nil, let created = DASessionCreate(kCFAllocatorDefault) else { return }
         session = created
-        let context = Unmanaged.passUnretained(self).toOpaque()
+        let retained = Unmanaged.passRetained(self)
+        retainedSelf = retained
+        let context = retained.toOpaque()
         let fired: DADiskAppearedCallback = { _, context in
             guard let context else { return }
             Unmanaged<DiskArbitrationMonitor>.fromOpaque(context).takeUnretainedValue().fire()
@@ -39,6 +44,17 @@ public final class DiskArbitrationMonitor: DriveMonitor, @unchecked Sendable {
         }
         DARegisterDiskDescriptionChangedCallback(created, nil, [kDADiskDescriptionVolumePathKey] as CFArray, changed, context)
         DASessionSetDispatchQueue(created, queue)
+    }
+
+    /// Plus aucun rappel après le retour : la session est détachée de sa file, les rappels en cours sont finis.
+    public func stop() {
+        handler.set(nil)
+        guard let session else { return }
+        DASessionSetDispatchQueue(session, nil)
+        queue.sync {}
+        self.session = nil
+        retainedSelf?.release()
+        retainedSelf = nil
     }
 
     private func fire() { handler.get()?() }
