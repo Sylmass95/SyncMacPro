@@ -104,11 +104,15 @@ public final class AgentInstaller {
     /// Après une mise à jour (app remplacée), launchd refuse de lancer l'agent enregistré avec l'ancienne signature ad hoc
     /// (code 78, ou OS_REASON_CODESIGNING) : on le désenregistre, on attend que macOS l'ait retiré, puis on le réenregistre.
     /// Rien si l'agent n'est pas installé ou hors bundle (« dev »).
+    /// La réinscription redémarre l'agent : elle attend qu'il soit au repos (`isIdle`, revu toutes les 30 s), pour ne
+    /// jamais couper une copie (app remplacée par une mise à jour pendant une copie).
     public func reRegisterAfterUpdate(
-        currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard, pause: Pause = AgentInstaller.realPause
+        currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard, pause: Pause = AgentInstaller.realPause,
+        isIdle: @escaping @MainActor () async -> Bool = { true }
     ) async {
         guard currentBuild != "dev", service.status() == .enabled,
               defaults.string(forKey: Self.registeredBuildKey) != currentBuild else { return }
+        while !(await isIdle()) { await pause(30_000_000_000) }
         await reRegister(currentBuild: currentBuild, defaults: defaults, pause: pause)
     }
 

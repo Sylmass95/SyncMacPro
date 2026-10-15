@@ -9,7 +9,7 @@ final class DistributionRenderTests: XCTestCase {
         let agent = FakeAgent()
         agent.setStatus(.success(makeStatus()))
         let model = AgentModel(agent: agent, sleeper: ManualSleeper())
-        let release = ReleaseInfo(version: try XCTUnwrap(SemanticVersion("1.2.0")), url: try XCTUnwrap(URL(string: "https://example.org")))
+        let release = UpdateBannerInfo(version: "1.2.0", waitingForCopies: false, install: {})
         let view = DashboardBody(model: model, installState: .enabled, text: UIFixtures.french, onInstall: {}, update: release)
         assertNotBlank(try render(view, name: "dashboard-update", size: CGSize(width: 760, height: 300), scheme: .light))
     }

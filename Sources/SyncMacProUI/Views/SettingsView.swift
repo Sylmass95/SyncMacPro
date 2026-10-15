@@ -70,11 +70,11 @@ public struct SettingsView: View {
                 if let updates {
                     Toggle(localizer.text("update.automatic"), isOn: Binding(get: { updates.automatic }, set: { updates.automatic = $0 }))
                     HStack {
-                        Button(localizer.text("update.checkNow")) { Task { await updates.checkNow() } }
-                            .disabled(updates.state == .checking)
+                        Button(localizer.text("update.checkNow")) { updates.checkNow() }
+                            .disabled(updates.state == .checking || !updates.isAvailable)
                         Text(updateText(updates.state)).font(.callout).foregroundStyle(.secondary)
-                        if let release = updates.available {
-                            Button(localizer.text("update.download")) { NSWorkspace.shared.open(release.url) }
+                        if updates.readyVersion != nil {
+                            Button(localizer.text("update.download")) { updates.installNow() }
                         }
                     }
                 }
@@ -102,10 +102,9 @@ public struct SettingsView: View {
         case .idle: return ""
         case .checking: return localizer.text("update.checking")
         case .upToDate: return localizer.text("update.upToDate")
-        case .available(let release): return localizer.format("update.available", release.version.description)
-        case .failed(let message):
-            let known = ["rateLimit", "http", "unreadable"].contains(message)
-            return localizer.format("update.failed", known ? localizer.text("update.failed.\(message)") : message)
+        case .downloading(let version), .ready(let version): return localizer.format("update.available", version)
+        case .installing: return localizer.text("update.checking")
+        case .failed(let message): return localizer.format("update.failed", message)
         }
     }
 
