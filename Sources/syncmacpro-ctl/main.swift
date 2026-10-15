@@ -21,6 +21,13 @@ func show<T: Encodable>(_ value: T, lines: [String]) {
     print(invocation.json ? CtlFormatter.json(value) : lines.joined(separator: "\n"))
 }
 
+func printBandwidth(_ limits: BandwidthLimits) {
+    func text(_ value: Double?) -> String { value.map { "\($0.formatted()) Mbit/s" } ?? "sans plafond" }
+    print("Réception internet : \(text(limits.downloadMbps))")
+    print("Envoi internet : \(text(limits.uploadMbps))")
+    print("Réseau local : \(text(limits.localMbps))")
+}
+
 func resolve(_ text: String) async throws -> SyncTask {
     try TaskReference.resolve(text, in: try await client.listTasks())
 }
@@ -168,6 +175,49 @@ do {
         print("\(CtlFormatter.statusLabel(result.status)) : \(result.filesToTransfer) fichier(s) à transférer "
             + "(\(Formatting.bytes(result.bytesToTransfer))), \(result.deletions) suppression(s)."
             + (result.message.map { "\n\($0)" } ?? ""))
+
+    case .queue:
+        let status = try await client.status()
+        guard let queue = status.queue else { fail("Cet agent ne connaît pas encore la file d'attente (mettez l'app à jour).") }
+        let names = Dictionary(status.tasks.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        print("File : \(queue.running ? "lancée" : "suspendue")")
+        if let current = queue.current { print("En cours : \(names[current] ?? current.uuidString)") }
+        if queue.items.isEmpty { print("Aucune tâche en file.") }
+        for (index, id) in queue.items.enumerated() { print("\(index + 1). \(names[id] ?? id.uuidString)") }
+
+    case .queueAdd(let text):
+        let task = try await resolve(text)
+        try await client.perform(.enqueue(task.id))
+        print("« \(task.name) » mise en file.")
+
+    case .queueRemove(let text):
+        let task = try await resolve(text)
+        try await client.perform(.dequeue(task.id))
+        print("« \(task.name) » retirée de la file.")
+
+    case .queueMove(let text, let up):
+        let task = try await resolve(text)
+        guard let items = try await client.status().queue?.items, let index = items.firstIndex(of: task.id) else {
+            fail("« \(task.name) » n'est pas dans la file.")
+        }
+        let target = max(0, min(items.count - 1, index + (up ? -1 : 1)))
+        try await client.perform(.moveInQueue(task.id, to: target))
+        print("« \(task.name) » : place \(target + 1) sur \(items.count).")
+
+    case .queueRun(let running):
+        try await client.perform(.setQueueRunning(running))
+        print(running ? "File lancée." : "File suspendue (l'élément en cours se termine).")
+
+    case .bandwidth:
+        printBandwidth(try await client.status().bandwidth ?? BandwidthLimits())
+
+    case .setBandwidth(let down, let up, let local):
+        var limits = try await client.status().bandwidth ?? BandwidthLimits()
+        if let down { limits.downloadMbps = try CtlParser.mbps(down) }
+        if let up { limits.uploadMbps = try CtlParser.mbps(up) }
+        if let local { limits.localMbps = try CtlParser.mbps(local) }
+        try await client.perform(.setBandwidth(limits))
+        printBandwidth(limits)
 
     case .clearHistory(let text):
         var taskID: UUID?

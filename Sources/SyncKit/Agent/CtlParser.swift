@@ -36,6 +36,9 @@ public enum CtlCommand: Equatable, Sendable {
     case copy(OneOffRequest)
     case remotes, remoteTest(String), remoteDelete(String)
     case version, doctor
+    /// File d'attente explicite et plafonds de débit (1.3.0).
+    case queue, queueAdd(String), queueRemove(String), queueMove(String, up: Bool), queueRun(Bool)
+    case bandwidth, setBandwidth(down: String?, up: String?, local: String?)
     case agentInstall, agentUninstall, agentStatus
 }
 
@@ -85,6 +88,12 @@ public enum CtlParser {
                                      copie ponctuelle par l'agent (sans créer de tâche)
       simulate <tâche>               ce que ferait la tâche, sans rien modifier
       log <tâche>                    journal de la dernière exécution
+      queue                          file d'attente (ordre, état)
+      queue add | remove | up | down <tâche>
+      queue start | stop             lancer ou suspendre la file
+      bandwidth                      plafonds de débit (Mbit/s, comme speedtest)
+      bandwidth [--down N] [--up N] [--local N]
+                                     réception internet, envoi internet, réseau local ; « off » pour retirer
       agent install | uninstall | status
 
     Options : --json   --state-dir DOSSIER   --service NOM
@@ -96,10 +105,11 @@ public enum CtlParser {
         "arrêter": "stop", "historique": "history", "valider": "approve", "pause-tout": "pause-all",
         "reprendre-tout": "resume-all", "ajouter": "add", "supprimer": "remove", "aide": "help",
         "simuler": "simulate", "journal": "log", "copier": "copy", "connexions": "remotes", "diagnostic": "doctor",
+        "file": "queue", "debit": "bandwidth", "débit": "bandwidth",
     ]
 
     private static let valued: Set<String> = [
-        "state-dir", "service", "name", "source", "dest", "mode", "every", "daily", "limit", "item",
+        "state-dir", "service", "name", "source", "dest", "mode", "every", "daily", "limit", "item", "down", "up", "local",
     ]
     private static let flags: Set<String> = ["json", "ac-power", "help", "mirror", "clear"]
 
@@ -198,8 +208,36 @@ public enum CtlParser {
                 destination: (destination as NSString).expandingTildeInPath,
                 items: items, mirror: flagged.contains("mirror")
             )))
+        case "queue":
+            guard let action = rest.first else { return invocation(.queue) }
+            let target = rest.dropFirst().joined(separator: " ")
+            switch action {
+            case "start": return invocation(.queueRun(true))
+            case "stop": return invocation(.queueRun(false))
+            case "add", "remove", "up", "down":
+                guard !target.isEmpty else { throw CtlParseError.missingValue("tâche") }
+                switch action {
+                case "add": return invocation(.queueAdd(target))
+                case "remove": return invocation(.queueRemove(target))
+                default: return invocation(.queueMove(target, up: action == "up"))
+                }
+            default: throw CtlParseError.invalid("queue attend : add, remove, up, down, start ou stop")
+            }
+        case "bandwidth":
+            if values["down"] == nil && values["up"] == nil && values["local"] == nil { return invocation(.bandwidth) }
+            return invocation(.setBandwidth(down: values["down"], up: values["up"], local: values["local"]))
         default: throw CtlParseError.unknownCommand(first)
         }
+    }
+
+    /// « 200 », « 12,5 » ou « off » (sans plafond), en Mbit/s.
+    public static func mbps(_ text: String) throws -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces).lowercased()
+        if trimmed == "off" || trimmed == "aucun" { return nil }
+        guard let value = Double(trimmed.replacingOccurrences(of: ",", with: ".")), value > 0 else {
+            throw CtlParseError.invalid("Débit attendu en Mbit/s (nombre positif) ou « off » : \(text)")
+        }
+        return value
     }
 
     private static func newTask(_ values: [String: String], _ flagged: Set<String>) throws -> NewTask {
