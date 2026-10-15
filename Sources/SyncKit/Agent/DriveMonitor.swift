@@ -8,6 +8,13 @@ public protocol DriveMonitor: Sendable {
     func start(onChange: @escaping @Sendable () -> Void)
     /// `nil` si l'éjection a réussi, sinon le message de macOS.
     func eject(mountPath: String) async -> String?
+    /// Heure du branchement du disque monté à ce point de montage, si on la connaît : un redémarrage de l'agent ne compte pas
+    /// comme un branchement.
+    func mountDate(path: String) -> Date?
+}
+
+extension DriveMonitor {
+    public func mountDate(path: String) -> Date? { nil }
 }
 
 /// Le volume qui contient un chemin.

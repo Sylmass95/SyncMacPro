@@ -73,4 +73,19 @@ final class DriveMonitorTests: IntegrationTestCase {
         try await Task.sleep(nanoseconds: 1_000_000_000)
         XCTAssertEqual(changes.get(), 0)
     }
+
+    /// Heure du branchement (1.5.0) : celle du dernier branchement, pas du formatage du volume.
+    func testMountDateIsThePlugTime() throws {
+        let image = sandbox.appendingPathComponent("usb4.dmg").path
+        let mount = VolumeLookup.canonical(sandbox.appendingPathComponent("BancUSB4").path)
+        _ = try hdiutil(["create", "-size", "20m", "-fs", "APFS", "-volname", "BancUSB4", "-ov", image])
+        _ = try hdiutil(["attach", "-nobrowse", "-mountpoint", mount, image])
+        _ = try hdiutil(["detach", "-force", mount])
+        Thread.sleep(forTimeInterval: 2)
+        let replugged = Date()
+        _ = try hdiutil(["attach", "-nobrowse", "-mountpoint", mount, image])
+        defer { _ = try? hdiutil(["detach", "-force", mount]) }
+        let appeared = try XCTUnwrap(DiskArbitrationMonitor().mountDate(path: mount))
+        XCTAssertGreaterThan(appeared.timeIntervalSince(replugged), -1, "date du rebranchement, pas du formatage")
+    }
 }

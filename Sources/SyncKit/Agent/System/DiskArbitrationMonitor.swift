@@ -59,6 +59,17 @@ public final class DiskArbitrationMonitor: DriveMonitor, @unchecked Sendable {
 
     private func fire() { handler.get()?() }
 
+    /// Heure d'apparition du disque selon DiskArbitration (son branchement) : elle ne change pas quand l'agent
+    /// redémarre. La date de création de `/Volumes/<nom>` ne convient pas : c'est celle de la racine du volume, donc
+    /// de son formatage.
+    public func mountDate(path: String) -> Date? {
+        guard let probe = DASessionCreate(kCFAllocatorDefault),
+              let disk = DADiskCreateFromVolumePath(kCFAllocatorDefault, probe, URL(fileURLWithPath: path) as CFURL),
+              let description = DADiskCopyDescription(disk) as? [String: Any],
+              let appeared = description["DAAppearanceTime"] as? Double else { return nil }
+        return Date(timeIntervalSinceReferenceDate: appeared)
+    }
+
     /// `diskutil eject` : démonte tous les volumes du disque puis l'éjecte.
     public func eject(mountPath: String) async -> String? {
         let output = LineBox()

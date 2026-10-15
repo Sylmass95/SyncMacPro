@@ -31,7 +31,7 @@ struct TaskCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(info.name).font(.headline).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 8)
-                StatePill(state: info.state, label: info.driveSuspendedSince != nil ? l.text("state.drive.suspended") : text.state(info.state))
+                StatePill(state: info.state, label: info.driveSuspendedSince != nil && info.driveMounted != true ? l.text("state.drive.suspended") : text.state(info.state))
             }
             if let task {
                 Text("\(text.mode(task.mode)) · \(task.removableDrive != nil ? l.text("card.schedule.drive") : text.schedule(task.schedule))")
