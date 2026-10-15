@@ -1,3 +1,10 @@
+SyncMacPro 1.6.0 — mises à jour automatiques.
+
+**Nouveau (1.6.0)**
+- Mises à jour automatiques : chaque nouvelle version est téléchargée en arrière-plan, vérifiée (signature de l'auteur : une version falsifiée est refusée), puis installée dès qu'aucune copie ne tourne ; l'app se relance et l'annonce. Réglages › À propos : « Installer automatiquement » (désactivé : bouton « Installer et relancer »), « Vérifier maintenant ».
+- Une copie en cours n'est jamais coupée par une mise à jour : l'installation attend la fin des copies, et l'agent n'est redémarré qu'au repos.
+- Cette version s'installe encore à la main (dernière fois) ; les suivantes arriveront seules.
+
 SyncMacPro 1.5.0 — finitions de la sauvegarde sur disque amovible.
 
 **Corrections (1.5.0)**
