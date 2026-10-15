@@ -463,3 +463,28 @@
 "tasks.copies.dismiss" = "Close this summary";
 "card.abandon" = "Abandon";
 "card.eject" = "Eject";
+
+/* Disque amovible (1.4.0) */
+"drive.elapsed.min" = "%d min";
+"drive.elapsed.h" = "%d h";
+"drive.elapsed.d" = "%d d";
+"card.drive.suspended" = "Paused: drive “%@” unplugged for %@";
+"card.drive.mounted" = "Drive “%@” connected";
+"card.drive.unplugged" = "Drive “%@” unplugged: the backup starts when you plug it in";
+"state.drive.suspended" = "Paused: drive unplugged";
+"menubar.drives" = "Drives";
+"editor.drive.title" = "Removable drive";
+"editor.drive.link" = "Start the backup when this drive is plugged in";
+"editor.drive.identity" = "Drive: %@ (identifier %@)";
+"editor.drive.nouuid" = "The drive “%@” has no volume identifier: it cannot be recognized reliably, so the task cannot be linked to it.";
+"editor.drive.noschedule" = "The backup starts when the drive is plugged in, with no schedule. You can still run it by hand while the drive is connected.";
+"editor.drive.trigger" = "Trigger";
+"editor.drive.trigger.every" = "Every time it is plugged in";
+"editor.drive.trigger.days" = "At most once every N days";
+"editor.drive.days" = "At most every %d day(s)";
+"editor.drive.window" = "Resume the same backup within %d day(s) after unplugging";
+"editor.drive.eject" = "When the backup is done";
+"editor.drive.eject.never" = "Notification only";
+"editor.drive.eject.button" = "“Eject” button";
+"editor.drive.eject.automatic" = "Eject automatically";
+"card.schedule.drive" = "When the drive is plugged in";

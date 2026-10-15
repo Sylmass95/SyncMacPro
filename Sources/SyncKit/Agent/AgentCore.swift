@@ -543,7 +543,8 @@ public actor AgentCore {
             } else {
                 runState = .idle
             }
-            let next = task.isEnabled ? entry.flatMap { dueDate(task, $0, now) } : nil
+            // Une tâche liée à un disque part au branchement : aucune échéance à annoncer.
+            let next = task.isEnabled && task.removableDrive == nil ? entry.flatMap { dueDate(task, $0, now) } : nil
             let last = (try? history.list(taskID: task.id, limit: 1))?.first
             return AgentTaskInfo(
                 id: task.id, name: task.name, state: runState, nextDue: next, lastRun: last,

@@ -31,11 +31,15 @@ struct TaskCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(info.name).font(.headline).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 8)
-                StatePill(state: info.state, label: text.state(info.state))
+                StatePill(state: info.state, label: info.driveSuspendedSince != nil ? l.text("state.drive.suspended") : text.state(info.state))
             }
             if let task {
-                Text("\(text.mode(task.mode)) · \(text.schedule(task.schedule))")
+                Text("\(text.mode(task.mode)) · \(task.removableDrive != nil ? l.text("card.schedule.drive") : text.schedule(task.schedule))")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            if let drive = DrivePresentation(localizer: l, now: text.now).line(info: info, task: task) {
+                Label(drive, systemImage: "externaldrive").font(.caption)
+                    .foregroundStyle(info.driveSuspendedSince != nil ? Color.orange : Color.secondary).lineLimit(2)
             }
             if info.isOneOff {
                 Label(l.text("card.oneoff"), systemImage: "doc.on.doc").font(.caption).foregroundStyle(.secondary)

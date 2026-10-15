@@ -348,6 +348,9 @@ public final class AgentModel {
 
     public func enqueue(_ id: UUID) async { await act(on: id) { try await $0.perform(.enqueue(id)) } }
     public func dequeue(_ id: UUID) async { await act(on: id) { try await $0.perform(.dequeue(id)) } }
+    /// Disque amovible (1.4.0).
+    public func abandonSuspended(_ id: UUID) async { await act(on: id) { try await $0.perform(.abandonSuspended(id)) } }
+    public func ejectDrive(_ id: UUID) async { await act(on: id) { try await $0.perform(.ejectDrive(id)) } }
     public func setQueueRunning(_ running: Bool) async { await act(on: nil) { try await $0.perform(.setQueueRunning(running)) } }
 
     /// Monte (−1) ou descend (+1) un élément de la file.

@@ -132,7 +132,9 @@ struct DashboardBody: View {
             stop: { Task { await model.stop(id) } },
             approve: { Task { await model.approve(id) } },
             enqueue: { Task { await model.enqueue(id) } },
-            dequeue: { Task { await model.dequeue(id) } }
+            dequeue: { Task { await model.dequeue(id) } },
+            abandon: { Task { await model.abandonSuspended(id) } },
+            eject: { Task { await model.ejectDrive(id) } }
         )
     }
 }

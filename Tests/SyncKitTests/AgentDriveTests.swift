@@ -290,4 +290,15 @@ final class AgentDriveTests: XCTestCase {
         XCTAssertTrue(last.body.contains("vous pouvez éjecter « Extreme Pro »"), last.body)
         XCTAssertTrue(drives.ejected.get().isEmpty)
     }
+
+    func testLinkedTaskAnnouncesNoScheduledRun() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        var task = backup()
+        task.schedule = .daily(hour: 3, minute: 0)
+        try h.save([task])
+        let core = h.makeCore(drives: FakeDriveMonitor())
+        await core.start()
+        let info = await core.status().tasks[0]
+        XCTAssertNil(info.nextDue, "la sauvegarde part au branchement, pas à une heure")
+    }
 }

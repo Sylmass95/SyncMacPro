@@ -98,6 +98,58 @@ public struct ScheduleDraft: Equatable, Sendable {
     }
 }
 
+/// Section « Disque amovible » de l'éditeur : proposée quand la destination est sur un disque externe.
+public struct RemovableDraft: Equatable, Sendable {
+    /// Lier la tâche au disque (la sauvegarde part au branchement) : choix explicite de l'utilisateur.
+    public var linked = false
+    /// `nil` : volume sans identifiant (certains formats), il ne peut pas être lié.
+    public var volumeUUID: String?
+    public var volumeName: String
+    public var relativePath: String
+    public var everyConnection = true
+    public var everyDays = 7
+    public var resumeWindowDays = 3
+    public var eject: RemovableDrive.Eject = .button
+
+    public init?(volume: VolumeInfo, path: String) {
+        guard volume.isRemovable else { return nil }
+        volumeUUID = volume.uuid
+        volumeName = volume.name
+        relativePath = volume.relativePath(of: path)
+    }
+
+    public init(_ drive: RemovableDrive) {
+        linked = true
+        volumeUUID = drive.volumeUUID
+        volumeName = drive.volumeName
+        relativePath = drive.relativePath
+        resumeWindowDays = drive.resumeWindowDays
+        eject = drive.eject
+        switch drive.trigger {
+        case .everyConnection: everyConnection = true
+        case .atMostEveryDays(let days):
+            everyConnection = false
+            everyDays = days
+        }
+    }
+
+    /// Le volume de la destination a changé (autre dossier, autre disque) : identité reprise, réglages gardés.
+    mutating func adopt(_ volume: VolumeInfo, path: String) {
+        volumeUUID = volume.uuid
+        volumeName = volume.name
+        relativePath = volume.relativePath(of: path)
+    }
+
+    public var drive: RemovableDrive? {
+        guard linked, let volumeUUID else { return nil }
+        return RemovableDrive(
+            volumeUUID: volumeUUID, volumeName: volumeName, relativePath: relativePath,
+            trigger: everyConnection ? .everyConnection : .atMostEveryDays(max(1, everyDays)),
+            resumeWindowDays: min(30, max(1, resumeWindowDays)), eject: eject
+        )
+    }
+}
+
 public enum TaskTemplate: String, CaseIterable, Identifiable, Sendable {
     case copyToNAS, syncTwoFolders, backupToDrive
     public var id: String { rawValue }
@@ -117,6 +169,8 @@ public struct TaskDraft: Equatable, Sendable {
     public var scheduleDraft: ScheduleDraft
     public var notifications: NotificationPolicy
     public var isEnabled: Bool
+    /// `nil` : destination ni sur un disque externe ni liée à un disque.
+    public var removable: RemovableDraft?
 
     public init(id: UUID = UUID()) {
         self.id = id
@@ -144,6 +198,7 @@ public struct TaskDraft: Equatable, Sendable {
         scheduleDraft = ScheduleDraft(task.schedule)
         notifications = task.notifications
         isEnabled = task.isEnabled
+        removable = task.removableDrive.map(RemovableDraft.init)
     }
 
     public static func duplicate(of task: SyncTask, suffix: String) -> TaskDraft {
@@ -176,12 +231,24 @@ public struct TaskDraft: Equatable, Sendable {
     }
 
     public func task(resolver: EndpointResolver = .system) -> SyncTask {
-        SyncTask(
+        var task = SyncTask(
             id: id, name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             source: source.endpoint(resolver), destination: destination.endpoint(resolver), sourceItems: sourceItems,
             mode: mode, options: options, schedule: scheduleDraft.schedule, notifications: notifications,
             conditions: conditions, isEnabled: isEnabled
         )
+        task.removableDrive = destination.kind == .folder ? removable?.drive : nil
+        return task
+    }
+
+    /// Relit le volume de la destination : section proposée sur un disque externe, retirée sur un disque interne,
+    /// un partage réseau ou un service en ligne ; disque débranché (chemin introuvable) : le lien est gardé.
+    public mutating func refreshRemovable(lookup: (String) -> VolumeInfo? = VolumeLookup.info(forPath:)) {
+        let path = (destination.path.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
+        guard destination.kind == .folder, !path.isEmpty else { removable = nil; return }
+        guard let volume = lookup(path) else { return }
+        guard volume.isRemovable else { removable = nil; return }
+        if removable == nil { removable = RemovableDraft(volume: volume, path: path) } else { removable?.adopt(volume, path: path) }
     }
 
     /// Ce qui distingue deux exécutions : la tâche sans son nom (un renommage ne périme pas une simulation).
