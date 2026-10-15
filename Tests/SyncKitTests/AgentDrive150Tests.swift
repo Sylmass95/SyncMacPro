@@ -168,7 +168,7 @@ final class AgentDrive150Tests: XCTestCase {
     func testAgentRestartIsNotANewConnection() async throws {
         let h = try AgentHarness(start: Date(timeIntervalSince1970: 1_000))
         let drives = FakeDriveMonitor()
-        drives.mountDates.set(["/Volumes/Extreme Pro": Date(timeIntervalSince1970: 990)])
+        drives.mountDates.set(["/Volumes/Extreme Pro": Date(timeIntervalSince1970: 990.6)])   // fractions de seconde, comme une vraie date de création
         try h.save([backup()])
         let core = h.makeCore(drives: drives)
         await core.start()

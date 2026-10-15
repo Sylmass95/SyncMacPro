@@ -13,7 +13,10 @@ extension AgentCore {
         let current = drives.mountedVolumes()
         // Branchement daté du montage si on le connaît : un redémarrage de l'agent n'est pas un nouveau branchement.
         for (uuid, path) in current where mountedDrives[uuid] == nil {
-            mountSeen[uuid] = min(now, drives.mountDate(path: path) ?? now)
+            // À la seconde : l'état enregistré garde les dates à la seconde près (sinon, relu après un redémarrage,
+            // le branchement servi paraîtrait plus ancien que le branchement vu).
+            let seen = min(now, drives.mountDate(path: path) ?? now).timeIntervalSince1970.rounded(.down)
+            mountSeen[uuid] = Date(timeIntervalSince1970: seen)
         }
         for uuid in mountedDrives.keys where current[uuid] == nil {
             mountSeen[uuid] = nil
