@@ -1,3 +1,8 @@
+SyncMacPro 1.6.1 — première mise à jour automatique.
+
+**1.6.1**
+- Aucun changement fonctionnel : cette version sert à vérifier la mise à jour automatique depuis la 1.6.0 (téléchargement, attente de la fin des copies, installation, relance).
+
 SyncMacPro 1.6.0 — mises à jour automatiques.
 
 **Nouveau (1.6.0)**
