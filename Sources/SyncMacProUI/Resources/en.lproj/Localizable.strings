@@ -455,3 +455,8 @@
 "network.unit" = "Mbit/s";
 "network.invalid" = "A positive number is expected (in Mbit/s).";
 "network.help" = "In Mbit/s, like speedtest. Download applies to copies from an online service, upload to copies to an online service, local network to copies between disks and NAS. Copies in the same direction share the cap; a change applies to running copies.";
+"mini.title" = "Transfers";
+"mini.expand" = "Show full window";
+"mini.idle" = "No transfer running";
+"mini.offline" = "Agent unreachable";
+"mini.toggle" = "Mini mode";

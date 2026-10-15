@@ -49,6 +49,12 @@ struct SyncMacProApp: App {
                 .task { await updates.checkIfDue() }
         }
         .defaultSize(width: 1180, height: 720)
+        .commands {
+            CommandGroup(after: .windowList) {
+                Button(localizer.text("mini.toggle")) { MiniPanelController.shared.toggle(model: model, localizer: localizer) }
+                    .keyboardShortcut("m", modifiers: [.command, .option])
+            }
+        }
 
         MenuBarExtra {
             MenuBarContent(model: model, localizer: localizer)
