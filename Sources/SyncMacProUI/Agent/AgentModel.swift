@@ -23,6 +23,10 @@ public final class AgentModel {
     /// File d'attente explicite et plafonds de débit, tels que l'agent les tient (`nil` pour un agent plus ancien).
     public private(set) var queue: QueueInfo?
     public private(set) var bandwidth: BandwidthLimits?
+    /// Copies ponctuelles terminées (l'agent les oublie) : gardées avec leur bilan jusqu'à ce qu'on les ferme.
+    public private(set) var finishedCopies: [AgentTaskInfo] = []
+
+    public func dismissFinishedCopy(_ id: UUID) { finishedCopies.removeAll { $0.id == id } }
     public private(set) var history: [RunRecord] = []
     public private(set) var historyError: String?
     public private(set) var busyTasks: Set<UUID> = []
@@ -249,6 +253,14 @@ public final class AgentModel {
     }
 
     private func apply(status new: AgentStatus, tasks list: [SyncTask]) {
+        let present = Set(new.tasks.map(\.id))
+        for old in status?.tasks ?? [] where old.isOneOff && (old.state == .running || old.state == .paused)
+            && !present.contains(old.id) && !finishedCopies.contains(where: { $0.id == old.id }) {
+            var done = old
+            done.state = .idle
+            done.queuePosition = nil
+            finishedCopies.append(done)
+        }
         status = new
         queue = new.queue
         // Une saisie en attente d'envoi l'emporte sur la valeur relue.

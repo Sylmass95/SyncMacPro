@@ -4,9 +4,11 @@ import SwiftUI
 /// Fenêtre flottante du mode miniature : au premier plan, sur tous les bureaux, position retenue (comme RsyncGUI).
 /// Pendant le mode miniature, la grande fenêtre est masquée ; « Agrandir » la rouvre.
 @MainActor
-public final class MiniPanelController {
+public final class MiniPanelController: NSObject, NSWindowDelegate {
     public static let shared = MiniPanelController()
     private var panel: NSPanel?
+    /// Rouvre la grande fenêtre (remplaçable par les tests).
+    var onRestore: () -> Void = { MiniPanelController.restoreMainWindow() }
 
     public var isShown: Bool { panel?.isVisible == true }
 
@@ -24,7 +26,14 @@ public final class MiniPanelController {
     /// Ferme la miniature et rouvre la grande fenêtre.
     public func hide() {
         panel?.orderOut(nil)
-        if let main = NSApp.windows.first(where: Self.isMainWindow) {
+        onRestore()
+    }
+
+    /// Fermer la miniature par sa croix rouvre aussi la grande fenêtre.
+    public func windowWillClose(_ notification: Notification) { onRestore() }
+
+    static func restoreMainWindow() {
+        if let main = NSApp.windows.first(where: isMainWindow) {
             main.makeKeyAndOrderFront(nil)
         } else {
             WindowReopener.shared.handleReopen(hasVisibleWindows: false)
@@ -51,6 +60,7 @@ public final class MiniPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.titlebarAppearsTransparent = true
         panel.minSize = NSSize(width: 340, height: 160)
+        panel.delegate = self
         let controller = self
         panel.contentView = NSHostingView(rootView: MiniView(model: model, localizer: localizer) { controller.hide() }.glassThemed())
         panel.setFrameAutosaveName("SyncMacProMini")

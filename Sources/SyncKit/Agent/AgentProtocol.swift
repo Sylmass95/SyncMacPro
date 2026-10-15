@@ -51,6 +51,9 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case moveInQueue(UUID, to: Int)
     case setQueueRunning(Bool)
     case setBandwidth(BandwidthLimits)
+    // Disque amovible (1.4.0 : ajouts)
+    case abandonSuspended(UUID)
+    case ejectDrive(UUID)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {

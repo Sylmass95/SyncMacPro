@@ -50,6 +50,7 @@ public enum AgentRouter {
             case .moveInQueue(let id, let index): try await core.moveInQueue(id, to: index)
             case .setQueueRunning(let running): await core.setQueueRunning(running)
             case .setBandwidth(let limits): await core.setBandwidth(limits)
+            case .abandonSuspended, .ejectDrive: return .error(.internalFailure("non pris en charge"))
             }
             return .ok
         } catch let error as AgentError {

@@ -15,6 +15,9 @@ public struct TaskScheduleState: Codable, Equatable, Sendable {
     public var wasAvailable: Bool?
     /// Bloquée par le garde-fou de suppression, en attente d'une validation de l'utilisateur.
     public var awaitingApproval: Bool = false
+    /// Disque amovible : exécution suspendue (disque débranché) et dernier branchement déjà traité.
+    public var suspendedRun: SuspendedRun?
+    public var lastMountHandled: Date?
 
     public init(firstSeen: Date) { self.firstSeen = firstSeen }
 }

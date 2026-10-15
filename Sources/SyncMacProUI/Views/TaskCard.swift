@@ -9,6 +9,8 @@ struct TaskCardActions {
     var approve: () -> Void = {}
     var enqueue: () -> Void = {}
     var dequeue: () -> Void = {}
+    var abandon: () -> Void = {}
+    var eject: () -> Void = {}
 }
 
 @MainActor
@@ -87,28 +89,41 @@ struct TaskCard: View {
         return min(1, Double(info.doneBytes) / Double(total))
     }
 
-    @ViewBuilder private var buttons: some View {
+    /// Boutons d'une carte selon l'état (fonction pure, testée).
+    enum CardAction: Equatable { case run, pause, resume, stop, approve, enqueue, dequeue, abandon, eject }
+
+    static func availableActions(info: AgentTaskInfo, task: SyncTask?, driveMounted: Bool?) -> [CardAction] {
         switch info.state {
-        case .running:
-            button("card.pause", "pause.fill", actions.pause)
-            button("card.stop", "stop.fill", actions.stop)
-        case .paused:
-            button("card.resume", "play.fill", actions.resume)
-            button("card.stop", "stop.fill", actions.stop)
-        case .queued:
-            button("card.stop", "stop.fill", actions.stop)
-        case .awaitingApproval:
-            Button(action: actions.approve) { Label(l.text("card.approve"), systemImage: "checkmark.shield") }
-                .buttonStyle(GlassButtonStyle(prominent: true)).disabled(busy)
-            button("card.run", "play.fill", actions.run)
+        case .running: return [.pause, .stop]
+        case .paused: return [.resume, .stop]
+        case .queued: return [.stop]
+        case .awaitingApproval: return [.approve, .run]
         case .idle, .waiting, .disabled:
-            button("card.run", "play.fill", actions.run)
-            if info.isOneOff == false {
-                if info.queuePosition == nil {
-                    button("card.enqueue", "text.badge.plus", actions.enqueue)
-                } else {
-                    button("queue.remove", "text.badge.minus", actions.dequeue)
-                }
+            // Une copie ponctuelle (en file ou terminée) ne se relance pas d'ici : elle n'est pas enregistrée.
+            if info.isOneOff { return info.queuePosition != nil ? [.dequeue] : [] }
+            var result: [CardAction] = [.run, info.queuePosition == nil ? .enqueue : .dequeue]
+            if info.driveSuspendedSince != nil { result.append(.abandon) }
+            if let drive = task?.removableDrive, drive.eject == .button, driveMounted == true, info.driveSuspendedSince == nil {
+                result.append(.eject)
+            }
+            return result
+        }
+    }
+
+    @ViewBuilder private var buttons: some View {
+        ForEach(Self.availableActions(info: info, task: task, driveMounted: info.driveMounted), id: \.self) { action in
+            switch action {
+            case .run: button("card.run", "play.fill", actions.run)
+            case .pause: button("card.pause", "pause.fill", actions.pause)
+            case .resume: button("card.resume", "play.fill", actions.resume)
+            case .stop: button("card.stop", "stop.fill", actions.stop)
+            case .approve:
+                Button(action: actions.approve) { Label(l.text("card.approve"), systemImage: "checkmark.shield") }
+                    .buttonStyle(GlassButtonStyle(prominent: true)).disabled(busy)
+            case .enqueue: button("card.enqueue", "text.badge.plus", actions.enqueue)
+            case .dequeue: button("queue.remove", "text.badge.minus", actions.dequeue)
+            case .abandon: button("card.abandon", "xmark.circle", actions.abandon)
+            case .eject: button("card.eject", "eject.fill", actions.eject)
             }
         }
     }

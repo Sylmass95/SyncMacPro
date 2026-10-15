@@ -460,3 +460,6 @@
 "mini.idle" = "Aucun transfert en cours";
 "mini.offline" = "Agent injoignable";
 "mini.toggle" = "Mode miniature";
+"tasks.copies.dismiss" = "Fermer ce bilan";
+"card.abandon" = "Abandonner";
+"card.eject" = "Éjecter";

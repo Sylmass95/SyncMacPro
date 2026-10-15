@@ -20,6 +20,13 @@ public struct TasksView: View {
         model.tasks.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    /// Copie terminée : son bilan vient de l'historique (l'agent l'a oubliée).
+    private func withHistory(_ info: AgentTaskInfo) -> AgentTaskInfo {
+        var shown = info
+        shown.lastRun = model.history.first { $0.taskID == info.id } ?? info.lastRun
+        return shown
+    }
+
     public var body: some View {
         let text = CardText(localizer: localizer)
         VStack(spacing: 0) {
@@ -42,16 +49,24 @@ public struct TasksView: View {
                     if model.queue?.items.isEmpty == false || model.queue?.current != nil {
                         QueueSection(model: model, localizer: localizer).padding([.horizontal, .top], 12)
                     }
-                    let copies = (model.status?.tasks ?? []).filter(\.isOneOff)
+                    let copies = (model.status?.tasks ?? []).filter(\.isOneOff) + model.finishedCopies
                     if !copies.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(localizer.text("tasks.copies")).font(.headline)
                             ForEach(copies) { info in
-                                TaskCard(info: info, task: nil, progress: model.progress[info.id], busy: model.busyTasks.contains(info.id),
-                                         text: text, actions: TaskCardActions(
-                                            pause: { Task { await model.pause(info.id) } },
-                                            resume: { Task { await model.resume(info.id) } },
-                                            stop: { Task { await model.stop(info.id) } }))
+                                let finished = model.finishedCopies.contains { $0.id == info.id }
+                                ZStack(alignment: .topTrailing) {
+                                    TaskCard(info: finished ? withHistory(info) : info, task: nil, progress: model.progress[info.id], busy: model.busyTasks.contains(info.id),
+                                             text: text, actions: TaskCardActions(
+                                                pause: { Task { await model.pause(info.id) } },
+                                                resume: { Task { await model.resume(info.id) } },
+                                                stop: { Task { await model.stop(info.id) } },
+                                                dequeue: { Task { await model.dequeue(info.id) } }))
+                                    if finished {
+                                        Button { model.dismissFinishedCopy(info.id) } label: { Image(systemName: "xmark.circle.fill") }
+                                            .buttonStyle(.borderless).help(localizer.text("tasks.copies.dismiss")).padding(8)
+                                    }
+                                }
                             }
                         }
                         .padding([.horizontal, .top], 12)

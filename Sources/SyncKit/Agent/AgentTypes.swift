@@ -100,11 +100,17 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     public var isOneOff: Bool
     /// Place dans la file d'attente explicite (1 = la prochaine) ; `nil` hors de la file.
     public var queuePosition: Int?
+    /// Disque amovible : suspendue depuis (disque débranché) ; disque branché ou non. `nil` hors disque amovible.
+    public var driveSuspendedSince: Date?
+    public var driveMounted: Bool?
 
     public init(
         id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,
-        progress: ProgressInfo? = nil, isOneOff: Bool = false, queuePosition: Int? = nil
+        progress: ProgressInfo? = nil, isOneOff: Bool = false, queuePosition: Int? = nil,
+        driveSuspendedSince: Date? = nil, driveMounted: Bool? = nil
     ) {
+        self.driveSuspendedSince = driveSuspendedSince
+        self.driveMounted = driveMounted
         self.queuePosition = queuePosition
         self.id = id
         self.name = name
