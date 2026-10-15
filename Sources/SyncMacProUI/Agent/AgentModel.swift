@@ -59,6 +59,8 @@ public final class AgentModel {
         let model = AgentModel(agent: UnavailableAgent())
         model.connection = connection
         model.status = status
+        model.queue = status?.queue
+        model.bandwidth = status?.bandwidth
         model.tasks = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         model.progress = progress
         model.history = history

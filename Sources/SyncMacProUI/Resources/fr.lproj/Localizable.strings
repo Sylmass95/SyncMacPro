@@ -436,3 +436,15 @@
 "progress.average" = "%@ en moyenne";
 "progress.elapsed" = "Écoulé %@";
 "summary.dirs" = "%d dossier(s)";
+"queue.title" = "File d’attente";
+"queue.start" = "Lancer la file";
+"queue.suspend" = "Suspendre la file";
+"queue.current" = "En cours : %@";
+"queue.empty" = "Aucune tâche en file";
+"queue.up" = "Monter";
+"queue.down" = "Descendre";
+"queue.remove" = "Retirer de la file";
+"card.enqueue" = "Mettre en file";
+"card.inqueue" = "En file (%d)";
+"copy.enqueue" = "Mettre en file";
+"tasks.copies" = "Copies";

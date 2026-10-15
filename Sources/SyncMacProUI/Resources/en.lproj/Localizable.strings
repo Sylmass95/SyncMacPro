@@ -436,3 +436,15 @@
 "progress.average" = "%@ average";
 "progress.elapsed" = "Elapsed %@";
 "summary.dirs" = "%d folder(s)";
+"queue.title" = "Queue";
+"queue.start" = "Start queue";
+"queue.suspend" = "Pause queue";
+"queue.current" = "Running: %@";
+"queue.empty" = "No task in the queue";
+"queue.up" = "Move up";
+"queue.down" = "Move down";
+"queue.remove" = "Remove from queue";
+"card.enqueue" = "Add to queue";
+"card.inqueue" = "Queued (%d)";
+"copy.enqueue" = "Add to queue";
+"tasks.copies" = "Copies";

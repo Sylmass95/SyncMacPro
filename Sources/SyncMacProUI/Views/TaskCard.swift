@@ -7,6 +7,8 @@ struct TaskCardActions {
     var resume: () -> Void = {}
     var stop: () -> Void = {}
     var approve: () -> Void = {}
+    var enqueue: () -> Void = {}
+    var dequeue: () -> Void = {}
 }
 
 @MainActor
@@ -36,6 +38,9 @@ struct TaskCard: View {
             if info.isOneOff {
                 Label(l.text("card.oneoff"), systemImage: "doc.on.doc").font(.caption).foregroundStyle(.secondary)
             }
+            if let position = info.queuePosition {
+                Label(l.format("card.inqueue", position), systemImage: "list.number").font(.caption.bold()).foregroundStyle(.blue)
+            }
             if isActive { progressSection }
             if info.state == .awaitingApproval {
                 Text(l.format("card.approval.body", info.lastRun?.summary?.message ?? ""))
@@ -44,9 +49,13 @@ struct TaskCard: View {
             Divider()
             VStack(alignment: .leading, spacing: 2) {
                 Text(l.format("card.last", text.lastRun(info.lastRun)))
-                Text(l.format("card.next", text.nextRun(info.nextDue)))
+                if !isActive, let summary = info.lastRun?.summary, info.lastRun?.status != .running,
+                   summary.directories != nil || summary.averageSpeed != nil {
+                    Text(ProgressPresentation(localizer: l).summaryLines(summary).joined(separator: " · "))
+                }
+                if let next = text.nextRunLine(info: info, task: task) { Text(next) }
             }
-            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            .font(.caption).foregroundStyle(.secondary).lineLimit(3)
             HStack { buttons }.controlSize(.small)
         }
         .padding(14)
@@ -62,6 +71,7 @@ struct TaskCard: View {
                     .accessibilityLabel(l.text("state.running"))
                     .accessibilityValue("\(progress.overallPercent ?? Int(fraction(progress) * 100)) %")
                 Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                TaskProgressDetails(progress: progress, presentation: ProgressPresentation(localizer: l))
                 if let name = progress.currentName {
                     Text(name).font(.caption).lineLimit(1).truncationMode(.middle)
                 }
@@ -93,6 +103,13 @@ struct TaskCard: View {
             button("card.run", "play.fill", actions.run)
         case .idle, .waiting, .disabled:
             button("card.run", "play.fill", actions.run)
+            if info.isOneOff == false {
+                if info.queuePosition == nil {
+                    button("card.enqueue", "text.badge.plus", actions.enqueue)
+                } else {
+                    button("queue.remove", "text.badge.minus", actions.dequeue)
+                }
+            }
         }
     }
 

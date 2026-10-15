@@ -103,10 +103,11 @@ public struct CardText {
         return localizer.format("last.format", label, when)
     }
 
-    /// Ligne « Prochaine : … » ; `nil` pour une tâche manuelle ou une copie (rien à annoncer).
+    /// Ligne « Prochaine : … » ; `nil` pour une tâche manuelle, une copie ou sans échéance (rien à annoncer).
     public func nextRunLine(info: AgentTaskInfo, task: SyncTask?) -> String? {
-        if info.isOneOff || task?.schedule == .manual { return nil }
-        return localizer.format("card.next", nextRun(info.nextDue))
+        // « Sans échéance » n'apprend rien : sans date, la ligne disparaît.
+        guard !info.isOneOff, task?.schedule != .manual, let next = info.nextDue else { return nil }
+        return localizer.format("card.next", nextRun(next))
     }
 
     /// « 3 fichier(s), 5,0 Mo » ; ajoute « , 2 erreur(s) » s'il y en a.
