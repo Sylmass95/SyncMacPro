@@ -54,6 +54,8 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case notInQueue
     /// Le disque amovible de la tâche n'est pas branché (1.4.0).
     case driveNotConnected(String)
+    /// Le système a refusé d'éjecter le disque (fichier ouvert, Spotlight) (1.4.0).
+    case ejectRefused(String)
 
     public var errorDescription: String? {
         switch self {
@@ -75,6 +77,7 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .rcloneMissing: return "rclone est introuvable : installez-le avec « brew install rclone »."
         case .notInQueue: return "Cette tâche n'est pas dans la file."
         case .driveNotConnected(let name): return "Le disque « \(name) » n'est pas branché."
+        case .ejectRefused(let reason): return "Le disque n'a pas pu être éjecté : \(reason)"
         }
     }
 }

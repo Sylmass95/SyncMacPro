@@ -73,6 +73,8 @@ public actor AgentCore {
     var remoteTypesLoaded = false
     /// Disques amovibles : moniteur, volumes montés (UUID → point de montage) et date de leur branchement.
     let drives: DriveMonitor?
+    /// Éjections automatiques en cours (attendues par `waitForIdle`).
+    var ejectTasks: [UUID: Task<Void, Never>] = [:]
     var mountedDrives: [String: String] = [:]
     var mountSeen: [String: Date] = [:]
     /// Copies ponctuelles mises en file d'attente (jamais enregistrées) et élément de la file en cours.
@@ -471,7 +473,11 @@ public actor AgentCore {
             persist()
         }
 
-        notify(job.task, status, summary, oneOff: wasOneOff)
+        if status == .succeeded, let drive = job.task.removableDrive, !shuttingDown {
+            finishedOnDrive(job.task, drive: drive, summary: summary)
+        } else {
+            notify(job.task, status, summary, oneOff: wasOneOff)
+        }
         refreshActivity()
         emit(.taskFinished(id, status, summary.message))
         startQueued()
@@ -480,7 +486,7 @@ public actor AgentCore {
         advanceUserQueue()
     }
 
-    func notify(_ task: SyncTask, _ status: RunStatus, _ summary: RunSummary, oneOff: Bool = false) {
+    func notify(_ task: SyncTask, _ status: RunStatus, _ summary: RunSummary, oneOff: Bool = false, note: String? = nil) {
         if shuttingDown || status == .stopped || status == .interrupted || status == .running { return }
         let isError = status == .failed || status == .blocked || status == .quotaReached
         switch task.notifications {
@@ -495,8 +501,8 @@ public actor AgentCore {
         case .quotaReached: title = "\(task.name) : quota atteint"
         default: title = "\(task.name) : échec"
         }
-        let body = summary.message
-            ?? "\(summary.filesTransferred) fichier(s), \(Formatting.bytes(summary.bytesTransferred))"
+        let body = (summary.message
+            ?? "\(summary.filesTransferred) fichier(s), \(Formatting.bytes(summary.bytesTransferred))") + (note.map { " — \($0)" } ?? "")
         // Une copie ponctuelle n'existe plus après son exécution : il n'y a rien à valider, on explique comment relancer.
         if oneOff && status == .blocked {
             notifier.notify(
@@ -555,7 +561,7 @@ public actor AgentCore {
 
     /// Attend la fin de toutes les exécutions en cours (tests, arrêt de l'agent).
     public func waitForIdle() async {
-        while let running = jobTasks.values.first { await running.value }
+        while let running = jobTasks.values.first ?? ejectTasks.values.first { await running.value }
     }
 
     // MARK: débit

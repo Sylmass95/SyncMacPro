@@ -223,4 +223,71 @@ final class AgentDriveTests: XCTestCase {
         XCTAssertNil(info.driveSuspendedSince)
         XCTAssertEqual(try h.history.list(limit: 1).first?.summary?.message, "Abandonnée : disque débranché.")
     }
+
+    func testAutomaticEjectAfterSuccess() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let drives = FakeDriveMonitor()
+        try h.save([backup(eject: .automatic)])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core, at: "/Volumes/Extreme Pro 1")
+        await core.waitForIdle()
+        XCTAssertEqual(drives.ejected.get(), ["/Volumes/Extreme Pro 1"])
+        XCTAssertTrue(h.notifier.messages.get().last?.body.contains("éjecté") ?? false, "\(h.notifier.messages.get())")
+    }
+
+    func testNoEjectWhileAnotherRunUsesTheDrive() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0), gated: true)
+        let drives = FakeDriveMonitor()
+        var other = backup(eject: .automatic)
+        other.id = UUID()
+        other.name = "Photos"
+        try h.save([backup(eject: .automatic), other])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        XCTAssertEqual(h.factory.runners.get().count, 2)
+        h.factory.runners.get()[0].release()
+        let firstDone = await eventually { await core.status().tasks.filter { $0.state == .idle }.count == 1 }
+        XCTAssertTrue(firstDone)
+        XCTAssertTrue(drives.ejected.get().isEmpty, "l'autre sauvegarde écrit encore sur le disque")
+        h.factory.runners.get()[1].release()
+        await core.waitForIdle()
+        XCTAssertEqual(drives.ejected.get(), ["/Volumes/Extreme Pro"])
+    }
+
+    func testEjectRequestReportsRefusal() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let drives = FakeDriveMonitor()
+        let task = backup(eject: .button)
+        try h.save([task])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        await core.waitForIdle()
+        drives.ejectRefusal.set("Le volume est utilisé par Spotlight.")
+        do { try await core.ejectDrive(task.id); XCTFail("refus attendu") } catch {
+            XCTAssertEqual(error as? AgentError, .ejectRefused("Le volume est utilisé par Spotlight."))
+            XCTAssertTrue(error.localizedDescription.contains("Spotlight"))
+        }
+        drives.ejectRefusal.set(nil)
+        try await core.ejectDrive(task.id)
+        XCTAssertEqual(drives.ejected.get(), ["/Volumes/Extreme Pro"])
+        let info = await core.status().tasks[0]
+        XCTAssertEqual(info.driveMounted, false)
+    }
+
+    func testEndNotificationSaysYouCanEject() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let drives = FakeDriveMonitor()
+        try h.save([backup(eject: .never)])
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        await plugged(h, drives, core)
+        await core.waitForIdle()
+        let last = try XCTUnwrap(h.notifier.messages.get().last)
+        XCTAssertEqual(last.title, "Sauvegarde : terminée")
+        XCTAssertTrue(last.body.contains("vous pouvez éjecter « Extreme Pro »"), last.body)
+        XCTAssertTrue(drives.ejected.get().isEmpty)
+    }
 }

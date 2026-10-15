@@ -139,7 +139,37 @@ extension AgentCore {
             throw AgentError.alreadyRunning
         }
         if let refusal = await drives.eject(mountPath: mount) {
-            throw AgentError.internalFailure("éjection refusée : \(refusal)")
+            throw AgentError.ejectRefused(refusal)
+        }
+        drivesChanged()
+    }
+
+    /// Réussite d'une sauvegarde sur disque : éjection automatique si demandée et si rien d'autre n'écrit sur le
+    /// disque, sinon notification « vous pouvez éjecter ».
+    func finishedOnDrive(_ task: SyncTask, drive: RemovableDrive, summary: RunSummary) {
+        let othersOnDrive = jobs.values.contains { $0.task.removableDrive?.volumeUUID == drive.volumeUUID }
+        guard drive.eject == .automatic, !othersOnDrive, let drives, let mount = mountedDrives[drive.volumeUUID] else {
+            notify(task, .succeeded, summary, note: othersOnDrive ? nil : "vous pouvez éjecter « \(drive.volumeName) ».")
+            return
+        }
+        let id = task.id
+        ejectTasks[id] = Task { [weak self] in
+            let refusal = await drives.eject(mountPath: mount)
+            await self?.autoEjected(task, drive: drive, summary: summary, refusal: refusal)
+        }
+    }
+
+    func autoEjected(_ task: SyncTask, drive: RemovableDrive, summary: RunSummary, refusal: String?) {
+        ejectTasks[task.id] = nil
+        if let refusal {
+            log("éjection de « \(drive.volumeName) » refusée : \(refusal)")
+            // Un refus est un incident : signalé même quand seules les erreurs sont notifiées.
+            if task.notifications != .never {
+                notifier.notify(title: "\(task.name) : terminée",
+                                body: "Le disque « \(drive.volumeName) » n'a pas pu être éjecté : \(refusal)")
+            }
+        } else {
+            notify(task, .succeeded, summary, note: "disque « \(drive.volumeName) » éjecté.")
         }
         drivesChanged()
     }
