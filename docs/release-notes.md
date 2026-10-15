@@ -1,4 +1,16 @@
-SyncMacPro 1.2.4 — vider l'historique, et les corrections des versions 1.2.2 et 1.2.3.
+SyncMacPro 1.3.0 — file d'attente, progression détaillée, mode miniature et plafonds de débit.
+
+**Nouveau (1.3.0)**
+- File d'attente : « Mettre en file » sur une tâche ou une copie, puis « Lancer la file » ; les tâches partent une par une, dans l'ordre que vous choisissez (monter, descendre, retirer). Un échec ne bloque pas la file.
+- Progression comme RsyncGUI : fichiers et dossiers faits sur le total, vitesse moyenne, temps écoulé ; le bilan reste affiché sur la carte et dans l'historique.
+- Mode miniature (⌥⌘M ou le bouton de la barre d'outils) : une petite fenêtre toujours visible avec les transferts en cours et la file.
+- Réglages › Réseau : plafonds de réception et d'envoi internet et du réseau local, en Mbit/s comme speedtest, appliqués aux copies en cours ; les copies d'un même sens se partagent le plafond.
+- Garde-fou : un fichier vide à la source ne remplace plus une version non vide à la destination (cas d'un fichier que Drive pour ordinateur n'a pas fini d'envoyer).
+- `syncmacpro-ctl queue …` et `syncmacpro-ctl bandwidth …`.
+
+**Corrections (1.3.0)**
+- Une tâche manuelle n'affiche plus « Prochaine : Sans échéance ».
+- Le nombre d'erreurs ne compte plus plusieurs fois le même incident (une nouvelle tentative de rclone).
 
 **Nouveau (1.2.4)**
 - Historique › « Vider… » : vide tout l'historique, ou celui de la tâche choisie dans le filtre, après confirmation. Les journaux correspondants sont supprimés ; une exécution en cours est conservée ; tâches, fichiers et archives ne sont pas touchés. En ligne de commande : `syncmacpro-ctl history [tâche] --clear`.
