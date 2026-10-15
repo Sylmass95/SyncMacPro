@@ -69,19 +69,16 @@ extension TaskRunner {
             simulated.dryRun = true
             simulated.rcSocketPath = nil
             let planCommand = try RcloneCommandBuilder.command(for: task, run: simulated)
-            let pending = Locked<[String: Int]>([:])
+            let pending = Locked<Set<String>>([])
             let control = self.control
             counting = Task.detached { [self] in
                 let code = try? await self.stream(planCommand, errors: { line in
                     pending.update { RcloneDirectoryProgress.notePending(line, into: &$0) }
                 }) { line in pending.update { RcloneDirectoryProgress.notePending(line, into: &$0) } }
                 guard code == 0, !control.stopRequested else { return }
-                let counted = RcloneDirectoryProgress(directoriesOfPendingFiles: pending.get())
                 directories.update { current in
-                    // Fichiers copiés pendant le comptage : rejoués sur le compte tout neuf (même verrou que la copie).
-                    var fresh = counted
-                    for name in copiedEarly.get() { fresh.fileCopied(name) }
-                    current = fresh
+                    // Fichiers copiés pendant le comptage (même verrou que la copie) : comptés et faits.
+                    current = RcloneDirectoryProgress(pendingFiles: pending.get(), alreadyCopied: copiedEarly.get())
                 }
             }
         }

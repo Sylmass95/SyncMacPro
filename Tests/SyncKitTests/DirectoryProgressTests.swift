@@ -3,7 +3,7 @@ import XCTest
 
 final class DirectoryProgressTests: IntegrationTestCase {
     func testADirectoryIsDoneWhenAllItsFilesAreCopied() {
-        var progress = RcloneDirectoryProgress(directoriesOfPendingFiles: ["a": 2, "a/b": 1, "": 1])
+        var progress = RcloneDirectoryProgress(pendingFiles: ["a/x.txt", "a/y.txt", "a/b/z.txt", "racine.txt"])
         XCTAssertEqual(progress.total, 3)
         progress.fileCopied("a/x.txt")
         XCTAssertEqual(progress.done, 0)
@@ -23,12 +23,23 @@ final class DirectoryProgressTests: IntegrationTestCase {
         XCTAssertEqual(RcloneOutputParser.parse(line: replaced), .copied(name: "x.txt"))
     }
 
-    func testPendingFilesAreCountedPerDirectoryFromADryRun() {
-        var dirs: [String: Int] = [:]
-        RcloneDirectoryProgress.notePending(#"{"level":"notice","msg":"Skipped copy as --dry-run is set (size 12)","object":"a/b/z.txt"}"#, into: &dirs)
-        RcloneDirectoryProgress.notePending(#"{"level":"notice","msg":"Skipped copy as --dry-run is set (size 1)","object":"top.txt"}"#, into: &dirs)
-        RcloneDirectoryProgress.notePending(#"{"level":"notice","msg":"Skipped delete as --dry-run is set","object":"old.txt"}"#, into: &dirs)
-        XCTAssertEqual(dirs, ["a/b": 1, "": 1])
+    func testPendingFilesAreCollectedFromADryRun() {
+        var files: Set<String> = []
+        RcloneDirectoryProgress.notePending(#"{"level":"notice","msg":"Skipped copy as --dry-run is set (size 12)","object":"a/b/z.txt"}"#, into: &files)
+        RcloneDirectoryProgress.notePending(#"{"level":"notice","msg":"Skipped copy as --dry-run is set (size 1)","object":"top.txt"}"#, into: &files)
+        RcloneDirectoryProgress.notePending(#"{"level":"notice","msg":"Skipped delete as --dry-run is set","object":"old.txt"}"#, into: &files)
+        XCTAssertEqual(files, ["a/b/z.txt", "top.txt"])
+    }
+
+    // CI du 15/10 : la copie avait fini avant le comptage, qui n'a donc rien trouvé à copier (0 dossier au total).
+    // Les fichiers déjà copiés comptent aussi, sans doublon avec ceux que la simulation a encore vus.
+    func testFilesCopiedBeforeTheCountFinishesStillCount() {
+        let progress = RcloneDirectoryProgress(pendingFiles: ["a/1.txt"], alreadyCopied: ["a/1.txt", "a/2.txt", "b/3.txt", "c/4.txt"])
+        XCTAssertEqual(progress.total, 3)
+        XCTAssertEqual(progress.done, 3)
+        let partial = RcloneDirectoryProgress(pendingFiles: ["a/1.txt", "a/2.txt"], alreadyCopied: ["a/1.txt"])
+        XCTAssertEqual(partial.total, 1)
+        XCTAssertEqual(partial.done, 0)
     }
 
     // Copie rclone réelle : dossiers suivis, bilan avec dossiers et vitesse moyenne.
