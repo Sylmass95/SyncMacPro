@@ -141,7 +141,7 @@ extension TaskRunner {
             try? Data().write(to: URL(fileURLWithPath: workdir).appendingPathComponent(Self.bisyncLinksMarker))
         }
         return result(status: status, engine: .rclone, snapshot: snapshot, started: started,
-                      deletions: stats?.deletes ?? 0, errors: max(log.errors, stats?.errors ?? 0), message: message)
+                      deletions: stats?.deletes ?? 0, errors: log.errors > 0 ? log.errors : (stats?.errors ?? 0), message: message)
     }
 
     /// Marque d'un dossier d'état créé avec les liens courts (1.2.0) : les listes d'avant portent le nom des chemins

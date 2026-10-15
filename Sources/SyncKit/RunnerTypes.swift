@@ -182,6 +182,7 @@ final class RunLog: @unchecked Sendable {
     /// Les premières erreurs : la cause vient avant ses conséquences (voir `EngineErrorText`).
     private var firstErrors: [String] = []
     private var errorCount = 0
+    private var distinctErrors: Set<String> = []
     private var deletionCount = 0
     private var signalValue: OutputSignal?
     private var signalLine: String?
@@ -190,6 +191,8 @@ final class RunLog: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         errorCount += 1
         if firstErrors.count < 20 { firstErrors.append(line) }
+        // Un même incident revient à chaque tentative, et les lignes de résumé le rappellent : compté une fois.
+        if !EngineErrorText.isConsequence(line) { distinctErrors.insert(line) }
     }
 
     func addDeletion() { lock.lock(); deletionCount += 1; lock.unlock() }
@@ -200,14 +203,18 @@ final class RunLog: @unchecked Sendable {
         if signalValue == nil || found == .safetyAbort { signalValue = found; signalLine = line }
     }
 
-    var errors: Int { lock.lock(); defer { lock.unlock() }; return errorCount }
+    /// Erreurs distinctes ; au moins 1 s'il n'y a eu que des lignes de résumé.
+    var errors: Int {
+        lock.lock(); defer { lock.unlock() }
+        return max(distinctErrors.count, errorCount > 0 ? 1 : 0)
+    }
     var deletions: Int { lock.lock(); defer { lock.unlock() }; return deletionCount }
     var signal: OutputSignal? { lock.lock(); defer { lock.unlock() }; return signalValue }
     var signalText: String? { lock.lock(); defer { lock.unlock() }; return signalLine }
     /// Message d'échec : la première cause, expliquée.
     var mainError: String? {
         lock.lock(); defer { lock.unlock() }
-        return EngineErrorText.summary(errors: firstErrors, total: errorCount)
+        return EngineErrorText.summary(errors: firstErrors, total: max(distinctErrors.count, errorCount > 0 ? 1 : 0))
     }
 }
 
