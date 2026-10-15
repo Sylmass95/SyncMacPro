@@ -50,6 +50,15 @@ extension TaskRunner {
             options.maxDeleteCount = DeleteGuard.maxDeleteCount(existing: guardResult.existing, thresholdPercent: threshold)
         }
 
+        // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
+        var protectedEmpty: [String] = []
+        if !dryRun, [.copy, .mirror, .versioned, .move].contains(task.mode) {
+            protectedEmpty = await protectedEmptyFiles(task, options: options)
+            options.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rcloneEscape)
+            protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
+        }
+        defer { if let file = options.excludeFrom { try? FileManager.default.removeItem(atPath: file) } }
+
         // Dossiers à faire : une simulation en arrière-plan liste les fichiers à copier (la copie démarre tout de suite).
         let directories = Locked<RcloneDirectoryProgress?>(nil)
         let copiedEarly = Locked<[String]>([])   // fichiers copiés avant la fin du comptage
@@ -179,6 +188,9 @@ extension TaskRunner {
             }
         }
 
+        if status == .succeeded, message == nil, !protectedEmpty.isEmpty {
+            message = EmptySourceGuard.message(count: protectedEmpty.count)
+        }
         let snapshot = tracker.perform { tracker -> TransferSnapshot in
             if status == .succeeded { tracker.finish() } else { tracker.pause() }
             return tracker.snapshot()
@@ -192,6 +204,27 @@ extension TaskRunner {
         }
         return result(status: status, engine: .rclone, snapshot: snapshot, started: started,
                       deletions: stats?.deletes ?? 0, errors: log.errors > 0 ? log.errors : (stats?.errors ?? 0), message: message)
+    }
+
+    /// Fichiers vides de la source dont la destination a une version non vide (listes de rclone, sans rien copier).
+    private func protectedEmptyFiles(_ task: SyncTask, options: RunOptions) async -> [String] {
+        let empty = Locked<[String]>([])
+        let code = try? await stream(RcloneCommandBuilder.emptyFilesCommand(for: task, run: options)) { line in
+            empty.update { $0.append(line) }
+        }
+        guard code == 0, !empty.get().isEmpty else { return [] }
+        let list = FileManager.default.temporaryDirectory.appendingPathComponent("smp-liste-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: list) }
+        guard (try? empty.get().joined(separator: "\n").write(to: list, atomically: true, encoding: .utf8)) != nil,
+              let outcome = try? await collect(RcloneCommandBuilder.destinationSizesCommand(for: task, file: list.path, run: options)),
+              outcome.code == 0,
+              let entries = try? JSONSerialization.jsonObject(with: Data(outcome.output.utf8)) as? [[String: Any]]
+        else { return [] }
+        var sizes: [String: Int64] = [:]
+        for entry in entries {
+            if let path = entry["Path"] as? String, let size = (entry["Size"] as? NSNumber)?.int64Value { sizes[path] = size }
+        }
+        return EmptySourceGuard.protectedPaths(sourceEmpty: empty.get(), destinationSizes: sizes)
     }
 
     /// Marque d'un dossier d'état créé avec les liens courts (1.2.0) : les listes d'avant portent le nom des chemins

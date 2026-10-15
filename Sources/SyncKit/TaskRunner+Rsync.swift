@@ -6,7 +6,7 @@ extension TaskRunner {
     ) async throws -> RunResult {
         let rsync = try executable(for: .rsync)
         let started = configuration.now()
-        let runOptions = RunOptions(dryRun: dryRun, archiveStamp: stamp)
+        var runOptions = RunOptions(dryRun: dryRun, archiveStamp: stamp)
         onUpdate(.phase(.preparing))
 
         if task.mode == .verify {
@@ -61,6 +61,18 @@ extension TaskRunner {
             }
             knownPlan = plan
         }
+
+        // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
+        var protectedEmpty: [String] = []
+        if [.copy, .mirror, .move].contains(task.mode) {
+            let empty = EmptySourceGuard.emptyFiles(in: source, items: task.sourceItems)
+            protectedEmpty = EmptySourceGuard.protectedPaths(
+                sourceEmpty: empty, destinationSizes: EmptySourceGuard.sizes(of: empty, in: destination)
+            )
+            runOptions.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rsyncEscape)
+            protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
+        }
+        defer { if let file = runOptions.excludeFrom { try? FileManager.default.removeItem(atPath: file) } }
 
         let tracker = SafeTracker(now: configuration.now, fileInfo: { name in
             let size = (try? FileManager.default.attributesOfItem(atPath: Endpoint.join(source, name))[.size] as? NSNumber)?
@@ -162,6 +174,9 @@ extension TaskRunner {
             }
         }
 
+        if status == .succeeded, message == nil, !protectedEmpty.isEmpty {
+            message = EmptySourceGuard.message(count: protectedEmpty.count)
+        }
         let snapshot = tracker.perform { tracker -> TransferSnapshot in
             if status == .succeeded { tracker.finish() } else { tracker.pause() }
             return tracker.snapshot()

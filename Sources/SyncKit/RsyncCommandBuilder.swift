@@ -39,6 +39,7 @@ public enum RsyncCommandBuilder {
                 args.append("--bwlimit=\(limit)")
             }
         }
+        if let file = run.excludeFrom { args.append("--exclude-from=\(file)") }
         args += task.options.excludes.map { "--exclude=\($0)" }
         args += task.options.extraArguments
         if run.dryRun, task.mode != .verify { args.append("-n") }

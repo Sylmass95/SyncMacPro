@@ -27,6 +27,8 @@ public struct RunOptions: Equatable, Sendable {
     public var bandwidth: BandwidthRate?
     /// rclone : prise Unix de son contrôle à distance (limite modifiable en route).
     public var rcSocketPath: String?
+    /// Fichier d'exclusions de l'exécution (fichiers vides protégés, voir `EmptySourceGuard`).
+    public var excludeFrom: String?
 
     public init(
         dryRun: Bool = false,
