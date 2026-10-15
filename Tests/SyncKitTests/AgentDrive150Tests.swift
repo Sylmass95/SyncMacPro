@@ -122,7 +122,8 @@ final class AgentDrive150Tests: XCTestCase {
         await plugged(h, drives, core)
         await core.waitForIdle()
         drives.ejectDelay.set(400_000_000)
-        let first = Task { try await core.ejectDrive(task.id) }
+        let id = task.id   // Swift 5.10 : pas de `var` capturée dans une tâche concurrente
+        let first = Task { try await core.ejectDrive(id) }
         try await Task.sleep(nanoseconds: 100_000_000)
         do { try await core.ejectDrive(task.id); XCTFail("éjection déjà en cours") } catch {
             XCTAssertEqual(error as? AgentError, .ejectRefused("Une éjection de ce disque est déjà en cours."))
@@ -295,7 +296,8 @@ final class AgentDrive150Tests: XCTestCase {
         await plugged(h, drives, core)
         await core.waitForIdle()
         drives.ejectDelay.set(300_000_000)
-        let ejecting = Task { try await core.ejectDrive(task.id) }
+        let id = task.id   // Swift 5.10 : pas de `var` capturée dans une tâche concurrente
+        let ejecting = Task { try await core.ejectDrive(id) }
         try await Task.sleep(nanoseconds: 100_000_000)
         do { _ = try await core.simulate(task); XCTFail("éjection en cours") } catch {
             XCTAssertEqual(error as? AgentError, .ejectRefused("Le disque est en cours d'éjection."))
