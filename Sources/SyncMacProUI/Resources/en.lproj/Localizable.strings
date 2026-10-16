@@ -495,3 +495,4 @@
 "update.banner.waiting" = "SyncMacPro %@ will install once the current copies finish.";
 "update.done.title" = "SyncMacPro was updated";
 "update.done.body" = "Version %@ installed. macOS may ask you again to allow SyncMacPro to access your folders: accept so backups keep running.";
+"card.drive.suspended.slot" = "Paused on “%@” (connected): resumes as soon as a slot frees up";

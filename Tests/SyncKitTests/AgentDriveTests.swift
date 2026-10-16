@@ -246,10 +246,10 @@ final class AgentDriveTests: XCTestCase {
         let core = h.makeCore(drives: drives)
         await core.start()
         await plugged(h, drives, core)
-        XCTAssertEqual(h.factory.runners.get().count, 2)
+        XCTAssertEqual(h.factory.runners.get().count, 1, "1.6.3 : une seule copie à la fois par disque")
         h.factory.runners.get()[0].release()
-        let firstDone = await eventually { await core.status().tasks.filter { $0.state == .idle }.count == 1 }
-        XCTAssertTrue(firstDone)
+        let secondStarted = await eventually { h.factory.runners.get().count == 2 }
+        XCTAssertTrue(secondStarted, "la seconde sauvegarde part quand la première a fini")
         XCTAssertTrue(drives.ejected.get().isEmpty, "l'autre sauvegarde écrit encore sur le disque")
         h.factory.runners.get()[1].release()
         await core.waitForIdle()

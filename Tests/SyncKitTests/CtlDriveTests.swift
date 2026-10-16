@@ -24,4 +24,15 @@ final class CtlDriveTests: XCTestCase {
         XCTAssertTrue(lines[1].contains("en pause : disque débranché depuis 01/01 00:00"), lines[1])
         XCTAssertTrue(lines[1].contains("abandon"), "la commande pour repartir de zéro est rappelée : \(lines[1])")
     }
+
+    func testStatusLineOfASuspendedBackupWhoseDriveIsBack() {
+        let utc = TimeZone(identifier: "UTC")!
+        let back = AgentTaskInfo(id: UUID(), name: "Sauvegarde", state: .queued,
+                                 driveSuspendedSince: Date(timeIntervalSince1970: 0), driveMounted: true)
+        let lines = CtlFormatter.statusLines(
+            AgentStatus(globalPause: false, stateRecovered: false, taskLoadError: nil, tasks: [back]), timeZone: utc
+        )
+        XCTAssertTrue(lines[1].contains("disque branché, reprise en attente (en file)"), lines[1])
+        XCTAssertFalse(lines[1].contains("débranché"), lines[1])
+    }
 }

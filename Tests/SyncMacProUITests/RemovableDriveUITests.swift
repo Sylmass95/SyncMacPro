@@ -100,6 +100,17 @@ final class RemovableDriveUITests: XCTestCase {
                        "Paused on “Extreme Pro” (connected): resume waiting (branchement secteur requis)")
     }
 
+    // 1.6.3 : en pause, disque rebranché, en file (place à attendre) : la carte ne dit pas « débranché ».
+    func testSuspendedAndQueuedWithTheDriveBackSaysSo() {
+        let now = Date(timeIntervalSince1970: 100_000)
+        let queued = AgentTaskInfo(id: UUID(), name: "Sauvegarde", state: .queued,
+                                   driveSuspendedSince: now.addingTimeInterval(-600), driveMounted: true)
+        XCTAssertEqual(DrivePresentation(localizer: fr, now: now).line(info: queued, task: backupTask()),
+                       "En pause sur « Extreme Pro » (branché) : reprise dès qu’une place se libère")
+        XCTAssertEqual(DrivePresentation(localizer: en, now: now).line(info: queued, task: backupTask()),
+                       "Paused on “Extreme Pro” (connected): resumes as soon as a slot frees up")
+    }
+
     func testInternalNetworkOrCloudDestinationHasNoSection() {
         var draft = draftOnDrive()
         draft.refreshRemovable { _ in VolumeInfo(uuid: "X", name: "Macintosh HD", rootPath: "/", isInternal: true, isNetwork: false) }

@@ -74,8 +74,8 @@ extension AgentCore {
             state.userQueue.removeFirst()
         }
         // Disque en cours d'éjection : la file attend (l'éjection peut être refusée, le disque rester là).
-        if let first = state.userQueue.first, let drive = lookupTask(first)?.removableDrive,
-           ejectingVolumes.contains(drive.volumeUUID) { return }
+        if let first = state.userQueue.first, let task = lookupTask(first), let drive = task.removableDrive,
+           ejectingVolumes.contains(drive.volumeUUID) || driveBusy(task) { return }
         guard let next = state.userQueue.first else {
             state.userQueueRunning = false
             persist()

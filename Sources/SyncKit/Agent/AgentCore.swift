@@ -300,13 +300,16 @@ public actor AgentCore {
 
     func startQueued() {
         guard !state.paused, !shuttingDown else { return }
+        // Exécutions qui attendent leur disque (éjection en cours, ou une autre copie sur ce disque) : elles gardent
+        // leur place, les suivantes prennent les places libres.
+        var waitingForDrive: [QueuedRun] = []
+        defer { queue.insert(contentsOf: waitingForDrive, at: 0) }
         while jobs.count < configuration.maxParallel, !queue.isEmpty {
             let next = queue.removeFirst()
             guard let task = lookupTask(next.id), jobs[task.id] == nil else { continue }
-            // Disque en cours d'éjection : l'exécution attend (l'éjection peut être refusée).
-            if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) {
-                queue.insert(next, at: 0)
-                break
+            if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) || driveBusy(task) {
+                waitingForDrive.append(next)
+                continue
             }
             // Une exécution planifiée peut attendre des heures derrière deux longues copies : on revérifie.
             if !next.manual {

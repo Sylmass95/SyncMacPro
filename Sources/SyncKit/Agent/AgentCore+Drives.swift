@@ -42,7 +42,7 @@ extension AgentCore {
             // Deux exécutions au plus : le branchement attend une place (rappelé à la fin de chaque exécution).
             guard jobs.count < configuration.maxParallel else { return }
             guard let drive = task.removableDrive, mountedDrives[drive.volumeUUID] != nil,
-                  !ejectingVolumes.contains(drive.volumeUUID),
+                  !ejectingVolumes.contains(drive.volumeUUID), !driveBusy(task),
                   let seen = mountSeen[drive.volumeUUID], now.timeIntervalSince(seen) >= Self.driveSettleDelay,
                   jobs[task.id] == nil, !queue.contains(where: { $0.id == task.id }) else { continue }
             let key = task.id.uuidString
@@ -72,6 +72,13 @@ extension AgentCore {
             }
             if due { startJob(task, overrideGuard: false) } else { persist() }
         }
+    }
+
+    /// Une autre exécution écrit déjà sur le disque de cette tâche : une seule copie à la fois par disque (sur un
+    /// disque dur, deux copies simultanées se ralentissent l'une l'autre).
+    func driveBusy(_ task: SyncTask) -> Bool {
+        guard let uuid = task.removableDrive?.volumeUUID else { return false }
+        return jobs.values.contains { $0.task.id != task.id && $0.task.removableDrive?.volumeUUID == uuid }
     }
 
     /// Tâche liée à un disque débranché (sans compter une éjection en cours).
@@ -184,6 +191,9 @@ extension AgentCore {
     /// Réussite d'une sauvegarde sur disque : éjection automatique si demandée et si rien d'autre n'écrit sur le
     /// disque, sinon notification « vous pouvez éjecter ».
     func finishedOnDrive(_ task: SyncTask, drive: RemovableDrive, summary: RunSummary) {
+        // Une autre sauvegarde attendait ce disque (une seule copie à la fois par disque) : elle part d'abord, et
+        // l'éjection attendra qu'elle ait fini.
+        handleDrives(clock.now())
         // Autres sauvegardes sur ce disque, en cours ou en file : l'éjection attend la dernière.
         let onDrive = { (id: UUID) in self.lookupTask(id)?.removableDrive?.volumeUUID == drive.volumeUUID }
         let othersOnDrive = jobs.values.contains { $0.task.removableDrive?.volumeUUID == drive.volumeUUID }
