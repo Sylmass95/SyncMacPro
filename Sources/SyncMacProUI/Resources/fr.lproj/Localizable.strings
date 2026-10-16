@@ -494,5 +494,7 @@
 "update.banner.ready" = "SyncMacPro %@ est prête à être installée.";
 "update.banner.waiting" = "SyncMacPro %@ s’installera à la fin des copies en cours.";
 "update.done.title" = "SyncMacPro a été mis à jour";
-"update.done.body" = "Version %@ installée. macOS peut vous redemander d’autoriser SyncMacPro à accéder à vos dossiers : acceptez pour que les sauvegardes continuent.";
+"update.done.body" = "Version %@ installée. macOS va vous demander d’autoriser SyncMacPro à accéder à vos dossiers : cliquez sur « Autoriser » pour que les sauvegardes continuent.";
 "card.drive.suspended.slot" = "En pause sur « %@ » (branché) : reprise dès qu’une place se libère";
+"update.banner.daytime" = "SyncMacPro %@ s’installera en journée (entre %d h et %d h).";
+"update.hours" = "Installer automatiquement entre %d h et %d h";

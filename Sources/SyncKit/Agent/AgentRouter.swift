@@ -52,6 +52,9 @@ public enum AgentRouter {
             case .setBandwidth(let limits): await core.setBandwidth(limits)
             case .abandonSuspended(let id): try await core.abandonSuspended(id)
             case .ejectDrive(let id): try await core.ejectDrive(id)
+            case .checkAccess:
+                // Les demandes de macOS attendent l'utilisateur : la réponse n'attend pas.
+                Task { await core.checkAccess() }
             }
             return .ok
         } catch let error as AgentError {

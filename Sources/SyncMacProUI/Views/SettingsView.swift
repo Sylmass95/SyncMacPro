@@ -71,6 +71,14 @@ public struct SettingsView: View {
                     if updates.isAvailable {
                         Toggle(localizer.text("update.automatic"), isOn: Binding(get: { updates.automatic }, set: { updates.automatic = $0 }))
                         Toggle(localizer.text("update.autoInstall"), isOn: Binding(get: { updates.autoInstall }, set: { updates.autoInstall = $0 }))
+                        if updates.autoInstall {
+                            HStack {
+                                Text(localizer.format("update.hours", updates.installFrom, updates.installUntil))
+                                Spacer()
+                                Stepper("", value: Binding(get: { updates.installFrom }, set: { updates.installFrom = $0 }), in: 0...23).labelsHidden()
+                                Stepper("", value: Binding(get: { updates.installUntil }, set: { updates.installUntil = $0 }), in: 1...24).labelsHidden()
+                            }
+                        }
                         HStack {
                             Button(localizer.text("update.checkNow")) { updates.checkNow() }
                                 .disabled(updates.state == .checking || updates.state == .installing)

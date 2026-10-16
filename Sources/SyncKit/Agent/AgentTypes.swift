@@ -17,6 +17,8 @@ public struct AgentConfiguration: Sendable {
     /// Disque amovible : un échec du moteur alors que le volume est encore listé est réexaminé après ce délai
     /// (disque arraché : l'erreur d'entrée/sortie précède l'avis de démontage).
     public var driveFailureRecheck: TimeInterval = 3
+    /// Après une mise à jour : lister les dossiers des tâches (macOS redemande alors ses autorisations).
+    public var touchAccess: @Sendable ([String]) async -> Void = AccessProbe.touchAll
 
     public init() {}
 }

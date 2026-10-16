@@ -54,6 +54,8 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     // Disque amovible (1.4.0 : ajouts)
     case abandonSuspended(UUID)
     case ejectDrive(UUID)
+    /// 1.6.4 : lister les dossiers des tâches (demandes d'autorisation de macOS après une mise à jour).
+    case checkAccess
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {

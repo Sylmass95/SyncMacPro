@@ -1,3 +1,10 @@
+SyncMacPro 1.6.4 — autorisations de macOS redemandées à chaque mise à jour.
+
+**Corrections (1.6.4)**
+- Après une mise à jour, macOS ne reconnaissait plus les autorisations de SyncMacPro (Volumes de réseau, Bureau…) même cochées : les copies échouaient en « Accès refusé ». SyncMacPro efface maintenant ses autorisations périmées au moment de redémarrer l'agent, puis l'agent accède aussitôt aux dossiers des tâches : macOS affiche ses demandes, il suffit de cliquer sur « Autoriser ».
+- L'installation automatique se fait en journée seulement (de 9 h à 19 h par défaut, réglable dans Réglages › À propos), pour que quelqu'un soit là pour ces demandes.
+- « Accès refusé » sur un dossier protégé ou un volume : le message dit quel réglage activer dans Confidentialité et sécurité.
+
 SyncMacPro 1.6.3 — une seule copie à la fois par disque.
 
 **Amélioration (1.6.3)**

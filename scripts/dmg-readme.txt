@@ -14,8 +14,9 @@ L'accueil installe ensuite l'agent d'arrière-plan (macOS peut demander de l'aut
 Général › Ouverture). rsync et rclone sont inclus : rien d'autre à installer.
 
 Mises à jour : les versions suivantes s'installent seules (vérifiées, jamais pendant une copie) ;
-Réglages › À propos pour les régler. Après une mise à jour, macOS peut redemander d'autoriser SyncMacPro à accéder
-au Bureau, aux Documents ou à un disque : acceptez, sinon les sauvegardes de ces dossiers s'arrêtent.
+Réglages › À propos pour les régler (en journée, de 9 h à 19 h par défaut). Après chaque mise à jour, macOS demande
+d'autoriser SyncMacPro à accéder à vos dossiers (Bureau, volumes de réseau, disques) : cliquez sur « Autoriser »,
+sinon les sauvegardes de ces dossiers s'arrêtent.
 
 Licences : SyncMacPro (MIT), rsync (GPL v3), rclone (MIT), Sparkle (MIT) — Réglages › À propos › Licences.
 Code source : https://github.com/Sylmass95/SyncMacPro
@@ -37,8 +38,8 @@ The welcome screen then installs the background agent (macOS may ask you to allo
 General › Login Items). rsync and rclone are included: nothing else to install.
 
 Updates: later versions install themselves (verified, never during a copy); Settings › About to adjust.
-After an update, macOS may ask again to allow SyncMacPro to access the Desktop, Documents or a drive: accept,
-otherwise backups of those folders stop.
+(during the day, 9 to 19 h by default). After each update, macOS asks to allow SyncMacPro to access your folders
+(Desktop, network volumes, drives): click "Allow", otherwise backups of those folders stop.
 
 Licenses: SyncMacPro (MIT), rsync (GPL v3), rclone (MIT), Sparkle (MIT) — Settings › About › Licenses.
 Source code: https://github.com/Sylmass95/SyncMacPro

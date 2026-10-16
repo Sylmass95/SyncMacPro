@@ -34,6 +34,8 @@ final class UpdateUITests: XCTestCase {
         let name = "maj-ui-\(UUID().uuidString)"
         let store = UserDefaults(suiteName: name)!
         store.removePersistentDomain(forName: name)
+        store.set(0, forKey: UpdateModel.installFromKey)
+        store.set(24, forKey: UpdateModel.installUntilKey)
         let model = UpdateModel(driver: driver, defaults: store)
         model.agentActivity(idle: false)
         driver.send(.ready("1.6.1"))
@@ -81,6 +83,32 @@ extension UpdateUITests {
     func testUpdatedNotificationWarnsAboutFolderAccess() {
         XCTAssertTrue(Localizer(language: "fr").format("update.done.body", "1.6.2").contains("autoris"))
         XCTAssertTrue(Localizer(language: "en").format("update.done.body", "1.6.2").lowercased().contains("allow"))
+    }
+}
+
+extension UpdateUITests {
+    // 1.6.4 : prête la nuit, elle attend la journée ; textes de la plage horaire.
+    func testDaytimeBannerAndSettingTexts() {
+        XCTAssertEqual(fr.banner(UpdateBannerInfo(version: "1.6.5", waitingForCopies: false, waitingForDaytime: true, hours: 9..<19, install: nil)),
+                       "SyncMacPro 1.6.5 s’installera en journée (entre 9 h et 19 h).")
+        XCTAssertEqual(en.banner(UpdateBannerInfo(version: "1.6.5", waitingForCopies: false, waitingForDaytime: true, hours: 9..<19, install: nil)),
+                       "SyncMacPro 1.6.5 will install during the day (between 9 and 19 h).")
+        XCTAssertEqual(Localizer(language: "fr").format("update.hours", 9, 19), "Installer automatiquement entre 9 h et 19 h")
+        XCTAssertTrue(Localizer(language: "fr").format("update.done.body", "1.6.4").contains("Autoriser"))
+    }
+
+    func testDaytimeBannerFromTheModel() {
+        let driver = FakeUpdateDriver()
+        let name = "maj-nuit-\(UUID().uuidString)"
+        let store = UserDefaults(suiteName: name)!
+        store.removePersistentDomain(forName: name)
+        let night = Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: Date())!
+        let model = UpdateModel(driver: driver, defaults: store, now: { night })
+        model.agentActivity(idle: true)
+        driver.send(.ready("1.6.5"))
+        let info = UpdateBannerInfo.make(model)
+        XCTAssertEqual(info?.waitingForDaytime, true)
+        XCTAssertNil(info?.install)
     }
 }
 

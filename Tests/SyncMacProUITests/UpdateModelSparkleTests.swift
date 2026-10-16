@@ -15,10 +15,15 @@ final class FakeUpdateDriver: UpdateDriving {
 /// Sous-projet 8 : l'état de Sparkle vu par l'interface, et l'installation au bon moment.
 @MainActor
 final class UpdateModelSparkleTests: XCTestCase {
-    func defaults() -> UserDefaults {
+    /// `allDay` : installation permise à toute heure (les tests tournent à n'importe quelle heure de la journée).
+    func defaults(allDay: Bool = true) -> UserDefaults {
         let name = "maj-\(UUID().uuidString)"
         let store = UserDefaults(suiteName: name)!
         store.removePersistentDomain(forName: name)
+        if allDay {
+            store.set(0, forKey: UpdateModel.installFromKey)
+            store.set(24, forKey: UpdateModel.installUntilKey)
+        }
         return store
     }
 
@@ -119,5 +124,35 @@ final class UpdateModelSparkleTests: XCTestCase {
         idle = true
         model.agentActivity(idle: true)
         XCTAssertEqual(driver.installs, 1)
+    }
+
+    // 1.6.4 : installation automatique en journée seulement (les demandes d'autorisation de macOS attendent quelqu'un).
+    func testAutomaticInstallOnlyDuringTheDay() {
+        let driver = FakeUpdateDriver()
+        let store = defaults(allDay: false)
+        var hour = 23
+        let calendar = Calendar(identifier: .gregorian)
+        let model = UpdateModel(driver: driver, defaults: store, now: {
+            calendar.date(bySettingHour: hour, minute: 0, second: 0, of: Date(timeIntervalSince1970: 1_800_000_000))!
+        })
+        XCTAssertEqual(model.installFrom, 9)
+        XCTAssertEqual(model.installUntil, 19)
+        model.agentActivity(idle: true)
+        driver.send(.ready("1.6.5"))
+        XCTAssertEqual(driver.installs, 0, "la nuit : on attend la journée")
+        XCTAssertTrue(model.waitingForDaytime)
+        hour = 9
+        model.agentActivity(idle: true)
+        XCTAssertEqual(driver.installs, 1)
+    }
+
+    func testInstallHoursAreKept() {
+        let store = defaults(allDay: false)
+        let model = UpdateModel(driver: FakeUpdateDriver(), defaults: store)
+        model.installFrom = 7
+        model.installUntil = 22
+        let again = UpdateModel(driver: FakeUpdateDriver(), defaults: store)
+        XCTAssertEqual(again.installFrom, 7)
+        XCTAssertEqual(again.installUntil, 22)
     }
 }

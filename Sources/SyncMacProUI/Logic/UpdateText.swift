@@ -21,6 +21,9 @@ public struct UpdateText {
     }
 
     func banner(_ info: UpdateBannerInfo) -> String {
-        localizer.format(info.waitingForCopies ? "update.banner.waiting" : "update.banner.ready", info.version)
+        if info.waitingForDaytime {
+            return localizer.format("update.banner.daytime", info.version, info.hours.lowerBound, info.hours.upperBound)
+        }
+        return localizer.format(info.waitingForCopies ? "update.banner.waiting" : "update.banner.ready", info.version)
     }
 }

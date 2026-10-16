@@ -176,11 +176,18 @@ public struct DashboardView: View {
 struct UpdateBannerInfo {
     let version: String
     let waitingForCopies: Bool
+    /// Prête hors de la plage horaire d'installation (1.6.4).
+    var waitingForDaytime = false
+    var hours: Range<Int> = 9..<19
     let install: (() -> Void)?
 
     @MainActor
     static func make(_ updates: UpdateModel) -> UpdateBannerInfo? {
         guard let version = updates.readyVersion else { return nil }
+        if updates.waitingForDaytime {
+            return UpdateBannerInfo(version: version, waitingForCopies: false, waitingForDaytime: true,
+                                    hours: updates.installFrom..<max(updates.installFrom + 1, updates.installUntil), install: nil)
+        }
         if updates.waitingForCopies { return UpdateBannerInfo(version: version, waitingForCopies: true, install: nil) }
         if updates.autoInstall { return nil }   // elle s'installe d'elle-même
         return UpdateBannerInfo(version: version, waitingForCopies: false, install: { updates.installNow() })
