@@ -76,6 +76,14 @@ final class UpdateUITests: XCTestCase {
     }
 }
 
+extension UpdateUITests {
+    // 1.6.2 : après une mise à jour, macOS peut redemander l'accès aux dossiers ; la notification le dit.
+    func testUpdatedNotificationWarnsAboutFolderAccess() {
+        XCTAssertTrue(Localizer(language: "fr").format("update.done.body", "1.6.2").contains("autoris"))
+        XCTAssertTrue(Localizer(language: "en").format("update.done.body", "1.6.2").lowercased().contains("allow"))
+    }
+}
+
 private struct UpdateStubService: ServiceControlling {
     func status() -> AgentInstallState { .enabled }
     func register() throws {}

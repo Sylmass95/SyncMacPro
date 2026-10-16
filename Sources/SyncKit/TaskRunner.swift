@@ -26,6 +26,10 @@ public final class TaskRunner: @unchecked Sendable {
     ) async throws -> RunResult {
         let engine = try EngineSelector.engine(for: task)
         control.reset()
+        if let message = await probeAccess(task) {
+            return result(status: .failed, engine: engine, snapshot: TransferSnapshot(), started: configuration.now(),
+                          errors: 1, message: message, retryable: true)
+        }
         let stamp = Self.archiveStamp(configuration.now())
         var outcome: RunResult
         switch engine {

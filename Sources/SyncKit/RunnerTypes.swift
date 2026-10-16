@@ -14,8 +14,14 @@ public struct RunnerConfiguration: Sendable {
     /// plus tard). 0 : pas de surveillance.
     public var stallTimeout: TimeInterval
     public var stallCheckInterval: TimeInterval
+    /// Sonde d'accès lancée avant le moteur sur chaque dossier (programme, arguments) ; voir `TaskRunner.probeAccess`.
+    public var accessProbe: @Sendable (String) -> (String, [String]) = RunnerConfiguration.defaultAccessProbe
+    /// Au-delà, le dossier est déclaré sans réponse (autorisation de macOS en attente, disque ou NAS figé).
+    public var accessProbeTimeout: TimeInterval = 15
 
     public static let defaultStallTimeout: TimeInterval = 20 * 60
+    /// Lister un dossier : un instant d'ordinaire, et macOS y demande l'autorisation d'un dossier protégé.
+    public static let defaultAccessProbe: @Sendable (String) -> (String, [String]) = { ("/bin/ls", ["-f", $0]) }
 
     public init(
         rsyncPath: String? = nil,
