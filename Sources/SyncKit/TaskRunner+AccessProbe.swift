@@ -45,12 +45,12 @@ extension TaskRunner {
 
     static func unmountedMessage(_ name: String, error: String) -> String {
         "Partage réseau « \(name) » non monté, montage impossible (\(error)) : NAS éteint, en veille ou réseau (VPN) coupé ? "
-            + "Nouvel essai dans quelques minutes."
+            + "Nouvel essai plus tard."
     }
 
     static func silentShareMessage(_ name: String) -> String {
         "Partage réseau « \(name) » monté mais il ne répond pas : NAS éteint, en veille ou réseau (VPN) coupé ? Si une fenêtre "
-            + "de macOS demande l'accès aux volumes réseau, acceptez-la. Nouvel essai dans quelques minutes."
+            + "de macOS demande l'accès aux volumes réseau, acceptez-la. Nouvel essai plus tard."
     }
 
     static func accessMessage(_ folder: String) -> String {

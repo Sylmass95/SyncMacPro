@@ -8,6 +8,8 @@ final class FakeShares: ShareMounting, @unchecked Sendable {
     let mountCalls = Locked<[String]>([])
     /// Erreur rendue par `mount` ; `nil` : le montage réussit.
     let mountError = Locked<String?>(nil)
+    /// Durée d'un montage (essai d'arrêt pendant le montage).
+    let mountDelay = Locked<TimeInterval>(0)
 
     init(base: String) { self.base = base }
 
@@ -21,6 +23,7 @@ final class FakeShares: ShareMounting, @unchecked Sendable {
 
     func mount(_ url: String, timeout: TimeInterval) async -> String? {
         mountCalls.update { $0.append(url) }
+        if mountDelay.get() > 0 { try? await Task.sleep(nanoseconds: UInt64(mountDelay.get() * 1_000_000_000)) }
         if let error = mountError.get() { return error }
         let name = String(url.split(separator: "/").last ?? "")
         let root = base + "/" + name
@@ -96,6 +99,18 @@ final class NetworkShareRunnerTests: IntegrationTestCase {
         XCTAssertTrue(message.contains("NAS éteint"), message)
     }
 
+    func testStoppingDuringTheMountStopsTheRun() async throws {
+        let source = try folder("Bureau")
+        let shares = FakeShares(base: try folder("Volumes"))
+        shares.mountError.set("hôte injoignable")
+        shares.mountDelay.set(0.5)
+        let runner = try runner(shares)
+        Task { try? await Task.sleep(nanoseconds: 100_000_000); runner.stop() }
+        let result = try await runner.run(toShare(source, shares))
+        XCTAssertEqual(result.status, .stopped)
+        XCTAssertNil(result.shareUnavailable)
+    }
+
     func testTheShareRootIsTheVolumeUnderVolumes() {
         XCTAssertEqual(NetworkShare.volumesRoot(of: "/Volumes/Documents/PERSO-FILES"), "/Volumes/Documents")
         XCTAssertEqual(NetworkShare.volumesRoot(of: "/Volumes/03_ARCHIVES_GLOBALES"), "/Volumes/03_ARCHIVES_GLOBALES")
@@ -166,6 +181,66 @@ final class NetworkShareAgentTests: XCTestCase {
         XCTAssertEqual(h.factory.created, 3)
         XCTAssertEqual(try h.history.list(taskID: task.id).map(\.status), [.failed])
         XCTAssertEqual(h.notifier.messages.get().count, 1)
+    }
+
+    /// Revue : une tâche liée à un disque amovible n'est pas reprise par `tick` ; elle garde l'échec d'avant.
+    func testADriveTaskWithAnUnavailableShareFailsAsBefore() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        var task = SyncTask(name: "A", source: .network(url: "smb://moi@nas/NAS", mountPath: "/Volumes/NAS/A"),
+                            destination: .local(path: "/Volumes/Extreme Pro/A"), schedule: .manual)
+        task.removableDrive = RemovableDrive(volumeUUID: "U-1", volumeName: "Extreme Pro", relativePath: "A",
+                                             trigger: .everyConnection, resumeWindowDays: 3, eject: .never)
+        try h.save([task])
+        h.factory.unavailableNames.set(["A"])
+        let drives = FakeDriveMonitor()
+        let core = h.makeCore(drives: drives)
+        await core.start()
+        drives.plug("U-1", at: "/Volumes/Extreme Pro")
+        await core.drivesChanged()
+        h.clock.advance(6)
+        await core.drivesChanged()
+        await core.tick()
+        await core.waitForIdle()
+        XCTAssertEqual(h.factory.created, 1)
+        XCTAssertEqual(try h.history.list(taskID: task.id).map(\.status), [.failed])
+    }
+
+    /// Revue : « Arrêter » sur une tâche qui attend son partage met fin à l'attente.
+    func testStoppingAWaitingTaskEndsTheWait() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        let task = shareTask("A")
+        try h.save([task])
+        h.factory.unavailableNames.set(["A"])
+        let core = h.makeCore()
+        await core.start()
+        try await core.runNow(task.id)
+        await core.waitForIdle()
+        try await core.stop(task.id)
+        let state = await core.status().tasks.first { $0.id == task.id }?.state
+        XCTAssertEqual(state, .idle)
+        await h.step(core, minutes: 10)
+        XCTAssertEqual(h.factory.created, 1, "plus de nouvel essai")
+    }
+
+    /// Revue : après l'échec enregistré au bout de la limite, les essais suivants suivent la règle ordinaire
+    /// (1 h, 3 fois) au lieu de rouvrir une attente de 12 h.
+    func testAfterTheLimitFailuresFollowTheUsualRetries() async throws {
+        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0))
+        h.configuration.shareRetryDelay = 300
+        h.configuration.shareWaitLimit = 600
+        h.configuration.retryDelay = 3600
+        let task = shareTask("A")
+        try h.save([task])
+        h.factory.unavailableNames.set(["A"])
+        let core = h.makeCore()
+        await core.start()
+        try await core.runNow(task.id)
+        await core.waitForIdle()
+        await h.step(core, minutes: 11)
+        XCTAssertEqual(try h.history.list(taskID: task.id).count, 1)
+        await h.step(core, minutes: 61)
+        XCTAssertEqual(try h.history.list(taskID: task.id).map(\.status), [.failed, .failed], "échec enregistré aussitôt")
+        XCTAssertEqual(h.factory.created, 4)
     }
 
     func testAScheduledTaskWhoseShareIsNotMountedStartsSoTheShareGetsMounted() async throws {

@@ -57,6 +57,16 @@ extension AgentCore {
             job.runner.stop()   // `TaskRunner` reprend d'abord un processus figé, puis l'arrête
             return
         }
+        // Attente d'un partage réseau (1.6.5) : « Arrêter » y met fin.
+        let key = id.uuidString
+        if queue.firstIndex(where: { $0.id == id }) == nil, state.tasks[key]?.shareWaitSince != nil {
+            state.tasks[key]?.shareWaitSince = nil
+            state.tasks[key]?.retryAt = nil
+            waiting[id] = nil
+            persist()
+            emit(.stateChanged)
+            return
+        }
         guard let index = queue.firstIndex(where: { $0.id == id }) else { throw AgentError.notRunning }
         queue.remove(at: index)
         oneOffs[id] = nil   // une copie ponctuelle retirée de la file n'existe plus

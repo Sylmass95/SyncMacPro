@@ -483,14 +483,13 @@ public actor AgentCore {
             suspendForDrive(job, drive: drive, summary: summary, now: now)
             return
         }
-        if case .success(let result) = outcome, let share = result.shareUnavailable, status == .failed,
-           job.resumed == nil, oneOffs[id] == nil, !shuttingDown, waitForShare(job, share: share, now: now) {
-            refreshActivity()
-            handleDrives(now)
-            emit(.stateChanged)
-            startQueued()
-            if userQueueCurrent == id { userQueueCurrent = nil; persist() }
-            advanceUserQueue()
+        // Partage réseau injoignable : attente et nouvel essai. Pas pour une tâche liée à un disque (elle part au
+        // branchement, `tick` ne la reprendrait pas), une copie ponctuelle ou une reprise : échec comme avant.
+        let shareFailure: String? = { if case .success(let result) = outcome, status == .failed { return result.shareUnavailable }; return nil }()
+        if let share = shareFailure, job.task.removableDrive == nil, job.resumed == nil, oneOffs[id] == nil, !shuttingDown,
+           waitForShare(job, share: share, now: now) {
+            emit(.taskFinished(id, status, summary.message))   // l'interface relit l'historique (ligne effacée)
+            afterJob(id)
             return
         }
 
@@ -504,7 +503,9 @@ public actor AgentCore {
         let key = id.uuidString
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
         entry.runningSince = nil
-        entry.shareWaitSince = nil
+        // Au-delà de la limite, l'attente reste datée : les échecs suivants du partage suivent la règle ordinaire
+        // (nouvel essai dans 1 h, 3 fois) au lieu de rouvrir 12 h d'essais toutes les 5 min.
+        if shareFailure == nil { entry.shareWaitSince = nil }
         switch status {
         case .succeeded:
             entry.lastSuccess = now

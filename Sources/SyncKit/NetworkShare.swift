@@ -40,8 +40,10 @@ public struct NetFSShareMounter: ShareMounting {
     public func root(of mountPath: String) -> String? { NetworkShare.volumesRoot(of: mountPath) }
 
     public func isMounted(_ root: String) -> Bool {
+        // `getmntinfo` partage un tampon entre les appels : deux tâches qui démarrent ensemble s'y marcheraient dessus.
         var mounts: UnsafeMutablePointer<statfs>?
-        let count = getmntinfo(&mounts, MNT_NOWAIT)
+        let count = getmntinfo_r_np(&mounts, MNT_NOWAIT)
+        defer { free(mounts) }
         guard count > 0, let mounts else { return false }
         for index in 0..<Int(count) {
             var entry = mounts[index]
@@ -70,6 +72,7 @@ public struct NetFSShareMounter: ShareMounting {
             if status != 0 { finish(Self.describe(status)); return }
             let pending = request
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                guard !done.get() else { return }   // déjà fini : la demande n'existe plus, ne pas l'annuler
                 if let pending { NetFSMountURLCancel(pending) }
                 finish("pas de réponse du serveur en \(Int(timeout)) s")
             }

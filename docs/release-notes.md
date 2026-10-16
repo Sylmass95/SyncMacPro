@@ -4,7 +4,8 @@ SyncMacPro 1.6.5 — partages réseau remontés tout seuls, NAS injoignable sans
 - Un partage réseau (NAS) qui n'est plus monté est remonté automatiquement avant la copie, avec les identifiants enregistrés dans le trousseau, sans aucune fenêtre.
 - NAS éteint, en veille, ou réseau / VPN coupé : la tâche n'échoue plus. Elle passe « en attente : partage « … » injoignable, nouvel essai à HH:MM » et réessaie toutes les 5 minutes, sans notification ni ligne d'échec dans l'historique. Au bout de 12 heures sans réponse, l'échec est enregistré et notifié comme avant.
 - Une tâche planifiée dont le partage n'est pas monté démarre quand même à son heure (elle monte le partage), au lieu d'attendre qu'il soit monté à la main.
-- Dans la file d'attente, une tâche dont le NAS ne répond pas laisse passer les suivantes.
+- Dans la file d'attente, une tâche dont le NAS ne répond pas laisse passer les suivantes. « Arrêter » met fin à l'attente.
+- Une sauvegarde d'un NAS vers un disque amovible garde le comportement d'avant : si le NAS ne répond pas au branchement, elle échoue (et repartira au prochain branchement ou à la main).
 - Le message d'un partage qui ne répond pas parle du NAS et du réseau, plus seulement d'une autorisation de macOS.
 
 SyncMacPro 1.6.4 — autorisations de macOS redemandées à chaque mise à jour.
