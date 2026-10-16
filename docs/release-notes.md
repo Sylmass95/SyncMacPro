@@ -1,3 +1,10 @@
+SyncMacPro 1.6.3 — une seule copie à la fois par disque.
+
+**Amélioration (1.6.3)**
+- Deux sauvegardes vers le même disque amovible ne tournent plus en même temps : la seconde attend la fin de la première (au branchement, lancée à la main ou depuis la file), et les autres tâches prennent les places libres. Sur un disque dur, deux copies simultanées se ralentissaient l'une l'autre.
+- Éjection automatique : elle attend que toutes les sauvegardes prévues sur le disque soient faites.
+- Sauvegarde en pause dont le disque est rebranché mais qui attend une place : la carte et `ctl status` disent « disque branché, reprise dès qu'une place se libère » au lieu de « disque débranché ».
+
 SyncMacPro 1.6.2 — autorisations de macOS après une mise à jour.
 
 **Corrections (1.6.2)**

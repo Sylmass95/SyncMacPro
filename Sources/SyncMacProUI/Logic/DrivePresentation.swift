@@ -23,8 +23,10 @@ public struct DrivePresentation {
     public func line(info: AgentTaskInfo, task: SyncTask?) -> String? {
         guard let drive = task?.removableDrive else { return nil }
         // Disque revenu, la reprise attend une condition (secteur, plage horaire) : on dit laquelle.
-        if info.driveSuspendedSince != nil, info.driveMounted == true, case .waiting(let reason) = info.state {
-            return localizer.format("card.drive.suspended.back", drive.volumeName, reason)
+        if info.driveSuspendedSince != nil, info.driveMounted == true {
+            if case .waiting(let reason) = info.state { return localizer.format("card.drive.suspended.back", drive.volumeName, reason) }
+            // En file : la reprise attend une place (deux exécutions au plus, une copie à la fois par disque).
+            return localizer.format("card.drive.suspended.slot", drive.volumeName)
         }
         if let since = info.driveSuspendedSince {
             return localizer.format("card.drive.suspended", drive.volumeName, elapsed(since: since))
