@@ -53,6 +53,33 @@ final class UpdatePolicyTests: XCTestCase {
     }
 }
 
+extension UpdatePolicyTests {
+    // 1.6.4 : avant de redémarrer l'agent mis à jour, les autorisations périmées sont effacées ; après, l'agent
+    // redemande l'accès (macOS affiche ses demandes pendant que l'utilisateur est là).
+    func testReRegistrationResetsPermissionsThenAsksAgain() async {
+        let service = AgentUpdateTests.RecordingService(.enabled)
+        let store = AgentUpdateTests().defaults()
+        store.set("1.6.3 (209)", forKey: AgentInstaller.registeredBuildKey)
+        let installer = AgentInstaller(service: service)
+        var order: [String] = []
+        await installer.reRegisterAfterUpdate(currentBuild: "1.6.4 (211)", defaults: store, pause: { _ in },
+                                              beforeReRegistering: { order.append("reset") },
+                                              afterReRegistering: { order.append("demande") })
+        XCTAssertEqual(order, ["reset", "demande"])
+        XCTAssertEqual(service.calls.first, "unregister")
+    }
+
+    func testPermissionResetCoversTheFolderServicesOnly() {
+        var calls: [[String]] = []
+        let failures = PermissionReset.resetAll(bundleID: "com.sylvain.syncmacpro") { arguments in calls.append(arguments); return 0 }
+        XCTAssertEqual(failures, [])
+        XCTAssertEqual(Set(calls.map { $0[1] }), ["SystemPolicyNetworkVolumes", "SystemPolicyRemovableVolumes", "SystemPolicyDesktopFolder",
+                                                  "SystemPolicyDocumentsFolder", "SystemPolicyDownloadsFolder"])
+        XCTAssertTrue(calls.allSatisfy { $0.first == "reset" && $0.last == "com.sylvain.syncmacpro" })
+        XCTAssertFalse(calls.contains { $0.contains("SystemPolicyAllFiles") }, "l'accès complet au disque ne se redemande pas : jamais effacé")
+    }
+}
+
 final class IdleProbe: @unchecked Sendable {
     private let lock = NSLock()
     private var answers: [Bool]

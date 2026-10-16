@@ -18,18 +18,9 @@ extension TaskRunner {
         for path in [task.source.filesystemPath, task.destination.filesystemPath].compactMap({ $0 }) where !path.isEmpty {
             let folder = Self.probedFolder(path)
             let (executable, arguments) = configuration.accessProbe(folder)
-            guard let process = try? ProcessRunner.spawn(executable: executable, arguments: arguments, onLine: { _ in }) else { continue }
-            let timedOut = Locked(false)
-            let delay = UInt64(max(0, configuration.accessProbeTimeout) * 1_000_000_000)
-            let timer = Task {
-                try? await Task.sleep(nanoseconds: delay)
-                guard !Task.isCancelled else { return }
-                timedOut.set(true)
-                process.terminate(killAfter: 2)
+            if !(await AccessProbe.answers(executable: executable, arguments: arguments, timeout: configuration.accessProbeTimeout)) {
+                return Self.accessMessage(folder)
             }
-            _ = await process.waitForExit()
-            timer.cancel()
-            if timedOut.get() { return Self.accessMessage(folder) }
         }
         return nil
     }

@@ -108,12 +108,17 @@ public final class AgentInstaller {
     /// jamais couper une copie (app remplacée par une mise à jour pendant une copie).
     public func reRegisterAfterUpdate(
         currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard, pause: Pause = AgentInstaller.realPause,
-        isIdle: @escaping @MainActor () async -> Bool = { true }
+        isIdle: @escaping @MainActor () async -> Bool = { true },
+        beforeReRegistering: @MainActor () async -> Void = {},
+        afterReRegistering: @MainActor () async -> Void = {}
     ) async {
         guard currentBuild != "dev", service.status() == .enabled,
               defaults.string(forKey: Self.registeredBuildKey) != currentBuild else { return }
         while !(await isIdle()) { await pause(30_000_000_000) }
+        // 1.6.4 : autorisations de dossiers périmées effacées avant, redemandées après (voir `PermissionReset`).
+        await beforeReRegistering()
         await reRegister(currentBuild: currentBuild, defaults: defaults, pause: pause)
+        await afterReRegistering()
     }
 
     /// Un agent déclaré installé qui ne répond jamais : on le réenregistre, une seule fois par lancement.

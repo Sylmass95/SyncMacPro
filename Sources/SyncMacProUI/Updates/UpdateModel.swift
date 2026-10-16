@@ -21,6 +21,14 @@ public final class UpdateModel {
             driver?.automaticallyChecks = automatic
         }
     }
+    /// Plage horaire de l'installation automatique (heures, début inclus, fin exclue) : les demandes d'autorisation
+    /// de macOS qui suivent une mise à jour attendent quelqu'un devant le Mac.
+    public var installFrom: Int {
+        didSet { defaults.set(installFrom, forKey: Self.installFromKey); considerInstall() }
+    }
+    public var installUntil: Int {
+        didSet { defaults.set(installUntil, forKey: Self.installUntilKey); considerInstall() }
+    }
     /// Installer automatiquement dès qu'aucune copie ne tourne.
     public var autoInstall: Bool {
         didSet {
@@ -35,15 +43,24 @@ public final class UpdateModel {
     @ObservationIgnored private var installRequested = false
     /// État de l'agent relu au moment d'installer (`nil` : pas encore joint) ; sans lui, le dernier `agentActivity`.
     @ObservationIgnored private let isIdle: (@MainActor () -> Bool?)?
+    @ObservationIgnored private let now: () -> Date
 
     static let automaticKey = "checkUpdates"
     static let autoInstallKey = "installUpdates"
     static let lastLaunchKey = "lastLaunchedVersion"
+    static let installFromKey = "installFromHour"
+    static let installUntilKey = "installUntilHour"
 
-    public init(driver: UpdateDriving?, defaults: UserDefaults = .standard, isIdle: (@MainActor () -> Bool?)? = nil) {
+    public init(
+        driver: UpdateDriving?, defaults: UserDefaults = .standard, isIdle: (@MainActor () -> Bool?)? = nil,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.driver = driver
         self.defaults = defaults
         self.isIdle = isIdle
+        self.now = now
+        installFrom = defaults.object(forKey: Self.installFromKey) as? Int ?? 9
+        installUntil = defaults.object(forKey: Self.installUntilKey) as? Int ?? 19
         automatic = defaults.object(forKey: Self.automaticKey) as? Bool ?? true
         autoInstall = defaults.object(forKey: Self.autoInstallKey) as? Bool ?? true
         driver?.automaticallyChecks = automatic
@@ -59,7 +76,15 @@ public final class UpdateModel {
     }
 
     /// Prête, installation automatique, mais une copie tourne : elle s'installera à la fin.
-    public var waitingForCopies: Bool { readyVersion != nil && autoInstall && !agentIdle }
+    public var waitingForCopies: Bool { readyVersion != nil && autoInstall && !agentIdle && inInstallHours }
+
+    /// Prête, installation automatique, mais hors de la plage horaire : elle s'installera en journée.
+    public var waitingForDaytime: Bool { readyVersion != nil && autoInstall && !inInstallHours }
+
+    var inInstallHours: Bool {
+        let hour = Calendar.current.component(.hour, from: now())
+        return installFrom <= installUntil ? (hour >= installFrom && hour < installUntil) : (hour >= installFrom || hour < installUntil)
+    }
 
     public func start() { driver?.start() }
     public func checkNow() { driver?.checkNow() }
@@ -96,7 +121,7 @@ public final class UpdateModel {
     private func considerInstall() {
         // Relu maintenant : une copie a pu partir depuis le dernier `agentActivity` (toutes les 30 s).
         if let isIdle { agentIdle = isIdle() ?? false }
-        if UpdatePolicy.shouldInstall(ready: readyVersion != nil, autoInstall: autoInstall, idle: agentIdle) { installNow() }
+        if UpdatePolicy.shouldInstall(ready: readyVersion != nil, autoInstall: autoInstall, idle: agentIdle), inInstallHours { installNow() }
     }
 
     /// Au lancement : la version à annoncer (« SyncMacPro a été mis à jour en … »), une seule fois.

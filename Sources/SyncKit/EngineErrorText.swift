@@ -12,7 +12,7 @@ public enum EngineErrorText {
     public static func summary(errors: [String], total: Int) -> String? {
         guard !errors.isEmpty else { return nil }
         let cause = errors.first { !isConsequence($0) } ?? errors.last!
-        var text = explanation(for: cause).map { "\($0) \(cause)" } ?? cause
+        var text = (privacyExplanation(for: cause) ?? explanation(for: cause)).map { "\($0) \(cause)" } ?? cause
         if total > 1 { text += " (\(total) erreurs au total : voir le journal)" }
         return text
     }
@@ -40,6 +40,21 @@ public enum EngineErrorText {
           "connection refused", "connection reset"], "Le NAS ou le service ne répond pas (réseau ?)."),
         (["file name too long"], "Nom ou chemin de fichier trop long."),
     ]
+
+    /// « Operation not permitted » sur un dossier protégé par macOS (Bureau, Documents, Téléchargements, volumes) :
+    /// l'autorisation de SyncMacPro manque ou ne vaut plus (signature ad hoc nouvelle après une mise à jour).
+    static func privacyExplanation(for line: String) -> String? {
+        guard line.lowercased().contains("operation not permitted") else { return nil }
+        let home = NSHomeDirectory()
+        let places: [(String, String)] = [
+            (home + "/Desktop", "« Dossier Bureau »"), (home + "/Documents", "« Dossier Documents »"),
+            (home + "/Downloads", "« Dossier Téléchargements »"),
+            ("/Volumes/", "« Volumes de réseau » (« Volumes amovibles » pour un disque externe)"),
+        ]
+        guard let setting = places.first(where: { line.contains($0.0) })?.1 else { return nil }
+        return "macOS refuse l'accès à SyncMacPro : dans Réglages Système › Confidentialité et sécurité › Fichiers et dossiers "
+            + "› SyncMacPro, activez (ou désactivez puis réactivez) \(setting), puis relancez la tâche."
+    }
 
     static func explanation(for line: String) -> String? {
         let lower = line.lowercased()

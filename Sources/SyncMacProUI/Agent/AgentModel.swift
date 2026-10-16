@@ -348,6 +348,9 @@ public final class AgentModel {
 
     public func enqueue(_ id: UUID) async { await act(on: id) { try await $0.perform(.enqueue(id)) } }
     public func dequeue(_ id: UUID) async { await act(on: id) { try await $0.perform(.dequeue(id)) } }
+    /// 1.6.4 : l'agent liste les dossiers des tâches (macOS redemande ses autorisations après une mise à jour).
+    public func checkAccess() async { await act(on: nil) { try await $0.perform(.checkAccess) } }
+
     /// Disque amovible (1.4.0).
     public func abandonSuspended(_ id: UUID) async { await act(on: id) { try await $0.perform(.abandonSuspended(id)) } }
     public func ejectDrive(_ id: UUID) async { await act(on: id) { try await $0.perform(.ejectDrive(id)) } }

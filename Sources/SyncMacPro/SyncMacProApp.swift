@@ -41,9 +41,12 @@ struct SyncMacProApp: App {
         let installer = AgentInstaller()
         if Bundle.main.bundlePath.hasSuffix(".app") {
             Task {
-                await installer.reRegisterAfterUpdate(isIdle: {
-                    UpdatePolicy.agentIdleness(connection: model.connection, status: model.status) ?? false
-                })
+                await installer.reRegisterAfterUpdate(
+                    isIdle: { UpdatePolicy.agentIdleness(connection: model.connection, status: model.status) ?? false },
+                    // Autorisations de dossiers de l'ancienne version effacées, puis redemandées par l'agent mis à jour.
+                    beforeReRegistering: { PermissionReset.resetAll(bundleID: Bundle.main.bundleIdentifier ?? "com.sylvain.syncmacpro") },
+                    afterReRegistering: { await model.checkAccess() }
+                )
             }
         }
         _installer = State(initialValue: installer)
