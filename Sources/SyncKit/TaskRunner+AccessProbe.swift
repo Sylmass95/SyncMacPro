@@ -17,12 +17,40 @@ extension TaskRunner {
     func probeAccess(_ task: SyncTask) async -> String? {
         for path in [task.source.filesystemPath, task.destination.filesystemPath].compactMap({ $0 }) where !path.isEmpty {
             let folder = Self.probedFolder(path)
-            let (executable, arguments) = configuration.accessProbe(folder)
-            if !(await AccessProbe.answers(executable: executable, arguments: arguments, timeout: configuration.accessProbeTimeout)) {
-                return Self.accessMessage(folder)
-            }
+            if !(await answers(folder)) { return Self.accessMessage(folder) }
         }
         return nil
+    }
+
+    func answers(_ folder: String) async -> Bool {
+        let (executable, arguments) = configuration.accessProbe(folder)
+        return await AccessProbe.answers(executable: executable, arguments: arguments, timeout: configuration.accessProbeTimeout)
+    }
+
+    /// Partages réseau (1.6.5) : montés s'il le faut, puis sondés. Rend le nom du partage injoignable et le message.
+    func prepareShares(_ task: SyncTask) async -> (share: String, message: String)? {
+        for endpoint in [task.source, task.destination] {
+            guard case .network(let url, let mountPath) = endpoint, let root = configuration.shares.root(of: mountPath) else { continue }
+            let name = (root as NSString).lastPathComponent
+            if !configuration.shares.isMounted(root) {
+                let error = await configuration.shares.mount(url, timeout: configuration.shareMountTimeout)
+                guard configuration.shares.isMounted(root) else {
+                    return (name, Self.unmountedMessage(name, error: error ?? "monté à un autre endroit que \(root)"))
+                }
+            }
+            if !(await answers(root)) { return (name, Self.silentShareMessage(name)) }
+        }
+        return nil
+    }
+
+    static func unmountedMessage(_ name: String, error: String) -> String {
+        "Partage réseau « \(name) » non monté, montage impossible (\(error)) : NAS éteint, en veille ou réseau (VPN) coupé ? "
+            + "Nouvel essai dans quelques minutes."
+    }
+
+    static func silentShareMessage(_ name: String) -> String {
+        "Partage réseau « \(name) » monté mais il ne répond pas : NAS éteint, en veille ou réseau (VPN) coupé ? Si une fenêtre "
+            + "de macOS demande l'accès aux volumes réseau, acceptez-la. Nouvel essai dans quelques minutes."
     }
 
     static func accessMessage(_ folder: String) -> String {

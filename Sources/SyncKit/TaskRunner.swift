@@ -26,6 +26,12 @@ public final class TaskRunner: @unchecked Sendable {
     ) async throws -> RunResult {
         let engine = try EngineSelector.engine(for: task)
         control.reset()
+        if let unavailable = await prepareShares(task) {
+            var failed = result(status: .failed, engine: engine, snapshot: TransferSnapshot(), started: configuration.now(),
+                                errors: 1, message: unavailable.message, retryable: true)
+            failed.shareUnavailable = unavailable.share
+            return failed
+        }
         if let message = await probeAccess(task) {
             return result(status: .failed, engine: engine, snapshot: TransferSnapshot(), started: configuration.now(),
                           errors: 1, message: message, retryable: true)

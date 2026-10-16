@@ -100,6 +100,14 @@ public final class HistoryStore: @unchecked Sendable {
         return (count, paths.filter { !kept.contains($0) })
     }
 
+    /// Supprime une exécution (essai sans suite : partage réseau injoignable, 1.6.5).
+    public func delete(id: UUID) throws {
+        try withStatement("DELETE FROM runs WHERE id = ?") { statement in
+            bind(statement, 1, id.uuidString)
+            try step(statement)
+        }
+    }
+
     // MARK: lecture
 
     public func record(id: UUID) throws -> RunRecord? {

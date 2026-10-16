@@ -19,6 +19,9 @@ public struct AgentConfiguration: Sendable {
     public var driveFailureRecheck: TimeInterval = 3
     /// Après une mise à jour : lister les dossiers des tâches (macOS redemande alors ses autorisations).
     public var touchAccess: @Sendable ([String]) async -> Void = AccessProbe.touchAll
+    /// Partage réseau injoignable (1.6.5) : nouvel essai après ce délai, sans échec, pendant `shareWaitLimit` au plus.
+    public var shareRetryDelay: TimeInterval = 300
+    public var shareWaitLimit: TimeInterval = 12 * 3600
 
     public init() {}
 }

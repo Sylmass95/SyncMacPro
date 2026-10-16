@@ -18,6 +18,8 @@ public struct TaskScheduleState: Codable, Equatable, Sendable {
     /// Disque amovible : exécution suspendue (disque débranché) et dernier branchement déjà traité.
     public var suspendedRun: SuspendedRun?
     public var lastMountHandled: Date?
+    /// Début de l'attente d'un partage réseau injoignable (1.6.5).
+    public var shareWaitSince: Date?
 
     public init(firstSeen: Date) { self.firstSeen = firstSeen }
 }

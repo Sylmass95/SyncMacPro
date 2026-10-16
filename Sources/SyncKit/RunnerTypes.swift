@@ -18,6 +18,9 @@ public struct RunnerConfiguration: Sendable {
     public var accessProbe: @Sendable (String) -> (String, [String]) = RunnerConfiguration.defaultAccessProbe
     /// Au-delà, le dossier est déclaré sans réponse (autorisation de macOS en attente, disque ou NAS figé).
     public var accessProbeTimeout: TimeInterval = 15
+    /// Montage des partages réseau non montés (1.6.5) et délai d'un montage.
+    public var shares: ShareMounting = NetFSShareMounter()
+    public var shareMountTimeout: TimeInterval = 60
 
     public static let defaultStallTimeout: TimeInterval = 20 * 60
     /// Lister un dossier : un instant d'ordinaire, et macOS y demande l'autorisation d'un dossier protégé.
@@ -67,6 +70,8 @@ public struct RunResult: Equatable, Sendable {
     /// Un nouvel essai a-t-il une chance de réussir ? Faux pour une vérification qui a trouvé des différences :
     /// relancer ne changerait rien. Vrai pour une panne (disque absent, réseau coupé).
     public var retryable: Bool = true
+    /// Partage réseau injoignable (nom du partage) : l'agent fait attendre la tâche au lieu d'un échec (1.6.5).
+    public var shareUnavailable: String? = nil
 }
 
 public enum RunnerError: Error, Equatable, LocalizedError {
