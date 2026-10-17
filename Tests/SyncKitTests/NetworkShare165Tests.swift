@@ -294,3 +294,22 @@ final class HugeETATests: XCTestCase {
         XCTAssertEqual(Formatting.clock(.infinity), "—")
     }
 }
+
+/// 1.6.6 : deux tâches vers le même NAS démarrent ensemble ; chacune montait le partage (« Documents » et
+/// « Documents-1 », essai réel du 17/10). Un seul montage à la fois par partage, la seconde utilise le premier.
+final class OneMountPerShareTests: IntegrationTestCase {
+    func testTwoRunsOnTheSameShareMountItOnce() async throws {
+        let source = try folder("Bureau")
+        let shares = FakeShares(base: try folder("Volumes"))
+        shares.mountDelay.set(0.5)
+        var configuration = RunnerConfiguration(rsyncPath: try rsyncPath(), workDirectory: sandbox.appendingPathComponent("w"))
+        configuration.shares = shares
+        let task = SyncTask(name: "test", source: .local(path: source),
+                            destination: .network(url: "smb://moi@nas/NAS", mountPath: shares.base + "/NAS/Sauvegarde"))
+        async let first = TaskRunner(configuration: configuration).run(task)
+        async let second = TaskRunner(configuration: configuration).run(task)
+        let results = try await [first, second]
+        XCTAssertEqual(shares.mountCalls.get().count, 1, "un seul montage")
+        XCTAssertEqual(results.map(\.status), [.succeeded, .succeeded])
+    }
+}

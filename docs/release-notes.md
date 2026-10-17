@@ -1,3 +1,8 @@
+SyncMacPro 1.6.6 — un seul montage par partage réseau.
+
+**Correction (1.6.6)**
+- Deux tâches vers le même NAS qui démarraient ensemble montaient chacune le partage (il apparaissait deux fois, par exemple « Documents » et « Documents-1 »). Le montage se fait maintenant une seule fois : la seconde tâche attend et l'utilise.
+
 SyncMacPro 1.6.5 — partages réseau remontés tout seuls, NAS injoignable sans échec.
 
 **Corrections (1.6.5)**

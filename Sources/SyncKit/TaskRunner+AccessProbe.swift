@@ -33,7 +33,14 @@ extension TaskRunner {
             guard case .network(let url, let mountPath) = endpoint, let root = configuration.shares.root(of: mountPath) else { continue }
             let name = (root as NSString).lastPathComponent
             if !configuration.shares.isMounted(root) {
-                let error = await configuration.shares.mount(url, timeout: configuration.shareMountTimeout)
+                // Une seule tentative à la fois par partage : deux tâches qui partent ensemble le montaient deux fois
+                // (« Documents » et « Documents-1 », 1.6.6). La seconde attend et profite du premier montage.
+                await ShareMountGate.shared.acquire(root)
+                var error: String?
+                if !configuration.shares.isMounted(root) {
+                    error = await configuration.shares.mount(url, timeout: configuration.shareMountTimeout)
+                }
+                await ShareMountGate.shared.release(root)
                 guard configuration.shares.isMounted(root) else {
                     return (name, Self.unmountedMessage(name, error: error ?? "monté à un autre endroit que \(root)"))
                 }
