@@ -29,6 +29,24 @@ extension Endpoint {
     }
 }
 
+/// Un montage à la fois par point de montage, pour tout l'agent (1.6.6).
+actor ShareMountGate {
+    static let shared = ShareMountGate()
+    private var waiters: [String: [CheckedContinuation<Void, Never>]] = [:]
+
+    func acquire(_ root: String) async {
+        guard waiters[root] != nil else { waiters[root] = []; return }
+        await withCheckedContinuation { waiters[root, default: []].append($0) }
+    }
+
+    func release(_ root: String) {
+        guard var queue = waiters[root], !queue.isEmpty else { waiters[root] = nil; return }
+        let next = queue.removeFirst()
+        waiters[root] = queue
+        next.resume()
+    }
+}
+
 /// Montage par NetFS, comme le Finder (« Se connecter au serveur »).
 public struct NetFSShareMounter: ShareMounting {
     /// NetFS rappelle sur cette file sans la retenir : elle doit vivre aussi longtemps que l'agent (une file locale,
