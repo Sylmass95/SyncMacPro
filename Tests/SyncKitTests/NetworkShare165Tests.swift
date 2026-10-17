@@ -306,8 +306,10 @@ final class OneMountPerShareTests: IntegrationTestCase {
         configuration.shares = shares
         let task = SyncTask(name: "test", source: .local(path: source),
                             destination: .network(url: "smb://moi@nas/NAS", mountPath: shares.base + "/NAS/Sauvegarde"))
-        async let first = TaskRunner(configuration: configuration).run(task)
-        async let second = TaskRunner(configuration: configuration).run(task)
+        // Swift 5.10 (CI) refuse une `var` capturée par `async let` : exécuteurs créés avant.
+        let one = TaskRunner(configuration: configuration), two = TaskRunner(configuration: configuration)
+        async let first = one.run(task)
+        async let second = two.run(task)
         let results = try await [first, second]
         XCTAssertEqual(shares.mountCalls.get().count, 1, "un seul montage")
         XCTAssertEqual(results.map(\.status), [.succeeded, .succeeded])
