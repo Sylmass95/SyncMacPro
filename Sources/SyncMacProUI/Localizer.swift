@@ -1,3 +1,4 @@
+import SyncKit
 import Foundation
 
 /// Textes localisés (français = langue source, anglais) et mise en forme des tailles, débits et durées.
@@ -81,6 +82,7 @@ public struct Localizer: Sendable {
 
     /// 724 → « 12 min 04 s », 3780 → « 1 h 03 min », 42 → « 42 s ».
     public func longDuration(_ seconds: TimeInterval) -> String {
+        guard seconds.isFinite, seconds < Formatting.longestShownDuration else { return "—" }
         let total = max(0, Int(seconds.rounded()))
         let hours = total / 3_600, minutes = (total % 3_600) / 60, secs = total % 60
         if hours > 0 { return String(format: "%d h %02d min", hours, minutes) }
@@ -90,6 +92,8 @@ public struct Localizer: Sendable {
 
     /// 65 → « 1:05 », 3725 → « 1:02:05 ».
     public func duration(_ seconds: TimeInterval) -> String {
+        // Débit presque nul : durée restante énorme ou infinie, que `Int(_:)` refuse (l'app plantait, 1.6.5).
+        guard seconds.isFinite, seconds < Formatting.longestShownDuration else { return "—" }
         let total = max(0, Int(seconds.rounded()))
         let hours = total / 3_600, minutes = (total % 3_600) / 60, secs = total % 60
         return hours > 0

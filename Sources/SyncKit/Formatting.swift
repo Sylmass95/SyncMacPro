@@ -19,6 +19,7 @@ public enum Formatting {
 
     /// 65 → « 1:05 », 3725 → « 1:02:05 ».
     public static func clock(_ seconds: TimeInterval) -> String {
+        guard seconds.isFinite, seconds < longestShownDuration else { return "—" }
         let total = max(0, Int(seconds.rounded()))
         let hours = total / 3_600, minutes = total % 3_600 / 60, secs = total % 60
         return hours > 0
@@ -27,7 +28,11 @@ public enum Formatting {
     }
 
     /// Temps restant estimé : « 45 s », « ~3 min », « ~1 h 05 ».
+    /// Au-delà (un an), une durée n'a plus de sens : débit presque nul. Affichée « — ».
+    public static let longestShownDuration: TimeInterval = 365 * 86_400
+
     public static func eta(_ seconds: TimeInterval) -> String {
+        guard seconds.isFinite, seconds < longestShownDuration else { return "—" }
         if seconds < 60 { return "\(max(1, Int(seconds.rounded()))) s" }
         if seconds < 3_600 { return "~\(Int((seconds / 60).rounded())) min" }
         let total = Int(seconds.rounded())

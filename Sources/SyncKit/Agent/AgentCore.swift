@@ -246,11 +246,14 @@ public actor AgentCore {
         if let drive = task.removableDrive, drives != nil, mountedDrives[drive.volumeUUID] == nil {
             return "disque « \(drive.volumeName) » non branché"
         }
-        if !conditions.isReachable(task.source) { return "source inaccessible" }
+        // Partage réseau non monté : l'exécution le monte, ou la tâche attend le NAS (1.6.5).
+        if !conditions.isReachable(task.source) && !task.source.isMountableShare { return "source inaccessible" }
         // Disque amovible branché : il suffit (le dossier d'un disque neuf est créé par le moteur, et le chemin
         // enregistré peut viser un ancien point de montage).
         let onDrive = task.removableDrive != nil && drives != nil
-        if !onDrive && !conditions.isReachable(task.destination) { return "destination inaccessible" }
+        if !onDrive && !conditions.isReachable(task.destination) && !task.destination.isMountableShare {
+            return "destination inaccessible"
+        }
         return nil
     }
 
@@ -480,6 +483,15 @@ public actor AgentCore {
             suspendForDrive(job, drive: drive, summary: summary, now: now)
             return
         }
+        // Partage réseau injoignable : attente et nouvel essai. Pas pour une tâche liée à un disque (elle part au
+        // branchement, `tick` ne la reprendrait pas), une copie ponctuelle ou une reprise : échec comme avant.
+        let shareFailure: String? = { if case .success(let result) = outcome, status == .failed { return result.shareUnavailable }; return nil }()
+        if let share = shareFailure, job.task.removableDrive == nil, job.resumed == nil, oneOffs[id] == nil, !shuttingDown,
+           waitForShare(job, share: share, now: now) {
+            emit(.taskFinished(id, status, summary.message))   // l'interface relit l'historique (ligne effacée)
+            afterJob(id)
+            return
+        }
 
         job.record.status = status
         job.record.summary = summary
@@ -491,6 +503,9 @@ public actor AgentCore {
         let key = id.uuidString
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
         entry.runningSince = nil
+        // Au-delà de la limite, l'attente reste datée : les échecs suivants du partage suivent la règle ordinaire
+        // (nouvel essai dans 1 h, 3 fois) au lieu de rouvrir 12 h d'essais toutes les 5 min.
+        if shareFailure == nil { entry.shareWaitSince = nil }
         switch status {
         case .succeeded:
             entry.lastSuccess = now
@@ -542,6 +557,31 @@ public actor AgentCore {
         // À l'arrêt de l'agent, l'élément interrompu reste « en cours » : il sera repris avant le suivant.
         if userQueueCurrent == id && !shuttingDown { userQueueCurrent = nil; persist() }
         advanceUserQueue()
+    }
+
+    /// Partage réseau injoignable (1.6.5) : l'essai est effacé (ni échec ni notification) et la tâche attend un nouvel
+    /// essai. Faux au-delà de `shareWaitLimit` : l'échec est alors enregistré comme d'habitude.
+    func waitForShare(_ job: Job, share: String, now: Date) -> Bool {
+        let key = job.task.id.uuidString
+        var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
+        let since = entry.shareWaitSince ?? job.record.startedAt
+        guard now.timeIntervalSince(since) < configuration.shareWaitLimit else { return false }
+        let retry = now.addingTimeInterval(configuration.shareRetryDelay)
+        entry.shareWaitSince = since
+        entry.runningSince = nil
+        entry.retryAt = retry
+        state.tasks[key] = entry
+        persist()
+        try? history.delete(id: job.record.id)
+        job.logWriter?.close()
+        if let path = job.record.logPath { try? FileManager.default.removeItem(atPath: path) }
+        let formatter = DateFormatter()
+        formatter.calendar = clock.calendar
+        formatter.timeZone = clock.calendar.timeZone
+        formatter.dateFormat = "HH:mm"
+        waiting[job.task.id] = "partage « \(share) » injoignable, nouvel essai à \(formatter.string(from: retry))"
+        log("« \(job.task.name) » : partage « \(share) » injoignable, nouvel essai à \(formatter.string(from: retry))")
+        return true
     }
 
     static func failed(_ outcome: Result<RunResult, Error>) -> Bool {

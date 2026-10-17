@@ -26,6 +26,17 @@ public final class TaskRunner: @unchecked Sendable {
     ) async throws -> RunResult {
         let engine = try EngineSelector.engine(for: task)
         control.reset()
+        let unavailable = await prepareShares(task)
+        if control.stopRequested {   // « Arrêter » pendant le montage
+            return result(status: .stopped, engine: engine, snapshot: TransferSnapshot(), started: configuration.now(),
+                          errors: 0, message: nil, retryable: false)
+        }
+        if let unavailable {
+            var failed = result(status: .failed, engine: engine, snapshot: TransferSnapshot(), started: configuration.now(),
+                                errors: 1, message: unavailable.message, retryable: true)
+            failed.shareUnavailable = unavailable.share
+            return failed
+        }
         if let message = await probeAccess(task) {
             return result(status: .failed, engine: engine, snapshot: TransferSnapshot(), started: configuration.now(),
                           errors: 1, message: message, retryable: true)
