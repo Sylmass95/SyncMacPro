@@ -22,6 +22,20 @@ public struct AgentConfiguration: Sendable {
     /// Partage réseau injoignable (1.6.5) : nouvel essai après ce délai, sans échec, pendant `shareWaitLimit` au plus.
     public var shareRetryDelay: TimeInterval = 300
     public var shareWaitLimit: TimeInterval = 12 * 3600
+    /// Identité du programme de l'agent sur le disque (1.6.7) : si elle change, une mise à jour l'a remplacé.
+    public var executableIdentity: @Sendable () -> String? = AgentConfiguration.runningExecutableIdentity
+    /// Ouvre l'app en arrière-plan : c'est elle qui redémarre l'agent remplacé (launchd ne le relance pas seul).
+    public var openApp: @Sendable () -> Void = {
+        _ = try? ProcessRunner.spawn(executable: "/usr/bin/open", arguments: ["-g", "-j", "-b", "com.sylvain.syncmacpro"], onLine: { _ in })
+    }
+
+    /// Volume, inode, date et taille du programme lancé ; `nil` s'il est introuvable (remplacement en cours).
+    public static let runningExecutableIdentity: @Sendable () -> String? = {
+        guard let path = Bundle.main.executablePath else { return nil }
+        var info = stat()
+        guard stat(path, &info) == 0 else { return nil }
+        return "\(info.st_dev):\(info.st_ino):\(info.st_mtimespec.tv_sec):\(info.st_size)"
+    }
 
     public init() {}
 }
@@ -64,6 +78,8 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
     case driveNotConnected(String)
     /// Le système a refusé d'éjecter le disque (fichier ouvert, Spotlight) (1.4.0).
     case ejectRefused(String)
+    /// Une mise à jour a remplacé l'agent : il attend son redémarrage (1.6.7).
+    case restartPending
 
     public var errorDescription: String? {
         switch self {
@@ -86,6 +102,8 @@ public enum AgentError: Error, Codable, Equatable, Sendable, LocalizedError {
         case .notInQueue: return "Cette tâche n'est pas dans la file."
         case .driveNotConnected(let name): return "Le disque « \(name) » n'est pas branché."
         case .ejectRefused(let reason): return "Le disque n'a pas pu être éjecté : \(reason)"
+        case .restartPending:
+            return "SyncMacPro vient d'être mis à jour : réessayez après le redémarrage de l'agent (dès que les copies en cours sont finies)."
         }
     }
 }
@@ -143,11 +161,15 @@ public struct AgentStatus: Codable, Equatable, Sendable {
     public var queue: QueueInfo?
     /// Plafonds de débit des réglages ; `nil` pour un agent plus ancien.
     public var bandwidth: BandwidthLimits?
+    /// Le programme de l'agent a été remplacé par une mise à jour (1.6.7) : plus rien ne démarre, l'app doit le
+    /// réenregistrer dès que les copies en cours sont finies. `nil` pour un agent plus ancien.
+    public var restartPending: Bool?
 
     public init(
         globalPause: Bool, stateRecovered: Bool, taskLoadError: String?, tasks: [AgentTaskInfo],
-        queue: QueueInfo? = nil, bandwidth: BandwidthLimits? = nil
+        queue: QueueInfo? = nil, bandwidth: BandwidthLimits? = nil, restartPending: Bool? = nil
     ) {
+        self.restartPending = restartPending
         self.queue = queue
         self.bandwidth = bandwidth
         self.globalPause = globalPause

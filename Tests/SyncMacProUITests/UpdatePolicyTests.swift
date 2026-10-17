@@ -22,6 +22,20 @@ final class UpdatePolicyTests: XCTestCase {
         XCTAssertTrue(UpdatePolicy.agentIsIdle(connected: true, status: nil))
     }
 
+    /// 1.6.7 : l'agent dont le programme a été remplacé ne lance plus rien ; la file lancée ne le garde pas occupé,
+    /// seules les copies en cours (ou en pause) retardent son redémarrage.
+    func testAnAgentWaitingForItsRestartIsIdleOnceItsCopiesAreDone() {
+        var waiting = status([.waiting(reason: "mise à jour"), .idle], queue: QueueInfo(running: true, items: [UUID()], current: nil))
+        waiting.restartPending = true
+        XCTAssertTrue(UpdatePolicy.agentIsIdle(connected: true, status: waiting))
+        var busy = status([.running])
+        busy.restartPending = true
+        XCTAssertFalse(UpdatePolicy.agentIsIdle(connected: true, status: busy))
+        var paused = status([.paused])
+        paused.restartPending = true
+        XCTAssertFalse(UpdatePolicy.agentIsIdle(connected: true, status: paused))
+    }
+
     func testInstallDecision() {
         XCTAssertTrue(UpdatePolicy.shouldInstall(ready: true, autoInstall: true, idle: true))
         XCTAssertFalse(UpdatePolicy.shouldInstall(ready: true, autoInstall: true, idle: false))
@@ -77,6 +91,34 @@ extension UpdatePolicyTests {
                                                   "SystemPolicyDocumentsFolder", "SystemPolicyDownloadsFolder"])
         XCTAssertTrue(calls.allSatisfy { $0.first == "reset" && $0.last == "com.sylvain.syncmacpro" })
         XCTAssertFalse(calls.contains { $0.contains("SystemPolicyAllFiles") }, "l'accès complet au disque ne se redemande pas : jamais effacé")
+    }
+}
+
+extension UpdatePolicyTests {
+    /// Revue 1.6.7 : l'agent à redémarrer après une mise à jour est périmé par définition ; seules ses copies en cours
+    /// ou en pause retardent le redémarrage (un agent 1.6.6 ne dit pas `restartPending` et lançait sans arrêt).
+    func testOnlyRunningCopiesDelayTheRestartOfAStaleAgent() {
+        let queued = status([.queued, .waiting(reason: "x")], queue: QueueInfo(running: true, items: [UUID()], current: nil))
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: queued), true)
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.running])), false)
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.paused])), false)
+        XCTAssertNil(UpdatePolicy.agentCanRestart(connection: .connecting, status: nil))
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .unreachable, status: nil), true)
+    }
+
+    /// Revue 1.6.7 : un agent dont le programme a été remplacé est redémarré même si la version est déjà enregistrée
+    /// (même version réinstallée, app déjà ouverte au moment du remplacement).
+    func testAReplacedAgentIsRestartedEvenWithTheSameBuild() async {
+        let service = AgentUpdateTests.RecordingService(.enabled)
+        let store = AgentUpdateTests().defaults()
+        store.set("1.6.7 (220)", forKey: AgentInstaller.registeredBuildKey)
+        let installer = AgentInstaller(service: service)
+        var order: [String] = []
+        await installer.restartReplacedAgent(currentBuild: "1.6.7 (220)", defaults: store, pause: { _ in },
+                                             beforeReRegistering: { order.append("reset") },
+                                             afterReRegistering: { order.append("demande") })
+        XCTAssertEqual(order, ["reset", "demande"])
+        XCTAssertEqual(service.calls.first, "unregister")
     }
 }
 

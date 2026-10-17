@@ -42,7 +42,8 @@ struct SyncMacProApp: App {
         if Bundle.main.bundlePath.hasSuffix(".app") {
             Task {
                 await installer.reRegisterAfterUpdate(
-                    isIdle: { UpdatePolicy.agentIdleness(connection: model.connection, status: model.status) ?? false },
+                    // L'agent à redémarrer est périmé : seules ses copies en cours le retardent (1.6.7).
+                    isIdle: { UpdatePolicy.agentCanRestart(connection: model.connection, status: model.status) ?? false },
                     // Autorisations de dossiers de l'ancienne version effacées, puis redemandées par l'agent mis à jour.
                     beforeReRegistering: { PermissionReset.resetAll(bundleID: Bundle.main.bundleIdentifier ?? "com.sylvain.syncmacpro") },
                     afterReRegistering: { await model.checkAccess() }
@@ -60,6 +61,15 @@ struct SyncMacProApp: App {
             while true {
                 if let idle = UpdatePolicy.agentIdleness(connection: model.connection, status: model.status) {
                     updates.agentActivity(idle: idle)
+                }
+                // Programme de l'agent remplacé (1.6.7) : redémarré dès que ses copies sont finies, quelle que soit la
+                // version enregistrée.
+                if Bundle.main.bundlePath.hasSuffix(".app"), model.status?.restartPending == true,
+                   UpdatePolicy.agentCanRestart(connection: model.connection, status: model.status) == true {
+                    await installer.restartReplacedAgent(
+                        beforeReRegistering: { PermissionReset.resetAll(bundleID: Bundle.main.bundleIdentifier ?? "com.sylvain.syncmacpro") },
+                        afterReRegistering: { await model.checkAccess() }
+                    )
                 }
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
             }

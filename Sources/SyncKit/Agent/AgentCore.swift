@@ -48,6 +48,10 @@ public actor AgentCore {
     var jobTasks: [UUID: Task<Void, Never>] = [:]
     var queue: [QueuedRun] = []
     var waiting: [UUID: String] = [:]
+    /// Identité du programme au démarrage, et vrai dès qu'une mise à jour l'a remplacé (1.6.7).
+    var launchedIdentity: String?
+    var restartPending = false
+    var appOpenedForRestart = false
     var holdUntil: Date?
     var lastTick: Date?
     var shuttingDown = false
@@ -124,6 +128,7 @@ public actor AgentCore {
     /// À appeler une fois au lancement de l'agent.
     public func start() {
         let now = clock.now()
+        launchedIdentity = configuration.executableIdentity()
         loadTasks()
         settingsLimits = settingsStore?.load() ?? BandwidthLimits()
         _ = try? history.markRunningAsInterrupted(at: now)
@@ -187,6 +192,12 @@ public actor AgentCore {
             holdUntil = now.addingTimeInterval(configuration.wakeHold)
         }
         purgeHistoryIfNeeded(now)
+        checkReplacedProgram()
+        // Au repos et en attente : l'app est ouverte pour qu'elle redémarre l'agent (une fois).
+        if restartPending, jobs.isEmpty, !appOpenedForRestart {
+            appOpenedForRestart = true
+            configuration.openApp()
+        }
         guard !state.paused else { return }
         if let hold = holdUntil {
             if now < hold { return }
@@ -208,6 +219,10 @@ public actor AgentCore {
                 }
             }
             guard let due = dueDate(task, entry, now), due <= now else { continue }
+            if restartPending {   // due : elle partira après le redémarrage (toujours due)
+                waiting[task.id] = Self.restartReason
+                continue
+            }
             if let reason = unmetCondition(task, now: now) {
                 waiting[task.id] = reason
                 continue
@@ -303,6 +318,8 @@ public actor AgentCore {
 
     func startQueued() {
         guard !state.paused, !shuttingDown else { return }
+        checkReplacedProgram()
+        if restartPending { keepQueuedForRestart(); return }
         // Exécutions qui attendent leur disque (éjection en cours, ou une autre copie sur ce disque) : elles gardent
         // leur place, les suivantes prennent les places libres.
         var waitingForDrive: [QueuedRun] = []
@@ -584,6 +601,42 @@ public actor AgentCore {
         return true
     }
 
+    static let restartReason = "mise à jour installée : départ après le redémarrage de l'agent"
+
+    /// Une mise à jour a remplacé le programme de l'agent : macOS ne reconnaît plus celui qui tourne (autorisations
+    /// refusées, essai réel du 17/10). Plus rien ne démarre ; les copies en cours finissent, puis l'app le réenregistre.
+    func checkReplacedProgram() {
+        guard !restartPending, let launched = launchedIdentity, let current = configuration.executableIdentity(),
+              current != launched else { return }
+        restartPending = true
+        log("programme de l'agent remplacé (mise à jour) : plus de nouveau départ avant le redémarrage")
+        notifier.notify(
+            title: "SyncMacPro a été mis à jour",
+            body: "Les copies en cours se terminent, puis l'agent redémarre ; les tâches en attente partiront ensuite."
+        )
+        keepQueuedForRestart()
+        emit(.stateChanged)
+    }
+
+    /// Exécutions en attente d'une place : celles demandées à la main sont notées pour l'agent suivant (une échéance
+    /// passée part à son démarrage) ; les autres sont de toute façon dues.
+    /// Demandes qui ne survivraient pas au redémarrage : refusées pendant l'attente.
+    func refuseWhileRestartPending() throws {
+        checkReplacedProgram()
+        if restartPending { throw AgentError.restartPending }
+    }
+
+    func keepQueuedForRestart() {
+        var changed = false
+        for run in queue where run.manual && oneOffs[run.id] == nil {
+            guard let task = lookupTask(run.id), task.removableDrive == nil else { continue }
+            let key = run.id.uuidString
+            var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: clock.now())
+            if entry.retryAt == nil || entry.retryAt! > clock.now() { entry.retryAt = clock.now(); state.tasks[key] = entry; changed = true }
+        }
+        if changed { persist() }
+    }
+
     static func failed(_ outcome: Result<RunResult, Error>) -> Bool {
         switch outcome {
         case .success(let result): return result.status == .failed
@@ -636,7 +689,7 @@ public actor AgentCore {
             if let job = jobs[task.id] {
                 runState = job.paused ? .paused : .running
             } else if queue.contains(where: { $0.id == task.id }) {
-                runState = .queued
+                runState = restartPending ? .waiting(reason: Self.restartReason) : .queued
             } else if !task.isEnabled {
                 runState = .disabled
             } else if entry?.awaitingApproval == true {
@@ -663,7 +716,7 @@ public actor AgentCore {
         }
         return AgentStatus(
             globalPause: state.paused, stateRecovered: stateRecovered, taskLoadError: taskLoadError, tasks: infos,
-            queue: queueInfo, bandwidth: settingsLimits
+            queue: queueInfo, bandwidth: settingsLimits, restartPending: restartPending
         )
     }
 

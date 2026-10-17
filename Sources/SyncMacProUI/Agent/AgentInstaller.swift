@@ -100,6 +100,7 @@ public final class AgentInstaller {
     public typealias Pause = @Sendable (UInt64) async -> Void
     public nonisolated static let realPause: Pause = { try? await Task.sleep(nanoseconds: $0) }
     @ObservationIgnored private var repaired = false
+    @ObservationIgnored private var restarting = false
 
     /// Après une mise à jour (app remplacée), launchd refuse de lancer l'agent enregistré avec l'ancienne signature ad hoc
     /// (code 78, ou OS_REASON_CODESIGNING) : on le désenregistre, on attend que macOS l'ait retiré, puis on le réenregistre.
@@ -116,6 +117,21 @@ public final class AgentInstaller {
               defaults.string(forKey: Self.registeredBuildKey) != currentBuild else { return }
         while !(await isIdle()) { await pause(30_000_000_000) }
         // 1.6.4 : autorisations de dossiers périmées effacées avant, redemandées après (voir `PermissionReset`).
+        await beforeReRegistering()
+        await reRegister(currentBuild: currentBuild, defaults: defaults, pause: pause)
+        await afterReRegistering()
+    }
+
+    /// L'agent signale que son programme a été remplacé (1.6.7) : redémarré même si cette version est déjà
+    /// enregistrée (même version réinstallée, app déjà ouverte au moment du remplacement). Une seule fois à la fois.
+    public func restartReplacedAgent(
+        currentBuild: String = AppInfo.version(), defaults: UserDefaults = .standard, pause: Pause = AgentInstaller.realPause,
+        beforeReRegistering: @MainActor () async -> Void = {},
+        afterReRegistering: @MainActor () async -> Void = {}
+    ) async {
+        guard !restarting, service.status() == .enabled else { return }
+        restarting = true
+        defer { restarting = false }
         await beforeReRegistering()
         await reRegister(currentBuild: currentBuild, defaults: defaults, pause: pause)
         await afterReRegistering()

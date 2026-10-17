@@ -7,6 +7,7 @@ extension AgentCore {
     /// Simulation hors de la file : rien n'est écrit dans l'historique ni dans `tasks.json`.
     /// Une nouvelle simulation de la même tâche remplace la précédente.
     public func simulate(_ original: SyncTask) async throws -> SimulationResult {
+        try refuseWhileRestartPending()   // l'ancien programme n'a plus accès aux dossiers protégés
         // Disque amovible : la comparaison se fait avec son dossier, là où il est monté maintenant.
         if let drive = original.removableDrive, ejectingVolumes.contains(drive.volumeUUID) {
             throw AgentError.ejectRefused("Le disque est en cours d'éjection.")

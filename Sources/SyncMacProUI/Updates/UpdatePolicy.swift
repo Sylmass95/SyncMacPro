@@ -7,6 +7,10 @@ public enum UpdatePolicy {
     /// Agent injoignable : rien ne tourne (et l'installation ne doit pas rester bloquée pour autant).
     public static func agentIsIdle(connected: Bool, status: AgentStatus?) -> Bool {
         guard connected, let status else { return true }
+        // Programme remplacé (1.6.7) : l'agent ne lance plus rien ; seules ses copies en cours le retiennent.
+        if status.restartPending == true {
+            return !status.tasks.contains { if case .running = $0.state { return true }; if case .paused = $0.state { return true }; return false }
+        }
         for task in status.tasks {
             switch task.state {
             case .running, .paused, .queued: return false
@@ -23,6 +27,18 @@ public enum UpdatePolicy {
         case .connecting, .reconnecting: return nil
         case .connected: return agentIsIdle(connected: true, status: status)
         case .unreachable, .versionMismatch: return true
+        }
+    }
+
+    /// Redémarrage d'un agent périmé (programme remplacé par une mise à jour) : seules ses copies en cours ou en pause
+    /// le retardent. Ce qu'il a en file est de toute façon dû ou retrouvé au redémarrage (1.6.7). `nil` : pas encore su.
+    public static func agentCanRestart(connection: ConnectionState, status: AgentStatus?) -> Bool? {
+        switch connection {
+        case .connecting, .reconnecting: return nil
+        case .unreachable, .versionMismatch: return true
+        case .connected:
+            guard let status else { return true }
+            return !status.tasks.contains { if case .running = $0.state { return true }; if case .paused = $0.state { return true }; return false }
         }
     }
 

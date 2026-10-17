@@ -10,6 +10,7 @@ extension AgentCore {
     public func approveDeletion(_ id: UUID) throws {
         guard tasks.contains(where: { $0.id == id }) else { throw AgentError.unknownTask }
         guard state.tasks[id.uuidString]?.awaitingApproval == true else { throw AgentError.notAwaitingApproval }
+        try refuseWhileRestartPending()   // la validation ne survivrait pas au redémarrage
         try enqueueNow(id, overrideGuard: true)
     }
 

@@ -38,6 +38,13 @@ extension AgentCore {
     /// Volumes branchés depuis 5 s : reprise d'une exécution suspendue, ou nouvelle sauvegarde selon le déclencheur.
     func handleDrives(_ now: Date) {
         guard drives != nil, !state.paused, !shuttingDown else { return }
+        checkReplacedProgram()
+        // Programme remplacé : le branchement n'est pas marqué servi, l'agent suivant s'en charge (1.6.7).
+        if restartPending {
+            for task in tasks where task.isEnabled && task.removableDrive.map({ mountedDrives[$0.volumeUUID] != nil }) == true
+                && jobs[task.id] == nil { waiting[task.id] = Self.restartReason }
+            return
+        }
         for task in tasks where task.isEnabled {
             // Deux exécutions au plus : le branchement attend une place (rappelé à la fin de chaque exécution).
             guard jobs.count < configuration.maxParallel else { return }
