@@ -22,6 +22,16 @@ public struct AgentConfiguration: Sendable {
     /// Partage réseau injoignable (1.6.5) : nouvel essai après ce délai, sans échec, pendant `shareWaitLimit` au plus.
     public var shareRetryDelay: TimeInterval = 300
     public var shareWaitLimit: TimeInterval = 12 * 3600
+    /// Identité du programme de l'agent sur le disque (1.6.7) : si elle change, une mise à jour l'a remplacé.
+    public var executableIdentity: @Sendable () -> String? = AgentConfiguration.runningExecutableIdentity
+
+    /// Volume, inode, date et taille du programme lancé ; `nil` s'il est introuvable (remplacement en cours).
+    public static let runningExecutableIdentity: @Sendable () -> String? = {
+        guard let path = Bundle.main.executablePath else { return nil }
+        var info = stat()
+        guard stat(path, &info) == 0 else { return nil }
+        return "\(info.st_dev):\(info.st_ino):\(info.st_mtimespec.tv_sec):\(info.st_size)"
+    }
 
     public init() {}
 }
@@ -143,11 +153,15 @@ public struct AgentStatus: Codable, Equatable, Sendable {
     public var queue: QueueInfo?
     /// Plafonds de débit des réglages ; `nil` pour un agent plus ancien.
     public var bandwidth: BandwidthLimits?
+    /// Le programme de l'agent a été remplacé par une mise à jour (1.6.7) : plus rien ne démarre, l'app doit le
+    /// réenregistrer dès que les copies en cours sont finies. `nil` pour un agent plus ancien.
+    public var restartPending: Bool?
 
     public init(
         globalPause: Bool, stateRecovered: Bool, taskLoadError: String?, tasks: [AgentTaskInfo],
-        queue: QueueInfo? = nil, bandwidth: BandwidthLimits? = nil
+        queue: QueueInfo? = nil, bandwidth: BandwidthLimits? = nil, restartPending: Bool? = nil
     ) {
+        self.restartPending = restartPending
         self.queue = queue
         self.bandwidth = bandwidth
         self.globalPause = globalPause

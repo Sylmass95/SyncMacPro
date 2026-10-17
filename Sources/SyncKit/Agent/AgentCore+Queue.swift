@@ -62,7 +62,7 @@ extension AgentCore {
     /// Démarre le premier élément si la file tourne, qu'aucun de ses éléments ne s'exécute et qu'il reste de la place.
     /// L'élément quitte la file au démarrage.
     func advanceUserQueue() {
-        guard state.userQueueRunning, !state.paused, !shuttingDown, userQueueCurrent == nil else { return }
+        guard state.userQueueRunning, !state.paused, !shuttingDown, !restartPending, userQueueCurrent == nil else { return }
         // Les plafonds dépendent des types de connexion (réseau local ou internet) : on les attend.
         guard remotes == nil || remoteTypesLoaded else { return }
         // Attente du démarrage ou du réveil : le NAS ou le réseau n'est peut-être pas encore là (comme pour `tick`).

@@ -1,3 +1,9 @@
+SyncMacPro 1.6.7 — plus d'échecs en série après une mise à jour.
+
+**Correction (1.6.7)**
+- Après une mise à jour installée pendant une copie, l'agent continuait avec l'ancien programme jusqu'à la fin des copies ; macOS ne le reconnaissait plus et toutes ses nouvelles copies échouaient en « Accès refusé » (Bureau, volumes réseau, disques externes), même avec les autorisations cochées. Maintenant, dès que son programme a été remplacé, l'agent ne lance plus rien : les copies en cours finissent normalement, les autres attendent « mise à jour installée : départ après le redémarrage de l'agent », puis l'app le redémarre et elles partent. Une notification le signale.
+- Valable pour les mises à jour suivantes (de la 1.6.7 vers une version plus récente) : c'est le programme qui tourne qui doit savoir s'arrêter.
+
 SyncMacPro 1.6.6 — un seul montage par partage réseau.
 
 **Correction (1.6.6)**

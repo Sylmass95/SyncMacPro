@@ -22,6 +22,20 @@ final class UpdatePolicyTests: XCTestCase {
         XCTAssertTrue(UpdatePolicy.agentIsIdle(connected: true, status: nil))
     }
 
+    /// 1.6.7 : l'agent dont le programme a été remplacé ne lance plus rien ; la file lancée ne le garde pas occupé,
+    /// seules les copies en cours (ou en pause) retardent son redémarrage.
+    func testAnAgentWaitingForItsRestartIsIdleOnceItsCopiesAreDone() {
+        var waiting = status([.waiting(reason: "mise à jour"), .idle], queue: QueueInfo(running: true, items: [UUID()], current: nil))
+        waiting.restartPending = true
+        XCTAssertTrue(UpdatePolicy.agentIsIdle(connected: true, status: waiting))
+        var busy = status([.running])
+        busy.restartPending = true
+        XCTAssertFalse(UpdatePolicy.agentIsIdle(connected: true, status: busy))
+        var paused = status([.paused])
+        paused.restartPending = true
+        XCTAssertFalse(UpdatePolicy.agentIsIdle(connected: true, status: paused))
+    }
+
     func testInstallDecision() {
         XCTAssertTrue(UpdatePolicy.shouldInstall(ready: true, autoInstall: true, idle: true))
         XCTAssertFalse(UpdatePolicy.shouldInstall(ready: true, autoInstall: true, idle: false))

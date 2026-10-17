@@ -7,6 +7,10 @@ public enum UpdatePolicy {
     /// Agent injoignable : rien ne tourne (et l'installation ne doit pas rester bloquée pour autant).
     public static func agentIsIdle(connected: Bool, status: AgentStatus?) -> Bool {
         guard connected, let status else { return true }
+        // Programme remplacé (1.6.7) : l'agent ne lance plus rien ; seules ses copies en cours le retiennent.
+        if status.restartPending == true {
+            return !status.tasks.contains { if case .running = $0.state { return true }; if case .paused = $0.state { return true }; return false }
+        }
         for task in status.tasks {
             switch task.state {
             case .running, .paused, .queued: return false
