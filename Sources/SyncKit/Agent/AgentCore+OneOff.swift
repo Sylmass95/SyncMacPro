@@ -6,6 +6,7 @@ extension AgentCore {
     public func runOnce(_ task: SyncTask) throws {
         if let problem = TaskValidator.problems(in: task).first { throw AgentError.invalidTask(problem.message) }
         guard !state.paused else { throw AgentError.globallyPaused }
+        try refuseWhileRestartPending()
         guard lookupTask(task.id) == nil else { throw AgentError.alreadyRunning }
         // Devant les exécutions planifiées, derrière les copies déjà demandées (ordre des demandes).
         let index = queue.lastIndex(where: { oneOffs[$0.id] != nil }).map { $0 + 1 } ?? 0

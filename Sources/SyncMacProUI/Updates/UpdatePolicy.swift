@@ -30,6 +30,18 @@ public enum UpdatePolicy {
         }
     }
 
+    /// Redémarrage d'un agent périmé (programme remplacé par une mise à jour) : seules ses copies en cours ou en pause
+    /// le retardent. Ce qu'il a en file est de toute façon dû ou retrouvé au redémarrage (1.6.7). `nil` : pas encore su.
+    public static func agentCanRestart(connection: ConnectionState, status: AgentStatus?) -> Bool? {
+        switch connection {
+        case .connecting, .reconnecting: return nil
+        case .unreachable, .versionMismatch: return true
+        case .connected:
+            guard let status else { return true }
+            return !status.tasks.contains { if case .running = $0.state { return true }; if case .paused = $0.state { return true }; return false }
+        }
+    }
+
     public static func shouldInstall(ready: Bool, autoInstall: Bool, idle: Bool) -> Bool {
         ready && autoInstall && idle
     }

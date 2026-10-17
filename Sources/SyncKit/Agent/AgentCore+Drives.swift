@@ -38,6 +38,7 @@ extension AgentCore {
     /// Volumes branchés depuis 5 s : reprise d'une exécution suspendue, ou nouvelle sauvegarde selon le déclencheur.
     func handleDrives(_ now: Date) {
         guard drives != nil, !state.paused, !shuttingDown else { return }
+        checkReplacedProgram()
         // Programme remplacé : le branchement n'est pas marqué servi, l'agent suivant s'en charge (1.6.7).
         if restartPending {
             for task in tasks where task.isEnabled && task.removableDrive.map({ mountedDrives[$0.volumeUUID] != nil }) == true

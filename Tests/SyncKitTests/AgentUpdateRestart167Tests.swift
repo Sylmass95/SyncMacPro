@@ -12,6 +12,7 @@ final class AgentUpdateRestart167Tests: XCTestCase {
         let h = try AgentHarness(start: Date(timeIntervalSince1970: 0), gated: gated)
         let identity = self.identity
         h.configuration.executableIdentity = { identity.get() }
+        h.configuration.openApp = {}   // jamais la vraie app pendant les tests
         return h
     }
 
@@ -130,5 +131,53 @@ final class AgentUpdateRestart167Tests: XCTestCase {
         XCTAssertEqual(h.factory.created, 1)
         let pending = await core.status().restartPending
         XCTAssertNotEqual(pending, true)
+    }
+
+    /// Revue : l'agent en attente et au repos ouvre l'app (en arrière-plan) pour qu'elle le redémarre, une fois.
+    func testAnIdleWaitingAgentOpensTheAppOnce() async throws {
+        let h = try harness(gated: true)
+        let opened = Locked(0)
+        h.configuration.openApp = { opened.update { $0 += 1 } }
+        let a = task("A")
+        try h.save([a])
+        let core = h.makeCore()
+        await core.start()
+        try await core.runNow(a.id)
+        identity.set("v2")
+        await core.tick()
+        XCTAssertEqual(opened.get(), 0, "une copie tourne encore")
+        h.factory.runners.get()[0].release()
+        await core.waitForIdle()
+        await core.tick()
+        await core.tick()
+        XCTAssertEqual(opened.get(), 1)
+    }
+
+    /// Revue : remplacement vu tout de suite (pas au prochain passage du minuteur) quand on lance une tâche.
+    func testARunAskedRightAfterTheReplacementDoesNotStartWithTheOldProgram() async throws {
+        let h = try harness()
+        let b = task("B")
+        try h.save([b])
+        let core = h.makeCore()
+        await core.start()
+        identity.set("v2")
+        try await core.runNow(b.id)
+        XCTAssertEqual(h.factory.created, 0)
+    }
+
+    /// Revue : demandes qui ne survivraient pas au redémarrage (copie ponctuelle, validation d'une suppression,
+    /// simulation) : refusées avec un message clair.
+    func testRequestsThatWouldBeLostAreRefusedWhileWaiting() async throws {
+        let h = try harness()
+        let b = task("B")
+        try h.save([b])
+        let core = h.makeCore()
+        await core.start()
+        identity.set("v2")
+        await core.tick()
+        do { try await core.runOnce(task("Ponctuelle")); XCTFail("refus attendu") } catch {
+            XCTAssertTrue("\((error as? LocalizedError)?.errorDescription ?? "")".contains("redémarrage"), "\(error)")
+        }
+        do { _ = try await core.simulate(b); XCTFail("refus attendu") } catch {}
     }
 }

@@ -51,6 +51,7 @@ public actor AgentCore {
     /// Identité du programme au démarrage, et vrai dès qu'une mise à jour l'a remplacé (1.6.7).
     var launchedIdentity: String?
     var restartPending = false
+    var appOpenedForRestart = false
     var holdUntil: Date?
     var lastTick: Date?
     var shuttingDown = false
@@ -192,6 +193,11 @@ public actor AgentCore {
         }
         purgeHistoryIfNeeded(now)
         checkReplacedProgram()
+        // Au repos et en attente : l'app est ouverte pour qu'elle redémarre l'agent (une fois).
+        if restartPending, jobs.isEmpty, !appOpenedForRestart {
+            appOpenedForRestart = true
+            configuration.openApp()
+        }
         guard !state.paused else { return }
         if let hold = holdUntil {
             if now < hold { return }
@@ -312,6 +318,7 @@ public actor AgentCore {
 
     func startQueued() {
         guard !state.paused, !shuttingDown else { return }
+        checkReplacedProgram()
         if restartPending { keepQueuedForRestart(); return }
         // Exécutions qui attendent leur disque (éjection en cours, ou une autre copie sur ce disque) : elles gardent
         // leur place, les suivantes prennent les places libres.
@@ -605,7 +612,7 @@ public actor AgentCore {
         log("programme de l'agent remplacé (mise à jour) : plus de nouveau départ avant le redémarrage")
         notifier.notify(
             title: "SyncMacPro a été mis à jour",
-            body: "Les copies en cours se terminent, puis l'agent redémarre et reprend les autres. Ouvrez SyncMacPro si ce n'est pas déjà fait."
+            body: "Les copies en cours se terminent, puis l'agent redémarre ; les tâches en attente partiront ensuite."
         )
         keepQueuedForRestart()
         emit(.stateChanged)
@@ -613,6 +620,12 @@ public actor AgentCore {
 
     /// Exécutions en attente d'une place : celles demandées à la main sont notées pour l'agent suivant (une échéance
     /// passée part à son démarrage) ; les autres sont de toute façon dues.
+    /// Demandes qui ne survivraient pas au redémarrage : refusées pendant l'attente.
+    func refuseWhileRestartPending() throws {
+        checkReplacedProgram()
+        if restartPending { throw AgentError.restartPending }
+    }
+
     func keepQueuedForRestart() {
         var changed = false
         for run in queue where run.manual && oneOffs[run.id] == nil {

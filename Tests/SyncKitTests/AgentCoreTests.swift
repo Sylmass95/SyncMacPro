@@ -25,6 +25,7 @@ final class AgentHarness {
         history = try HistoryStore(path: directory.appendingPathComponent("history.sqlite").path)
         logs = directory.appendingPathComponent("logs")
         configuration.startupHold = 0
+        configuration.openApp = {}   // 1.6.7 : jamais la vraie app pendant les tests
     }
 
     deinit { try? FileManager.default.removeItem(at: directory) }

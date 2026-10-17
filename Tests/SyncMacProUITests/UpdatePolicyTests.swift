@@ -94,6 +94,34 @@ extension UpdatePolicyTests {
     }
 }
 
+extension UpdatePolicyTests {
+    /// Revue 1.6.7 : l'agent à redémarrer après une mise à jour est périmé par définition ; seules ses copies en cours
+    /// ou en pause retardent le redémarrage (un agent 1.6.6 ne dit pas `restartPending` et lançait sans arrêt).
+    func testOnlyRunningCopiesDelayTheRestartOfAStaleAgent() {
+        let queued = status([.queued, .waiting(reason: "x")], queue: QueueInfo(running: true, items: [UUID()], current: nil))
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: queued), true)
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.running])), false)
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.paused])), false)
+        XCTAssertNil(UpdatePolicy.agentCanRestart(connection: .connecting, status: nil))
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .unreachable, status: nil), true)
+    }
+
+    /// Revue 1.6.7 : un agent dont le programme a été remplacé est redémarré même si la version est déjà enregistrée
+    /// (même version réinstallée, app déjà ouverte au moment du remplacement).
+    func testAReplacedAgentIsRestartedEvenWithTheSameBuild() async {
+        let service = AgentUpdateTests.RecordingService(.enabled)
+        let store = AgentUpdateTests().defaults()
+        store.set("1.6.7 (220)", forKey: AgentInstaller.registeredBuildKey)
+        let installer = AgentInstaller(service: service)
+        var order: [String] = []
+        await installer.restartReplacedAgent(currentBuild: "1.6.7 (220)", defaults: store, pause: { _ in },
+                                             beforeReRegistering: { order.append("reset") },
+                                             afterReRegistering: { order.append("demande") })
+        XCTAssertEqual(order, ["reset", "demande"])
+        XCTAssertEqual(service.calls.first, "unregister")
+    }
+}
+
 final class IdleProbe: @unchecked Sendable {
     private let lock = NSLock()
     private var answers: [Bool]
