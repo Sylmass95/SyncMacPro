@@ -33,5 +33,10 @@ final class LocalizerTests: XCTestCase {
         XCTAssertEqual(fr.duration(65), "1:05")
         XCTAssertEqual(fr.duration(3725), "1:02:05")
         XCTAssertEqual(fr.duration(0), "0:00")
+        // 1.6.5 : un débit presque nul donnait une durée restante énorme ou infinie, et l'app plantait (essai réel).
+        XCTAssertEqual(fr.duration(.infinity), "—")
+        XCTAssertEqual(fr.duration(.nan), "—")
+        XCTAssertEqual(fr.duration(1e300), "—")
+        XCTAssertEqual(fr.longDuration(.infinity), "—")
     }
 }

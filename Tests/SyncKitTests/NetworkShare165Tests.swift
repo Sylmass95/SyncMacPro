@@ -283,3 +283,14 @@ final class NetworkShareAgentTests: XCTestCase {
         XCTAssertEqual(try h.history.list(taskID: a.id).count, 0)
     }
 }
+
+/// 1.6.5 : durée restante énorme ou infinie (débit presque nul) : l'app plantait en l'affichant (essai réel du 17/10).
+final class HugeETATests: XCTestCase {
+    func testAHugeOrInfiniteETAIsShownWithoutCrashing() {
+        XCTAssertEqual(Formatting.eta(.infinity), "—")
+        XCTAssertEqual(Formatting.eta(.nan), "—")
+        XCTAssertEqual(Formatting.eta(1e300), "—")
+        XCTAssertEqual(Formatting.eta(7_200), "~2 h 00")
+        XCTAssertEqual(Formatting.clock(.infinity), "—")
+    }
+}

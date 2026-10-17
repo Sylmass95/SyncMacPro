@@ -6,6 +6,7 @@ SyncMacPro 1.6.5 — partages réseau remontés tout seuls, NAS injoignable sans
 - Une tâche planifiée dont le partage n'est pas monté démarre quand même à son heure (elle monte le partage), au lieu d'attendre qu'il soit monté à la main.
 - Dans la file d'attente, une tâche dont le NAS ne répond pas laisse passer les suivantes. « Arrêter » met fin à l'attente.
 - Une sauvegarde d'un NAS vers un disque amovible garde le comportement d'avant : si le NAS ne répond pas au branchement, elle échoue (et repartira au prochain branchement ou à la main).
+- L'app pouvait se fermer brutalement quand une copie n'avançait presque plus (durée restante estimée infinie) : la durée s'affiche maintenant « — ».
 - Le message d'un partage qui ne répond pas parle du NAS et du réseau, plus seulement d'une autorisation de macOS.
 
 SyncMacPro 1.6.4 — autorisations de macOS redemandées à chaque mise à jour.
