@@ -114,7 +114,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         if !stopped.get(), unavailableNames.get().contains(task.name) {
             return RunResult(status: .failed, engine: .rsync,
                              summary: RunSummary(filesTransferred: copiedBeforeLoss.get(), errors: 1, message: "« NAS » ne répond pas"),
-                             snapshot: TransferSnapshot(), shareUnavailable: "NAS")
+                             snapshot: TransferSnapshot(), shareUnavailable: "NAS", shareLostDuringRun: copiedBeforeLoss.get() > 0)
         }
         let final = stopped.get() ? RunStatus.stopped : status.get()
         return RunResult(

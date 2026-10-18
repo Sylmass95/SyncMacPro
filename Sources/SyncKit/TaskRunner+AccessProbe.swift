@@ -60,21 +60,24 @@ extension TaskRunner {
         let shares = configuration.shares, control = self.control
         let delay = UInt64(configuration.shareWatchInterval * 1_000_000_000)
         return Task.detached {
+            var missed: String?   // deux relevés manqués de suite : une lecture ratée de la table des montages ne suffit pas
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: delay)
                 if Task.isCancelled || control.stopRequested { return }
-                if let gone = roots.first(where: { !shares.isMounted($0.1) }) {
-                    lost.set(gone.0)
+                let gone = roots.first(where: { !shares.isMounted($0.1) })?.0
+                if let gone, gone == missed {
+                    lost.set(gone)
                     control.stop()
                     return
                 }
+                missed = gone
             }
         }
     }
 
     static func lostShareMessage(_ name: String) -> String {
-        "Partage réseau « \(name) » démonté pendant la copie (NAS éteint ou réseau / VPN coupé) : la copie s'est arrêtée, "
-            + "elle reprendra quand le NAS répondra."
+        "Partage réseau « \(name) » démonté pendant la copie (NAS éteint ou réseau / VPN coupé) : la copie s'est arrêtée "
+            + "pour ne pas tourner dans le vide."
     }
 
     static func unmountedMessage(_ name: String, error: String) -> String {

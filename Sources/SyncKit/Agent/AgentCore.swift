@@ -503,8 +503,9 @@ public actor AgentCore {
         // Partage réseau injoignable : attente et nouvel essai. Pas pour une tâche liée à un disque (elle part au
         // branchement, `tick` ne la reprendrait pas), une copie ponctuelle ou une reprise : échec comme avant.
         let shareFailure: String? = { if case .success(let result) = outcome, status == .failed { return result.shareUnavailable }; return nil }()
+        let lostDuringRun: Bool = { if case .success(let result) = outcome { return result.shareLostDuringRun }; return false }()
         if let share = shareFailure, job.task.removableDrive == nil, job.resumed == nil, oneOffs[id] == nil, !shuttingDown,
-           waitForShare(job, share: share, summary: summary, now: now) {
+           waitForShare(job, share: share, summary: summary, lostDuringRun: lostDuringRun, now: now) {
             emit(.taskFinished(id, status, summary.message))   // l'interface relit l'historique (ligne effacée)
             afterJob(id)
             return
@@ -578,10 +579,12 @@ public actor AgentCore {
 
     /// Partage réseau injoignable (1.6.5) : l'essai est effacé (ni échec ni notification) et la tâche attend un nouvel
     /// essai. Faux au-delà de `shareWaitLimit` : l'échec est alors enregistré comme d'habitude.
-    func waitForShare(_ job: Job, share: String, summary: RunSummary, now: Date) -> Bool {
+    func waitForShare(_ job: Job, share: String, summary: RunSummary, lostDuringRun: Bool = false, now: Date) -> Bool {
         let key = job.task.id.uuidString
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
-        let since = entry.shareWaitSince ?? job.record.startedAt
+        // Partage perdu en cours de copie : il était là au départ, l'attente commence maintenant (une copie de 13 h
+        // ou une ancienne attente ne la font pas passer pour dépassée, revue 1.6.8).
+        let since = lostDuringRun ? now : (entry.shareWaitSince ?? job.record.startedAt)
         guard now.timeIntervalSince(since) < configuration.shareWaitLimit else { return false }
         let retry = now.addingTimeInterval(configuration.shareRetryDelay)
         entry.shareWaitSince = since

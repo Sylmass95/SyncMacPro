@@ -59,6 +59,7 @@ public final class TaskRunner: @unchecked Sendable {
             outcome.status = .failed
             outcome.retryable = true
             outcome.shareUnavailable = share
+            outcome.shareLostDuringRun = true
             outcome.summary.errors = max(1, outcome.summary.errors)
             outcome.summary.message = Self.lostShareMessage(share)
         }
