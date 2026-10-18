@@ -50,6 +50,33 @@ extension TaskRunner {
         return nil
     }
 
+    /// Surveille les partages réseau de la tâche pendant la copie ; le premier qui disparaît arrête l'exécution.
+    func watchShares(_ task: SyncTask, lost: Locked<String?>) -> Task<Void, Never>? {
+        let roots: [(String, String)] = [task.source, task.destination].compactMap { endpoint in
+            guard case .network(_, let mountPath) = endpoint, let root = configuration.shares.root(of: mountPath) else { return nil }
+            return ((root as NSString).lastPathComponent, root)
+        }
+        guard !roots.isEmpty, configuration.shareWatchInterval > 0 else { return nil }
+        let shares = configuration.shares, control = self.control
+        let delay = UInt64(configuration.shareWatchInterval * 1_000_000_000)
+        return Task.detached {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: delay)
+                if Task.isCancelled || control.stopRequested { return }
+                if let gone = roots.first(where: { !shares.isMounted($0.1) }) {
+                    lost.set(gone.0)
+                    control.stop()
+                    return
+                }
+            }
+        }
+    }
+
+    static func lostShareMessage(_ name: String) -> String {
+        "Partage réseau « \(name) » démonté pendant la copie (NAS éteint ou réseau / VPN coupé) : la copie s'est arrêtée, "
+            + "elle reprendra quand le NAS répondra."
+    }
+
     static func unmountedMessage(_ name: String, error: String) -> String {
         "Partage réseau « \(name) » non monté, montage impossible (\(error)) : NAS éteint, en veille ou réseau (VPN) coupé ? "
             + "Nouvel essai plus tard."

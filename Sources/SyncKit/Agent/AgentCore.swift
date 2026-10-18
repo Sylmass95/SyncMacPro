@@ -504,7 +504,7 @@ public actor AgentCore {
         // branchement, `tick` ne la reprendrait pas), une copie ponctuelle ou une reprise : échec comme avant.
         let shareFailure: String? = { if case .success(let result) = outcome, status == .failed { return result.shareUnavailable }; return nil }()
         if let share = shareFailure, job.task.removableDrive == nil, job.resumed == nil, oneOffs[id] == nil, !shuttingDown,
-           waitForShare(job, share: share, now: now) {
+           waitForShare(job, share: share, summary: summary, now: now) {
             emit(.taskFinished(id, status, summary.message))   // l'interface relit l'historique (ligne effacée)
             afterJob(id)
             return
@@ -578,7 +578,7 @@ public actor AgentCore {
 
     /// Partage réseau injoignable (1.6.5) : l'essai est effacé (ni échec ni notification) et la tâche attend un nouvel
     /// essai. Faux au-delà de `shareWaitLimit` : l'échec est alors enregistré comme d'habitude.
-    func waitForShare(_ job: Job, share: String, now: Date) -> Bool {
+    func waitForShare(_ job: Job, share: String, summary: RunSummary, now: Date) -> Bool {
         let key = job.task.id.uuidString
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
         let since = entry.shareWaitSince ?? job.record.startedAt
@@ -589,9 +589,20 @@ public actor AgentCore {
         entry.retryAt = retry
         state.tasks[key] = entry
         persist()
-        try? history.delete(id: job.record.id)
-        job.logWriter?.close()
-        if let path = job.record.logPath { try? FileManager.default.removeItem(atPath: path) }
+        if summary.filesTransferred > 0 || summary.bytesTransferred > 0 {
+            // Partage perdu en cours de copie (1.6.8) : ce qui a été copié reste visible, l'exécution est interrompue.
+            var record = job.record
+            record.status = .interrupted
+            record.summary = summary
+            record.finishedAt = now
+            try? history.save(record)
+            job.logWriter?.append("Fin : interrompue — \(summary.message ?? "")", force: true)
+            job.logWriter?.close()
+        } else {
+            try? history.delete(id: job.record.id)
+            job.logWriter?.close()
+            if let path = job.record.logPath { try? FileManager.default.removeItem(atPath: path) }
+        }
         let formatter = DateFormatter()
         formatter.calendar = clock.calendar
         formatter.timeZone = clock.calendar.timeZone
