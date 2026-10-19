@@ -1,3 +1,9 @@
+SyncMacPro 1.7.4 — les mises à jour n'attendent plus la fin des copies.
+
+**Changements (1.7.4)**
+- Une mise à jour s'installe et l'agent redémarre tout de suite, même si des copies tournent : avec une copie de plusieurs jours (NAS → Drive), toutes les autres tâches restaient « en attente : départ après le redémarrage de l'agent ». Les copies coupées reprennent juste après le redémarrage, sans recopier ce qui est déjà fait (rsync refait sa comparaison préalable). L'installation automatique reste limitée à la journée (9 h – 19 h par défaut), pour les demandes d'autorisation de macOS.
+- Une sauvegarde de disque amovible coupée par un redémarrage de l'agent, ou lancée pendant l'attente d'une mise à jour, repart sans qu'il faille rebrancher le disque.
+
 SyncMacPro 1.7.3 — la progression d'une copie de nouveau lisible.
 
 **Correction (1.7.3)**

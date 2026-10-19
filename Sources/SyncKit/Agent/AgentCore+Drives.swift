@@ -55,7 +55,8 @@ extension AgentCore {
             let key = task.id.uuidString
             var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)
             // `lastMountHandled` : l'instant où le branchement servi a été vu ; un même branchement n'est servi qu'une fois.
-            if let handled = entry.lastMountHandled, handled >= seen { continue }
+            let pending = entry.manualRunPending == true   // coupée par un redémarrage, ou demandée pendant l'attente
+            if let handled = entry.lastMountHandled, handled >= seen, !pending { continue }
             if let reason = unmetCondition(task, now: now) {
                 waiting[task.id] = reason   // secteur, plage horaire : on réessaie au prochain passage
                 continue
@@ -76,7 +77,7 @@ extension AgentCore {
             switch drive.trigger {
             case .everyConnection: due = true
             case .atMostEveryDays(let days):
-                due = entry.lastSuccess.map { now.timeIntervalSince($0) >= Double(days) * 86_400 } ?? true
+                due = pending || entry.lastSuccess.map { now.timeIntervalSince($0) >= Double(days) * 86_400 } ?? true
             }
             if due {
                 queue.append(QueuedRun(id: task.id, dueDate: now))
