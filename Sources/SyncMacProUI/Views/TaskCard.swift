@@ -136,3 +136,26 @@ struct TaskCard: View {
         Button(action: action) { Label(l.text(key), systemImage: symbol) }.disabled(busy)
     }
 }
+
+/// Lignes de progression façon RsyncGUI sous la barre d'une carte : fichiers, dossiers, vitesse moyenne, temps écoulé.
+@MainActor
+struct TaskProgressDetails: View {
+    let progress: ProgressInfo
+    let presentation: ProgressPresentation
+
+    static func lines(_ progress: ProgressInfo, presentation: ProgressPresentation) -> [String] {
+        var lines = [presentation.filesLine(done: progress.filesDone, total: progress.totalFiles)]
+        if let dirs = presentation.dirsLine(done: progress.dirsDone, total: progress.totalDirs) { lines.append(dirs) }
+        if let average = presentation.averageSpeedLine(progress.averageSpeed) { lines.append(average) }
+        lines.append(presentation.elapsedLine(progress.activeTime))
+        return lines
+    }
+
+    var body: some View {
+        let lines = Self.lines(progress, presentation: presentation)
+        LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 2) {
+            ForEach(lines, id: \.self) { Text($0) }
+        }
+        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+    }
+}

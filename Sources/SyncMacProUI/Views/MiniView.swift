@@ -62,9 +62,6 @@ struct MiniBody: View {
                     )
                 )
             }
-            if model.queue?.items.isEmpty == false {
-                QueueSection(model: model, localizer: localizer, compact: true)
-            }
         }
         .padding(12)
     }

@@ -109,9 +109,6 @@ struct DashboardBody: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else {
-                if model.queue?.items.isEmpty == false || model.queue?.current != nil {
-                    QueueSection(model: model, localizer: l)
-                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], spacing: 16) {
                     ForEach(CardOrdering.sorted(status.tasks)) { info in
                         TaskCard(
@@ -131,8 +128,8 @@ struct DashboardBody: View {
             resume: { Task { await model.resume(id) } },
             stop: { Task { await model.stop(id) } },
             approve: { Task { await model.approve(id) } },
-            enqueue: { Task { await model.enqueue(id) } },
-            dequeue: { Task { await model.dequeue(id) } },
+            enqueue: { Task { await model.force(id) } },   // remplacé par la liste en Tâche 5
+            dequeue: { Task { await model.stop(id) } },
             abandon: { Task { await model.abandonSuspended(id) } },
             eject: { Task { await model.ejectDrive(id) } }
         )

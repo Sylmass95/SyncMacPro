@@ -46,9 +46,6 @@ public struct TasksView: View {
                 Spacer()
             } else {
                 ScrollView {
-                    if model.queue?.items.isEmpty == false || model.queue?.current != nil {
-                        QueueSection(model: model, localizer: localizer).padding([.horizontal, .top], 12)
-                    }
                     let copies = (model.status?.tasks ?? []).filter(\.isOneOff) + model.finishedCopies
                     if !copies.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
@@ -61,7 +58,7 @@ public struct TasksView: View {
                                                 pause: { Task { await model.pause(info.id) } },
                                                 resume: { Task { await model.resume(info.id) } },
                                                 stop: { Task { await model.stop(info.id) } },
-                                                dequeue: { Task { await model.dequeue(info.id) } }))
+                                                dequeue: { Task { await model.stop(info.id) } }))
                                     if finished {
                                         Button { model.dismissFinishedCopy(info.id) } label: { Image(systemName: "xmark.circle.fill") }
                                             .buttonStyle(.borderless).help(localizer.text("tasks.copies.dismiss")).padding(8)

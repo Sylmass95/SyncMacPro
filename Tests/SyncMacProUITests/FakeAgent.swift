@@ -12,6 +12,7 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
     private var _watchError: Error?
     private var _statusCalls = 0
     private var _historyCalls = 0
+    private var _historyRequests: [(taskID: UUID?, limit: Int)] = []
     private var _watchStarts = 0
     private var _watchCancels = 0
     private var _performed: [AgentRequest] = []
@@ -100,6 +101,7 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
 
     var statusCalls: Int { locked { _statusCalls } }
     var historyCalls: Int { locked { _historyCalls } }
+    var historyRequests: [(taskID: UUID?, limit: Int)] { locked { _historyRequests } }
     var watchStarts: Int { locked { _watchStarts } }
     var watchCancels: Int { locked { _watchCancels } }
     var performed: [AgentRequest] { locked { _performed } }
@@ -136,9 +138,10 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
     func history(taskID: UUID?, limit: Int) async throws -> [RunRecord] {
         let result = locked { () -> Result<[RunRecord], Error> in
             _historyCalls += 1
+            _historyRequests.append((taskID, limit))
             return _history
         }
-        return try result.get()
+        return try result.get().filter { taskID == nil || $0.taskID == taskID }
     }
 
     func perform(_ request: AgentRequest) async throws {

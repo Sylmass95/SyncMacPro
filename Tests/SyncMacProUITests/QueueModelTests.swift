@@ -4,22 +4,6 @@ import SyncKit
 
 @MainActor
 final class QueueModelTests: XCTestCase {
-    func testQueueActionsAreForwarded() async {
-        let agent = FakeAgent()
-        let model = AgentModel(agent: agent, sleeper: ManualSleeper())
-        let a = UUID(), b = UUID()
-        agent.setStatus(.success(AgentStatus(globalPause: false, stateRecovered: false, taskLoadError: nil, tasks: [],
-                                             queue: QueueInfo(running: false, items: [a, b], current: nil))))
-        await model.refreshNow()
-        XCTAssertEqual(model.queue?.items, [a, b])
-        await model.enqueue(a)
-        await model.moveInQueue(b, by: -1)
-        await model.setQueueRunning(true)
-        await model.dequeue(a)
-        XCTAssertEqual(agent.performed, [.enqueue(a), .moveInQueue(b, to: 0), .setQueueRunning(true), .dequeue(a)])
-        model.shutdown()
-    }
-
     func testBandwidthIsSentOnceTheUserStopsTyping() async {
         let agent = FakeAgent()
         let sleeper = ManualSleeper()

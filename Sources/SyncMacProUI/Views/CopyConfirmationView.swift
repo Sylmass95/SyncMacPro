@@ -148,7 +148,7 @@ struct CopyConfirmationView: View {
     private func launch(queued: Bool = false) async {
         launching = true
         defer { launching = false }
-        if let refusal = queued ? await model.enqueueOnce(tasks) : await model.runOnce(tasks) {
+        if let refusal = await model.runOnce(tasks) {   // « Forcer » en Tâche 7
             error = refusal
         } else {
             close()

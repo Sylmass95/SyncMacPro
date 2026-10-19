@@ -20,8 +20,7 @@ public final class AgentModel {
     public private(set) var status: AgentStatus?
     public private(set) var tasks: [UUID: SyncTask] = [:]
     public private(set) var progress: [UUID: ProgressInfo] = [:]
-    /// File d'attente explicite et plafonds de débit, tels que l'agent les tient (`nil` pour un agent plus ancien).
-    public private(set) var queue: QueueInfo?
+    /// Plafonds de débit, tels que l'agent les tient (`nil` pour un agent plus ancien).
     public private(set) var bandwidth: BandwidthLimits?
     /// Copies ponctuelles terminées (l'agent les oublie) : gardées avec leur bilan jusqu'à ce qu'on les ferme.
     public private(set) var finishedCopies: [AgentTaskInfo] = []
@@ -63,7 +62,6 @@ public final class AgentModel {
         let model = AgentModel(agent: UnavailableAgent())
         model.connection = connection
         model.status = status
-        model.queue = status?.queue
         model.bandwidth = status?.bandwidth
         model.tasks = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         model.progress = progress
@@ -262,7 +260,6 @@ public final class AgentModel {
             finishedCopies.append(done)
         }
         status = new
-        queue = new.queue
         // Une saisie en attente d'envoi l'emporte sur la valeur relue.
         if bandwidthSend == nil { bandwidth = new.bandwidth }
         tasks = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
@@ -344,36 +341,50 @@ public final class AgentModel {
         await reloadHistory()
     }
 
-    // MARK: file d'attente et débit
+    // MARK: liste ordonnée (1.7.0) et débit
 
-    public func enqueue(_ id: UUID) async { await act(on: id) { try await $0.perform(.enqueue(id)) } }
-    public func dequeue(_ id: UUID) async { await act(on: id) { try await $0.perform(.dequeue(id)) } }
+    /// Les tâches dans l'ordre de la liste (copies ponctuelles en haut), tel que l'agent les envoie.
+    public var orderedTasks: [AgentTaskInfo] { status?.tasks ?? [] }
+
+    /// Déplace les lignes `ids` à `offset` (index de la liste affichée, comme `onMove`) et envoie l'ordre complet.
+    /// L'affichage change tout de suite ; les copies ponctuelles n'ont pas de rang.
+    public func move(_ ids: Set<UUID>, toOffset offset: Int) async {
+        let shown = orderedTasks.map(\.id)
+        let moving = shown.filter { ids.contains($0) }
+        guard !moving.isEmpty else { return }
+        let before = shown.prefix(max(0, min(offset, shown.count))).filter { !ids.contains($0) }
+        let after = shown.dropFirst(max(0, min(offset, shown.count))).filter { !ids.contains($0) }
+        let reordered = Array(before) + moving + Array(after)
+        if var current = status {
+            let byID = Dictionary(current.tasks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            current.tasks = reordered.compactMap { byID[$0] }
+            status = current
+        }
+        let oneOffs = Set(orderedTasks.filter(\.isOneOff).map(\.id))
+        let order = reordered.filter { !oneOffs.contains($0) }
+        await act(on: nil) { try await $0.perform(.reorder(order)) }
+    }
+
+    /// Lance tout de suite, quelles que soient les limites (ou reprend aussitôt une copie en pause).
+    public func force(_ id: UUID) async { await act(on: id) { try await $0.perform(.force(id)) } }
+
+    /// Historique d'une tâche ; `nil` : exécutions sans tâche dans la liste (copies ponctuelles, tâches supprimées).
+    public func taskHistory(for taskID: UUID?, limit: Int = 200) async -> [RunRecord] {
+        do {
+            let records = try await agent.history(taskID: taskID, limit: taskID == nil ? 500 : limit)
+            return taskID == nil ? records.filter { tasks[$0.taskID] == nil } : records
+        } catch {
+            alertMessage = Self.describe(error)
+            return []
+        }
+    }
+
     /// 1.6.4 : l'agent liste les dossiers des tâches (macOS redemande ses autorisations après une mise à jour).
     public func checkAccess() async { await act(on: nil) { try await $0.perform(.checkAccess) } }
 
     /// Disque amovible (1.4.0).
     public func abandonSuspended(_ id: UUID) async { await act(on: id) { try await $0.perform(.abandonSuspended(id)) } }
     public func ejectDrive(_ id: UUID) async { await act(on: id) { try await $0.perform(.ejectDrive(id)) } }
-    public func setQueueRunning(_ running: Bool) async { await act(on: nil) { try await $0.perform(.setQueueRunning(running)) } }
-
-    /// Monte (−1) ou descend (+1) un élément de la file.
-    public func moveInQueue(_ id: UUID, by offset: Int) async {
-        guard let items = queue?.items, let index = items.firstIndex(of: id) else { return }
-        let target = max(0, min(items.count - 1, index + offset))
-        await act(on: id) { try await $0.perform(.moveInQueue(id, to: target)) }
-    }
-
-    /// Copies ponctuelles mises en file : `nil` si l'agent les a toutes prises, sinon le premier refus.
-    public func enqueueOnce(_ tasks: [SyncTask]) async -> String? {
-        for task in tasks {
-            do { try await agent.perform(.enqueueOnce(task)) } catch {
-                await refreshNow()
-                return Self.describe(error)
-            }
-        }
-        await refreshNow()
-        return nil
-    }
 
     @ObservationIgnored private var bandwidthSend: Task<Void, Never>?
 
