@@ -540,3 +540,6 @@
 "detail.settings.other" = "Other (see the editor)";
 "detail.settings.minutes" = "Every %d minutes";
 "mini.next" = "Next";
+"state.phase.preparing" = "Preparing…";
+"state.phase.planning" = "Preparing: comparing with the destination…";
+"state.phase.verifying" = "Verifying after the copy…";

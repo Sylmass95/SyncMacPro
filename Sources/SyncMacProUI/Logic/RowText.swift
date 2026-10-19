@@ -43,6 +43,15 @@ public struct RowText: Sendable {
             return localizer.format("state.resume.pending", info.waitReason ?? "")
         }
         if info.state == .queued, let reason = info.waitReason { return localizer.format("state.queued.reason", reason) }
+        // 1.7.1 : une copie sans progression dit ce qu'elle fait.
+        if info.state == .running {
+            switch info.phase {
+            case "preparing": return localizer.text("state.phase.preparing")
+            case "planning": return localizer.text("state.phase.planning")
+            case "verifying": return localizer.text("state.phase.verifying")
+            default: break
+            }
+        }
         return text.state(info.state)
     }
 

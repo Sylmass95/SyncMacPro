@@ -144,6 +144,9 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     public var waitReason: String?
     /// En pause, reprise demandée mais en attente d'une place ou de son disque (1.7.0).
     public var resumePending: Bool?
+    /// Étape de l'exécution en cours : « preparing », « planning » (comparaison préalable), « running », « verifying »
+    /// (1.7.1) ; `nil` hors exécution ou agent plus ancien.
+    public var phase: String?
 
     public init(
         id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,
