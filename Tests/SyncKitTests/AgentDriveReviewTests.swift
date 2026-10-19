@@ -39,21 +39,25 @@ final class AgentDriveReviewTests: XCTestCase {
         let drives = FakeDriveMonitor()
         var task = backup()
         task.removableDrive?.trigger = .atMostEveryDays(30)
-        try h.save([task])
+        let x = SyncTask(name: "X", source: .local(path: "/x"), destination: .local(path: "/x2"), schedule: .manual)
+        let y = SyncTask(name: "Y", source: .local(path: "/y"), destination: .local(path: "/y2"), schedule: .manual)
+        try h.save([task, x, y])
         let core = h.makeCore(drives: drives)
         await core.start()
         drives.plug(uuid, at: "/Volumes/Extreme Pro")
         await core.drivesChanged()
-        try await core.enqueue(task.id)       // branché : accepté (le départ au branchement attend 5 s)
+        try await core.runNow(x.id)
+        try await core.runNow(y.id)
+        try await core.runNow(task.id)       // branché : accepté, attend une place
         drives.unplug(uuid)
         await core.drivesChanged()
         drives.plug("BBBB-2222", at: "/Volumes/Extreme Pro")   // un autre disque du même nom
         await core.drivesChanged()
-        await core.setQueueRunning(true)
+        h.factory.runners.get().forEach { $0.release() }
         await core.waitForIdle()
-        XCTAssertEqual(h.factory.created, 0, "rien n'est écrit sur l'autre disque")
-        let items = await core.queueInfo.items
-        XCTAssertTrue(items.isEmpty)
+        XCTAssertEqual(h.factory.created, 2, "rien n'est écrit sur l'autre disque")
+        let state = await core.status().tasks.first { $0.id == task.id }?.state
+        XCTAssertNotEqual(state, .queued)
     }
 
     // Important 2 : « Lancer » consomme le branchement (pas de deuxième sauvegarde au passage suivant).

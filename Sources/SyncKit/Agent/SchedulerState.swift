@@ -34,10 +34,13 @@ public struct SchedulerState: Codable, Equatable, Sendable {
     public var userQueueRunning: Bool = false
     /// Élément de la file en cours : enregistré pour qu'après un redémarrage le suivant attende sa reprise.
     public var userQueueCurrent: UUID?
+    /// Ordre de la liste (1.7.0) : l'ordre de départ des tâches. Les anciens champs de file ne servent plus qu'à la
+    /// migration.
+    public var order: [UUID] = []
 
     public init() {}
 
-    private enum CodingKeys: String, CodingKey { case paused, lastPurge, tasks, userQueue, userQueueRunning, userQueueCurrent }
+    private enum CodingKeys: String, CodingKey { case paused, lastPurge, tasks, userQueue, userQueueRunning, userQueueCurrent, order }
 
     /// Un état d'avant 1.3.0 (sans file) se lit tel quel.
     public init(from decoder: Decoder) throws {
@@ -48,6 +51,7 @@ public struct SchedulerState: Codable, Equatable, Sendable {
         userQueue = try c.decodeIfPresent([UUID].self, forKey: .userQueue) ?? []
         userQueueRunning = try c.decodeIfPresent(Bool.self, forKey: .userQueueRunning) ?? false
         userQueueCurrent = try c.decodeIfPresent(UUID.self, forKey: .userQueueCurrent)
+        order = try c.decodeIfPresent([UUID].self, forKey: .order) ?? []
     }
 }
 

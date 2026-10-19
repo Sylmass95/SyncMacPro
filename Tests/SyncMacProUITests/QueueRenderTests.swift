@@ -20,17 +20,6 @@ final class QueueRenderTests: XCTestCase {
         return (AgentModel.preview(status: status, tasks: [manual], progress: [a: progress]), a, b)
     }
 
-    func testQueueSectionAndCardsRender() throws {
-        let (model, _, _) = model()
-        XCTAssertEqual(model.queue?.items.count, 1)
-        let l = Localizer(language: "fr")
-        for scheme in [ColorScheme.light, .dark] {
-            _ = try render(QueueSection(model: model, localizer: l).glassThemed(), name: "file", size: CGSize(width: 440, height: 200), scheme: scheme)
-            _ = try render(DashboardBody(model: model, installState: .enabled, text: CardText(localizer: l), onInstall: {}).glassThemed(),
-                           name: "tableau-file", size: CGSize(width: 1100, height: 760), scheme: scheme)
-        }
-    }
-
     func testCardDetailsUseTheRsyncGUILines() {
         let (model, a, _) = model()
         let lines = TaskProgressDetails.lines(model.progress[a]!, presentation: ProgressPresentation(localizer: Localizer(language: "fr")))

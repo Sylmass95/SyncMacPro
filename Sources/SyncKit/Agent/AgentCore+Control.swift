@@ -35,8 +35,10 @@ extension AgentCore {
         guard !job.paused else { return }
         job.runner.pause()
         job.paused = true
+        job.resumeRequested = false
         jobs[id] = job
         refreshActivity()
+        startQueued()   // la copie en pause libère sa place et son disque (1.7.0)
         emit(.stateChanged)
     }
 
@@ -44,9 +46,19 @@ extension AgentCore {
         guard var job = jobs[id] else { throw AgentError.notRunning }
         guard !state.paused else { throw AgentError.globallyPaused }
         guard job.paused else { return }
+        // Plus de place ou son disque est pris : la reprise attend son tour (1.7.0).
+        if activeJobCount >= configuration.maxParallel || busyDevice(for: job.task) != nil {
+            job.resumeRequested = true
+            job.pausedByGlobal = false
+            jobs[id] = job
+            explainWaiting()
+            emit(.stateChanged)
+            return
+        }
         job.runner.resume()
         job.paused = false
         job.pausedByGlobal = false
+        job.resumeRequested = false
         jobs[id] = job
         refreshActivity()
         emit(.stateChanged)
@@ -118,16 +130,6 @@ extension AgentCore {
             )
             try? history.save(record)
         }
-        for (id, task) in queuedOneOffs {
-            let record = RunRecord(
-                taskID: id, taskName: task.name, engine: (try? EngineSelector.engine(for: task)) ?? .rsync,
-                mode: task.mode, startedAt: now, finishedAt: now, status: .interrupted,
-                summary: RunSummary(message: "Arrêt de l'agent avant le début de la copie.")
-            )
-            try? history.save(record)
-            state.userQueue.removeAll { $0 == id }
-        }
-        queuedOneOffs.removeAll()
         persist()
         queue.removeAll()
         for job in jobs.values { job.runner.stop() }

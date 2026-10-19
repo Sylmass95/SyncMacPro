@@ -85,11 +85,10 @@ final class AgentUpdateRestart167Tests: XCTestCase {
         await core.start()
         identity.set("v2")
         await core.tick()
-        try await core.enqueue(a.id)
-        await core.setQueueRunning(true)
+        try await core.enqueue(a.id)   // 1.7.0 : « mettre en file » = « Lancer »
         XCTAssertEqual(h.factory.created, 0)
-        let items = await core.status().queue?.items.count
-        XCTAssertEqual(items, 1, "l'élément reste dans la file")
+        let state = await core.status().tasks.first { $0.id == a.id }?.state
+        guard case .waiting = state else { return XCTFail("en attente du redémarrage : \(String(describing: state))") }
     }
 
     func testAPluggedDriveWaitsForTheRestart() async throws {

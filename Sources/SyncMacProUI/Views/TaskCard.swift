@@ -3,12 +3,12 @@ import SyncKit
 
 struct TaskCardActions {
     var run: () -> Void = {}
+    /// 1.7.0 : lancer tout de suite, quelles que soient les limites.
+    var force: () -> Void = {}
     var pause: () -> Void = {}
     var resume: () -> Void = {}
     var stop: () -> Void = {}
     var approve: () -> Void = {}
-    var enqueue: () -> Void = {}
-    var dequeue: () -> Void = {}
     var abandon: () -> Void = {}
     var eject: () -> Void = {}
 }
@@ -43,9 +43,6 @@ struct TaskCard: View {
             }
             if info.isOneOff {
                 Label(l.text("card.oneoff"), systemImage: "doc.on.doc").font(.caption).foregroundStyle(.secondary)
-            }
-            if let position = info.queuePosition {
-                Label(l.format("card.inqueue", position), systemImage: "list.number").font(.caption.bold()).foregroundStyle(.blue)
             }
             if isActive { progressSection }
             if info.state == .awaitingApproval {
@@ -94,18 +91,20 @@ struct TaskCard: View {
     }
 
     /// Boutons d'une carte selon l'état (fonction pure, testée).
-    enum CardAction: Equatable { case run, pause, resume, stop, approve, enqueue, dequeue, abandon, eject }
+    enum CardAction: Equatable { case run, force, pause, resume, stop, approve, abandon, eject }
 
+    /// 1.7.0 : « Lancer » met en attente selon le rang, « Forcer » démarre tout de suite ; une reprise demandée qui attend
+    /// sa place se force aussi.
     static func availableActions(info: AgentTaskInfo, task: SyncTask?, driveMounted: Bool?) -> [CardAction] {
         switch info.state {
         case .running: return [.pause, .stop]
-        case .paused: return [.resume, .stop]
-        case .queued: return [.stop]
+        case .paused: return info.resumePending == true ? [.force, .stop] : [.resume, .force, .stop]
+        case .queued: return [.force, .stop]
         case .awaitingApproval: return [.approve, .run]
         case .idle, .waiting, .disabled:
-            // Une copie ponctuelle (en file ou terminée) ne se relance pas d'ici : elle n'est pas enregistrée.
-            if info.isOneOff { return info.queuePosition != nil ? [.dequeue] : [] }
-            var result: [CardAction] = [.run, info.queuePosition == nil ? .enqueue : .dequeue]
+            // Une copie ponctuelle terminée ne se relance pas d'ici : elle n'est pas enregistrée.
+            if info.isOneOff { return [] }
+            var result: [CardAction] = [.run, .force]
             if info.driveSuspendedSince != nil { result.append(.abandon) }
             if let drive = task?.removableDrive, drive.eject == .button, driveMounted == true, info.driveSuspendedSince == nil {
                 result.append(.eject)
@@ -124,8 +123,7 @@ struct TaskCard: View {
             case .approve:
                 Button(action: actions.approve) { Label(l.text("card.approve"), systemImage: "checkmark.shield") }
                     .buttonStyle(GlassButtonStyle(prominent: true)).disabled(busy)
-            case .enqueue: button("card.enqueue", "text.badge.plus", actions.enqueue)
-            case .dequeue: button("queue.remove", "text.badge.minus", actions.dequeue)
+            case .force: button("card.force", "forward.fill", actions.force)
             case .abandon: button("card.abandon", "xmark.circle", actions.abandon)
             case .eject: button("card.eject", "eject.fill", actions.eject)
             }
@@ -134,5 +132,28 @@ struct TaskCard: View {
 
     private func button(_ key: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) { Label(l.text(key), systemImage: symbol) }.disabled(busy)
+    }
+}
+
+/// Lignes de progression façon RsyncGUI sous la barre d'une carte : fichiers, dossiers, vitesse moyenne, temps écoulé.
+@MainActor
+struct TaskProgressDetails: View {
+    let progress: ProgressInfo
+    let presentation: ProgressPresentation
+
+    static func lines(_ progress: ProgressInfo, presentation: ProgressPresentation) -> [String] {
+        var lines = [presentation.filesLine(done: progress.filesDone, total: progress.totalFiles)]
+        if let dirs = presentation.dirsLine(done: progress.dirsDone, total: progress.totalDirs) { lines.append(dirs) }
+        if let average = presentation.averageSpeedLine(progress.averageSpeed) { lines.append(average) }
+        lines.append(presentation.elapsedLine(progress.activeTime))
+        return lines
+    }
+
+    var body: some View {
+        let lines = Self.lines(progress, presentation: presentation)
+        LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 2) {
+            ForEach(lines, id: \.self) { Text($0) }
+        }
+        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
     }
 }

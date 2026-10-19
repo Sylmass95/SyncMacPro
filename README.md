@@ -97,8 +97,10 @@ launchd met environ 10 s à relancer l'agent : l'outil patiente jusqu'à 20 s.
 
 ## Interface (sous-projet 3a)
 
-L'app `SyncMacPro` affiche l'état de l'agent en direct : **tableau de bord** (une carte par tâche, progression, pause globale),
-**icône de barre de menus** (repos, pourcentage, pause, erreur), **historique** (filtres, détail) et **réglages**
+L'app `SyncMacPro` affiche l'état de l'agent en direct : **tableau de bord** (une liste ordonnée façon SyncBackPro : l'ordre
+des lignes est l'ordre de départ, deux copies à la fois, jamais deux sur un même disque physique ; le détail de la tâche
+sélectionnée — historique, réglages, journal — s'ouvre dessous ; pause globale),
+**icône de barre de menus** (repos, pourcentage, pause, erreur) et **réglages**
 (apparence, ouverture à la connexion, agent). Elle n'effectue aucune synchronisation : fermer la fenêtre garde l'app dans la
 barre de menus, la quitter laisse l'agent tourner. Si l'agent redémarre, l'app se reconnecte seule.
 
@@ -108,8 +110,8 @@ open ~/Applications/SyncMacPro.app
 ```
 
 L'installation de l'agent se fait au premier lancement (ou dans Réglages › Agent). Les tâches se créent dans l'app (écran
-Tâches ou « Créer une tâche »), avec un éditeur en 5 étapes qui simule avant d'enregistrer ; l'historique montre le journal
-de chaque exécution. L'agent est le seul à écrire `tasks.json` ; `syncmacpro-ctl add / remove / simulate / log` passent par lui. Textes en français et en anglais (`Sources/SyncMacProUI/Resources/*.lproj`, fichiers
+Tâches ou « Créer une tâche »), avec un éditeur en 5 étapes qui simule avant d'enregistrer ; le détail d'une tâche montre son
+historique et le journal de chaque exécution. L'agent est le seul à écrire `tasks.json` ; `syncmacpro-ctl add / remove / simulate / log` passent par lui. Textes en français et en anglais (`Sources/SyncMacProUI/Resources/*.lproj`, fichiers
 `.strings` : `swift build` ne compile pas les catalogues `.xcstrings`). L'app publiée embarque rsync 3 et rclone ; en développement (`swift run`, agent de
 développement), l'agent prend ceux de Homebrew (`brew install rsync rclone`) — l'`openrsync` de macOS est refusé avec un message clair.
 Vérifications à la main : [`docs/manual-checks-ui.md`](docs/manual-checks-ui.md). Les tests de rendu (`ImageRenderer`) écrivent

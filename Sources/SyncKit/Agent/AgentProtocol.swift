@@ -56,6 +56,10 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case ejectDrive(UUID)
     /// 1.6.4 : lister les dossiers des tâches (demandes d'autorisation de macOS après une mise à jour).
     case checkAccess
+    /// 1.7.0 : ordre de la liste (ordre de départ), envoyé en entier.
+    case reorder([UUID])
+    /// 1.7.0 : lancer (ou reprendre) tout de suite, quelles que soient les limites.
+    case force(UUID)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {

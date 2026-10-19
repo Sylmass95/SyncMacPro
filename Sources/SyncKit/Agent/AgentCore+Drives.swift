@@ -45,11 +45,11 @@ extension AgentCore {
                 && jobs[task.id] == nil { waiting[task.id] = Self.restartReason }
             return
         }
+        var enqueued = false
         for task in tasks where task.isEnabled {
-            // Deux exécutions au plus : le branchement attend une place (rappelé à la fin de chaque exécution).
-            guard jobs.count < configuration.maxParallel else { return }
+            // Le branchement entre dans l'attente : il part selon son rang, quand une place et son disque sont libres.
             guard let drive = task.removableDrive, mountedDrives[drive.volumeUUID] != nil,
-                  !ejectingVolumes.contains(drive.volumeUUID), !driveBusy(task),
+                  !ejectingVolumes.contains(drive.volumeUUID),
                   let seen = mountSeen[drive.volumeUUID], now.timeIntervalSince(seen) >= Self.driveSettleDelay,
                   jobs[task.id] == nil, !queue.contains(where: { $0.id == task.id }) else { continue }
             let key = task.id.uuidString
@@ -60,32 +60,40 @@ extension AgentCore {
                 waiting[task.id] = reason   // secteur, plage horaire : on réessaie au prochain passage
                 continue
             }
-            entry.lastMountHandled = seen
+            // Revue 1.7.0 : le branchement n'est marqué servi (et la suspension reprise) qu'au vrai départ (`startJob`) ;
+            // une attente perdue (arrêt de l'agent, condition, « Arrêter ») est resservie au passage suivant.
             if let suspended = entry.suspendedRun {
-                entry.suspendedRun = nil
-                state.tasks[key] = entry
                 if now.timeIntervalSince(suspended.since) <= Double(drive.resumeWindowDays) * 86_400 {
-                    startJob(task, overrideGuard: false, resuming: suspended)
+                    queue.append(QueuedRun(id: task.id, dueDate: now))
+                    enqueued = true
                     continue
                 }
+                entry.suspendedRun = nil
+                state.tasks[key] = entry
                 close(suspended, message: "Interrompue : disque débranché plus de \(drive.resumeWindowDays) jour(s).", at: now)
             }
-            state.tasks[key] = entry
             let due: Bool
             switch drive.trigger {
             case .everyConnection: due = true
             case .atMostEveryDays(let days):
                 due = entry.lastSuccess.map { now.timeIntervalSince($0) >= Double(days) * 86_400 } ?? true
             }
-            if due { startJob(task, overrideGuard: false) } else { persist() }
+            if due {
+                queue.append(QueuedRun(id: task.id, dueDate: now))
+                enqueued = true
+            } else {
+                entry.lastMountHandled = seen   // pas dû : ce branchement est servi
+                state.tasks[key] = entry
+                persist()
+            }
         }
+        if enqueued { persist(); startQueued() }
     }
 
     /// Une autre exécution écrit déjà sur le disque de cette tâche : une seule copie à la fois par disque (sur un
     /// disque dur, deux copies simultanées se ralentissent l'une l'autre).
     func driveBusy(_ task: SyncTask) -> Bool {
-        guard let uuid = task.removableDrive?.volumeUUID else { return false }
-        return jobs.values.contains { $0.task.id != task.id && $0.task.removableDrive?.volumeUUID == uuid }
+        task.removableDrive != nil && busyDevice(for: task) != nil
     }
 
     /// Tâche liée à un disque débranché (sans compter une éjection en cours).
@@ -151,8 +159,6 @@ extension AgentCore {
         refreshActivity()
         emit(.stateChanged)
         startQueued()
-        if userQueueCurrent == id && !shuttingDown { userQueueCurrent = nil; persist() }
-        advanceUserQueue()
         handleDrives(clock.now())
     }
 
@@ -204,7 +210,7 @@ extension AgentCore {
         // Autres sauvegardes sur ce disque, en cours ou en file : l'éjection attend la dernière.
         let onDrive = { (id: UUID) in self.lookupTask(id)?.removableDrive?.volumeUUID == drive.volumeUUID }
         let othersOnDrive = jobs.values.contains { $0.task.removableDrive?.volumeUUID == drive.volumeUUID }
-            || state.userQueue.contains(where: onDrive) || queue.contains { onDrive($0.id) }
+            || queue.contains { onDrive($0.id) }
         guard drive.eject == .automatic, !othersOnDrive, let drives, let mount = mountedDrives[drive.volumeUUID] else {
             notify(task, .succeeded, summary, note: othersOnDrive ? nil : "vous pouvez éjecter « \(drive.volumeName) ».")
             return

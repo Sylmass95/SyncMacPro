@@ -148,14 +148,12 @@ final class AgentDrive150Tests: XCTestCase {
         await core.start()
         drives.plug(uuid, at: "/Volumes/Extreme Pro")
         await core.drivesChanged()
-        try await core.enqueue(task.id)
-        try await core.enqueue(other.id)
-        await core.setQueueRunning(true)
-        XCTAssertEqual(h.factory.created, 1)
+        try await core.runNow(task.id)
+        try await core.runNow(other.id)
+        XCTAssertEqual(h.factory.created, 2)
         let again = h.makeCore(drives: drives)   // l'agent est tué en route
         await again.start()
-        let started = await eventually { h.factory.created == 2 }
-        XCTAssertTrue(started, "la file passe à l'élément suivant")
+        await again.tick()
         var unlinked = task
         unlinked.removableDrive = nil
         try await again.saveTask(unlinked)

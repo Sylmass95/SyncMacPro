@@ -15,7 +15,13 @@ public struct MiniView: View {
     }
 
     static func runningIDs(_ status: AgentStatus?) -> [UUID] {
-        (status?.tasks ?? []).filter { $0.state == .running || $0.state == .paused }.map(\.id)
+        (status?.tasks ?? []).filter { ($0.state == .running || $0.state == .paused) && $0.resumePending != true }.map(\.id)
+    }
+
+    /// Les trois prochaines à partir, dans l'ordre de la liste (1.7.0) : en attente, ou reprise demandée.
+    static func nextIDs(_ status: AgentStatus?) -> [UUID] {
+        let waiting = (status?.tasks ?? []).filter { $0.state == .queued || ($0.state == .paused && $0.resumePending == true) }
+        return Array(waiting.prefix(3).map(\.id))
     }
 
     public var body: some View {
@@ -62,8 +68,14 @@ struct MiniBody: View {
                     )
                 )
             }
-            if model.queue?.items.isEmpty == false {
-                QueueSection(model: model, localizer: localizer, compact: true)
+            let next = (model.status?.tasks ?? []).filter { MiniView.nextIDs(model.status).contains($0.id) }
+            if model.connection == .connected, !next.isEmpty {
+                Text(localizer.text("mini.next")).font(.caption.bold()).foregroundStyle(.secondary)
+                ForEach(next) { info in
+                    let row = RowText(localizer: localizer)
+                    Text("\(row.rank(info)). \(info.name) — \(row.state(info, text: text))")
+                        .font(.caption).lineLimit(2)
+                }
             }
         }
         .padding(12)

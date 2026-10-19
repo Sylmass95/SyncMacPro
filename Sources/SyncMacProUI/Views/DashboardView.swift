@@ -10,12 +10,13 @@ struct DashboardContent: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
+    var onEdit: (SyncTask) -> Void = { _ in }
     var update: UpdateBannerInfo?
 
+    // 1.7.0 : la liste défile elle-même (une `List` dans un `ScrollView` s'écrase).
     var body: some View {
-        ScrollView {
-            DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate, update: update)
-        }
+        DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate, onEdit: onEdit,
+                      update: update)
     }
 }
 
@@ -26,8 +27,12 @@ struct DashboardBody: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
+    /// « Modifier… » du détail : éditeur complet (1.7.0).
+    var onEdit: (SyncTask) -> Void = { _ in }
     /// Une mise à jour est prête (installation à la demande, ou en attente de la fin des copies).
     var update: UpdateBannerInfo?
+    /// Lignes sélectionnées dans la liste (1.7.0).
+    @State var selection: Set<UUID> = []
 
     private var l: Localizer { text.localizer }
 
@@ -109,34 +114,21 @@ struct DashboardBody: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else {
-                if model.queue?.items.isEmpty == false || model.queue?.current != nil {
-                    QueueSection(model: model, localizer: l)
-                }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], spacing: 16) {
-                    ForEach(CardOrdering.sorted(status.tasks)) { info in
-                        TaskCard(
-                            info: info, task: model.tasks[info.id], progress: model.progress[info.id],
-                            busy: model.busyTasks.contains(info.id), text: text, actions: actions(for: info.id)
-                        )
-                    }
+                // 1.7.0 : une seule liste ordonnée, le détail de la tâche sélectionnée en dessous.
+                VSplitView {
+                    TaskListView(model: model, selection: $selection, text: text)
+                        .frame(minHeight: 220)
+                    detail.frame(minHeight: 160)
                 }
             }
         }
     }
 
-    private func actions(for id: UUID) -> TaskCardActions {
-        TaskCardActions(
-            run: { Task { await model.runNow(id) } },
-            pause: { Task { await model.pause(id) } },
-            resume: { Task { await model.resume(id) } },
-            stop: { Task { await model.stop(id) } },
-            approve: { Task { await model.approve(id) } },
-            enqueue: { Task { await model.enqueue(id) } },
-            dequeue: { Task { await model.dequeue(id) } },
-            abandon: { Task { await model.abandonSuspended(id) } },
-            eject: { Task { await model.ejectDrive(id) } }
-        )
+    /// Détail de la sélection, sous la liste.
+    @ViewBuilder private var detail: some View {
+        TaskDetailView(model: model, selection: selection, text: text, onEdit: onEdit)
     }
+
 }
 
 @MainActor
@@ -145,17 +137,19 @@ public struct DashboardView: View {
     let installer: AgentInstaller
     let localizer: Localizer
     let onCreate: (TaskDraft) -> Void
+    let onEdit: (SyncTask) -> Void
     let updates: UpdateModel?
 
     public init(
         model: AgentModel, installer: AgentInstaller, localizer: Localizer = .system, updates: UpdateModel? = nil,
-        onCreate: @escaping (TaskDraft) -> Void = { _ in }
+        onCreate: @escaping (TaskDraft) -> Void = { _ in }, onEdit: @escaping (SyncTask) -> Void = { _ in }
     ) {
         self.model = model
         self.installer = installer
         self.localizer = localizer
         self.updates = updates
         self.onCreate = onCreate
+        self.onEdit = onEdit
     }
 
     public var body: some View {
@@ -165,7 +159,7 @@ public struct DashboardView: View {
                 model: model, installState: installer.state,
                 text: CardText(localizer: localizer, now: context.date),
                 onInstall: { installer.install(); model.restart() },
-                onCreate: onCreate,
+                onCreate: onCreate, onEdit: onEdit,
                 update: updates.flatMap(UpdateBannerInfo.make)
             )
         }

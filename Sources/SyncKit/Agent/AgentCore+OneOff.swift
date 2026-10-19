@@ -11,6 +11,7 @@ extension AgentCore {
         // Devant les exécutions planifiées, derrière les copies déjà demandées (ordre des demandes).
         let index = queue.lastIndex(where: { oneOffs[$0.id] != nil }).map { $0 + 1 } ?? 0
         oneOffs[task.id] = task
+        oneOffOrder = oneOffOrder.filter { oneOffs[$0] != nil } + [task.id]   // en haut de la liste (1.7.0)
         queue.insert(QueuedRun(id: task.id, dueDate: .distantPast, manual: true), at: index)
         startQueued()
         emit(.stateChanged)

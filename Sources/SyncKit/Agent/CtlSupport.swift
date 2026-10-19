@@ -71,6 +71,38 @@ public enum CtlFormatter {
         }
     }
 
+    /// `queue` (1.7.0) : la liste dans son ordre de départ.
+    public static func orderLines(_ status: AgentStatus) -> [String] {
+        status.tasks.map { info in
+            let rank = info.rank.map { "\($0)." } ?? "•"
+            let reason = info.waitReason.map { " (\($0))" } ?? ""
+            return "\(rank) \(info.name) — \(stateLabel(info.state))\(reason)" + (info.isOneOff ? " — ponctuelle" : "")
+        }
+    }
+
+    /// `queue up|down` : l'ordre avec la tâche déplacée d'un rang.
+    public static func moved(_ id: UUID, in order: [UUID], up: Bool) -> [UUID] {
+        guard let index = order.firstIndex(of: id) else { return order }
+        let target = max(0, min(order.count - 1, index + (up ? -1 : 1)))
+        var result = order
+        result.remove(at: index)
+        result.insert(id, at: target)
+        return result
+    }
+
+    /// Requête envoyée à l'agent pour une commande de la liste (revue 1.7.0 : « queue remove » n'arrête jamais une copie).
+    public static func request(for command: CtlCommand, id: UUID) -> AgentRequest? {
+        switch command {
+        case .queueAdd: return .runNow(id)
+        case .queueRemove: return .dequeue(id)
+        case .force: return .force(id)
+        default: return nil
+        }
+    }
+
+    public static let queueRunMessage = "La liste est la file : elle n'a plus besoin d'être lancée. Les tâches partent dans "
+        + "l'ordre de la liste (« syncmacpro-ctl queue »), deux à la fois ; « run » les met en attente, « force » les lance tout de suite."
+
     public static func stateLabel(_ state: TaskRunState) -> String {
         switch state {
         case .idle: return "au repos"

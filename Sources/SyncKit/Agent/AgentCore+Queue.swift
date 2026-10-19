@@ -1,97 +1,62 @@
 import Foundation
 
-/// File d'attente explicite : des tâches lancées une par une, dans l'ordre choisi, après « Lancer la file ».
+/// Plus de file explicite depuis 1.7.0 : la liste est la file. Les messages d'une app plus ancienne (pendant une mise à
+/// jour) restent compris et sont redirigés.
 extension AgentCore {
-    public var queueInfo: QueueInfo {
-        QueueInfo(running: state.userQueueRunning, items: state.userQueue, current: userQueueCurrent)
-    }
+    /// « Mettre en file » : une demande « Lancer », qui part selon son rang.
+    public func enqueue(_ id: UUID) throws { try runNow(id) }
 
-    public func enqueue(_ id: UUID) throws {
-        guard let task = tasks.first(where: { $0.id == id }) else { throw AgentError.unknownTask }
-        guard task.isEnabled else { throw AgentError.invalidTask("Tâche désactivée : activez-la avant de la mettre en file.") }
-        if driveMissing(task), let drive = task.removableDrive { throw AgentError.driveNotConnected(drive.volumeName) }
-        try ensureNotBusy(id)
-        state.userQueue.append(id)
-        persist()
-        emit(.stateChanged)
-        advanceUserQueue()
-    }
+    /// Copie ponctuelle « mise en file » : une copie ponctuelle, en haut de la liste.
+    public func enqueueOnce(_ task: SyncTask) throws { try runOnce(task) }
 
-    /// Copie ponctuelle mise en file depuis l'écran Copie : gardée en mémoire seulement.
-    public func enqueueOnce(_ task: SyncTask) throws {
-        if let problem = TaskValidator.problems(in: task).first { throw AgentError.invalidTask(problem.message) }
-        try refuseWhileRestartPending()
-        guard lookupTask(task.id) == nil else { throw AgentError.alreadyRunning }
-        try ensureNotBusy(task.id)
-        queuedOneOffs[task.id] = task
-        state.userQueue.append(task.id)
-        persist()
-        emit(.stateChanged)
-        advanceUserQueue()
-    }
-
+    /// « Retirer de la file » : retirer de l'attente.
     public func dequeue(_ id: UUID) throws {
-        guard let index = state.userQueue.firstIndex(of: id) else { throw AgentError.notInQueue }
-        state.userQueue.remove(at: index)
-        queuedOneOffs[id] = nil
-        persist()
-        emit(.stateChanged)
+        guard jobs[id] == nil, queue.contains(where: { $0.id == id }) else { throw AgentError.notInQueue }
+        try stop(id)
     }
 
+    /// Ancienne place dans la file : nouveau rang dans la liste.
     public func moveInQueue(_ id: UUID, to index: Int) throws {
-        guard let from = state.userQueue.firstIndex(of: id) else { throw AgentError.notInQueue }
-        state.userQueue.remove(at: from)
-        state.userQueue.insert(id, at: max(0, min(index, state.userQueue.count)))
-        persist()
-        emit(.stateChanged)
+        guard state.order.contains(id) else { throw AgentError.notInQueue }
+        var order = state.order.filter { $0 != id }
+        order.insert(id, at: max(0, min(index, order.count)))
+        reorder(order)
     }
 
-    /// Lancer ou suspendre la file. Suspendue, elle laisse finir son élément en cours et ne démarre plus rien.
-    public func setQueueRunning(_ running: Bool) {
-        state.userQueueRunning = running && (!state.userQueue.isEmpty || userQueueCurrent != nil)
-        persist()
-        emit(.stateChanged)
-        advanceUserQueue()
-    }
+    /// La liste n'a plus besoin d'être lancée.
+    public func setQueueRunning(_ running: Bool) {}
 
-    private func ensureNotBusy(_ id: UUID) throws {
-        guard jobs[id] == nil, !queue.contains(where: { $0.id == id }), !state.userQueue.contains(id) else {
-            throw AgentError.alreadyRunning
-        }
-    }
-
-    /// Démarre le premier élément si la file tourne, qu'aucun de ses éléments ne s'exécute et qu'il reste de la place.
-    /// L'élément quitte la file au démarrage.
-    func advanceUserQueue() {
-        checkReplacedProgram()
-        guard state.userQueueRunning, !state.paused, !shuttingDown, !restartPending, userQueueCurrent == nil else { return }
-        // Les plafonds dépendent des types de connexion (réseau local ou internet) : on les attend.
-        guard remotes == nil || remoteTypesLoaded else { return }
-        // Attente du démarrage ou du réveil : le NAS ou le réseau n'est peut-être pas encore là (comme pour `tick`).
-        if let hold = holdUntil, clock.now() < hold { return }
-        // Éléments devenus impossibles (tâche supprimée ou désactivée, disque amovible débranché) : sautés. Une tâche
-        // liée ne part jamais sans son disque : un autre disque du même nom serait écrit à sa place.
-        while let first = state.userQueue.first, queuedOneOffs[first] == nil,
-              !tasks.contains(where: { $0.id == first && $0.isEnabled && !driveUnplugged($0) }) {
-            state.userQueue.removeFirst()
-        }
-        // Disque en cours d'éjection : la file attend (l'éjection peut être refusée, le disque rester là).
-        if let first = state.userQueue.first, let task = lookupTask(first), let drive = task.removableDrive,
-           ejectingVolumes.contains(drive.volumeUUID) || driveBusy(task) { return }
-        guard let next = state.userQueue.first else {
-            state.userQueueRunning = false
-            persist()
+    /// Lance tout de suite, même au-delà de deux copies ou sur un disque occupé ; reprend aussitôt une copie en pause.
+    /// La pause globale et une mise à jour en attente restent prioritaires.
+    public func force(_ id: UUID) throws {
+        guard !state.paused else { throw AgentError.globallyPaused }
+        try refuseWhileRestartPending()
+        if var job = jobs[id] {
+            guard job.paused else { return }
+            job.runner.resume()
+            job.paused = false
+            job.pausedByGlobal = false
+            job.resumeRequested = false
+            jobs[id] = job
+            refreshActivity()
+            explainWaiting()
             emit(.stateChanged)
             return
         }
-        guard jobs.count < configuration.maxParallel, jobs[next] == nil else { return }
-        state.userQueue.removeFirst()
-        if let copy = queuedOneOffs.removeValue(forKey: next) { oneOffs[next] = copy }
-        persist()
-        guard let task = lookupTask(next) else { advanceUserQueue(); return }
-        userQueueCurrent = next
-        startJob(task, overrideGuard: false)
-        jobs[next]?.fromUserQueue = true
+        guard let task = lookupTask(id) else { throw AgentError.unknownTask }
+        if oneOffs[id] == nil && !task.isEnabled {
+            throw AgentError.invalidTask("Tâche désactivée : activez-la avant de la lancer.")
+        }
+        if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) {
+            throw AgentError.ejectRefused("Le disque est en cours d'éjection.")
+        }
+        if let drive = task.removableDrive, drives != nil, mountedDrives[drive.volumeUUID] == nil {
+            throw AgentError.driveNotConnected(drive.volumeName)
+        }
+        let waitingRun = queue.first { $0.id == id }
+        queue.removeAll { $0.id == id }
+        startJob(task, overrideGuard: waitingRun?.overrideGuard ?? false)
+        explainWaiting()
         emit(.stateChanged)
     }
 }
