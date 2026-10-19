@@ -35,8 +35,10 @@ extension AgentCore {
         guard !job.paused else { return }
         job.runner.pause()
         job.paused = true
+        job.resumeRequested = false
         jobs[id] = job
         refreshActivity()
+        startQueued()   // la copie en pause libère sa place et son disque (1.7.0)
         emit(.stateChanged)
     }
 
@@ -44,9 +46,19 @@ extension AgentCore {
         guard var job = jobs[id] else { throw AgentError.notRunning }
         guard !state.paused else { throw AgentError.globallyPaused }
         guard job.paused else { return }
+        // Plus de place ou son disque est pris : la reprise attend son tour (1.7.0).
+        if activeJobCount >= configuration.maxParallel || busyDevice(for: job.task) != nil {
+            job.resumeRequested = true
+            job.pausedByGlobal = false
+            jobs[id] = job
+            explainWaiting()
+            emit(.stateChanged)
+            return
+        }
         job.runner.resume()
         job.paused = false
         job.pausedByGlobal = false
+        job.resumeRequested = false
         jobs[id] = job
         refreshActivity()
         emit(.stateChanged)

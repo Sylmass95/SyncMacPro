@@ -45,6 +45,12 @@ public protocol SystemConditions: Sendable {
     func isNetworkAvailable() -> Bool
     /// Le dossier ou le volume existe ; pour un service en ligne : le réseau est disponible.
     func isReachable(_ endpoint: Endpoint) -> Bool
+    /// Disque physique du lieu (1.7.0) ; `nil` : non limité (SSD interne, service en ligne).
+    func physicalDevice(_ endpoint: Endpoint) -> String?
+}
+
+extension SystemConditions {
+    public func physicalDevice(_ endpoint: Endpoint) -> String? { nil }
 }
 
 public protocol AgentNotifier: Sendable {
@@ -134,6 +140,10 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     public var driveMounted: Bool?
     /// Rang dans la liste (1 = la première à partir) ; `nil` pour une copie ponctuelle ou un agent plus ancien (1.7.0).
     public var rank: Int?
+    /// En file : pourquoi elle attend (« même disque que « X » », « en attente d'une place… ») (1.7.0).
+    public var waitReason: String?
+    /// En pause, reprise demandée mais en attente d'une place ou de son disque (1.7.0).
+    public var resumePending: Bool?
 
     public init(
         id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,

@@ -25,6 +25,14 @@ public final class MacSystemConditions: SystemConditions, @unchecked Sendable {
 
     public func isNetworkAvailable() -> Bool { networkUp.get() }
 
+    public func physicalDevice(_ endpoint: Endpoint) -> String? {
+        switch endpoint {
+        case .network(let url, _): return PhysicalDevice.networkKey(url: url)
+        case .local(let path): return PhysicalDevice.local(path: path)
+        case .cloud: return nil
+        }
+    }
+
     public func isReachable(_ endpoint: Endpoint) -> Bool {
         guard let path = endpoint.filesystemPath else { return isNetworkAvailable() }
         var isDirectory: ObjCBool = false

@@ -22,6 +22,8 @@ public actor AgentCore {
         var logWriter: RunLogWriter?
         /// Élément de la file d'attente explicite.
         var fromUserQueue = false
+        /// Reprise demandée pendant la pause, en attente d'une place ou de son disque (1.7.0).
+        var resumeRequested = false
         /// Disque amovible : débranché pendant l'exécution ; exécution suspendue reprise.
         var driveLost = false
         var resumed: SuspendedRun?
@@ -50,6 +52,10 @@ public actor AgentCore {
     var waiting: [UUID: String] = [:]
     /// Copies ponctuelles dans l'ordre de leur demande : en haut de la liste (1.7.0).
     var oneOffOrder: [UUID] = []
+    /// Raison de l'attente d'une exécution en file ou d'une reprise demandée (1.7.0).
+    var queueReasons: [UUID: String] = [:]
+    /// Branchement d'un disque : exécution suspendue à reprendre quand la tâche partira de la file.
+    var pendingResumes: [UUID: SuspendedRun] = [:]
     /// Identité du programme au démarrage, et vrai dès qu'une mise à jour l'a remplacé (1.6.7).
     var launchedIdentity: String?
     var restartPending = false
@@ -320,31 +326,109 @@ public actor AgentCore {
 
     // MARK: exécution
 
+    /// Démarre, tant qu'il reste une place, l'exécution en attente la mieux classée dans la liste dont les disques
+    /// physiques sont libres ; une reprise demandée pendant une pause concourt de même (1.7.0). Une copie en pause ne
+    /// compte pas : elle a libéré sa place et son disque.
     func startQueued() {
         guard !state.paused, !shuttingDown else { return }
         checkReplacedProgram()
         if restartPending { keepQueuedForRestart(); return }
-        // Exécutions qui attendent leur disque (éjection en cours, ou une autre copie sur ce disque) : elles gardent
-        // leur place, les suivantes prennent les places libres.
-        var waitingForDrive: [QueuedRun] = []
-        defer { queue.insert(contentsOf: waitingForDrive, at: 0) }
-        while jobs.count < configuration.maxParallel, !queue.isEmpty {
-            let next = queue.removeFirst()
-            guard let task = lookupTask(next.id), jobs[task.id] == nil else { continue }
-            if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) || driveBusy(task) {
-                waitingForDrive.append(next)
-                continue
-            }
-            // Une exécution planifiée peut attendre des heures derrière deux longues copies : on revérifie.
-            if !next.manual {
-                guard task.isEnabled else { continue }
-                if let reason = unmetCondition(task, now: clock.now()) {
-                    waiting[task.id] = reason
-                    continue
+        dropUnpluggedDriveRuns()
+        var started = true
+        while started && activeJobCount < configuration.maxParallel {
+            started = false
+            let waitingRuns = queue.map { (rank: rank(of: $0.id), resume: false, id: $0.id) }
+            let resumes = jobs.values.filter { $0.paused && $0.resumeRequested && !$0.pausedByGlobal }
+                .map { (rank: rank(of: $0.task.id), resume: true, id: $0.task.id) }
+            let candidates = (waitingRuns + resumes).sorted { ($0.rank, $0.resume ? 1 : 0) < ($1.rank, $1.resume ? 1 : 0) }
+            for candidate in candidates {
+                if candidate.resume {
+                    guard var job = jobs[candidate.id], busyDevice(for: job.task) == nil else { continue }
+                    job.runner.resume()
+                    job.paused = false
+                    job.resumeRequested = false
+                    jobs[candidate.id] = job
+                    refreshActivity()
+                    started = true
+                    break
                 }
+                guard let index = queue.firstIndex(where: { $0.id == candidate.id }) else { continue }
+                let next = queue[index]
+                guard let task = lookupTask(next.id), jobs[task.id] == nil else { forgetQueued(at: index); continue }
+                if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) { continue }
+                if busyDevice(for: task) != nil { continue }
+                // Une exécution planifiée peut attendre des heures derrière deux longues copies : on revérifie.
+                if !next.manual {
+                    guard task.isEnabled else { forgetQueued(at: index); continue }
+                    if let reason = unmetCondition(task, now: clock.now()) {
+                        waiting[task.id] = reason
+                        forgetQueued(at: index)
+                        continue
+                    }
+                }
+                queue.remove(at: index)
+                startJob(task, overrideGuard: next.overrideGuard, resuming: pendingResumes.removeValue(forKey: task.id))
+                started = true
+                break
             }
-            startJob(task, overrideGuard: next.overrideGuard)
         }
+        explainWaiting()
+    }
+
+    /// Copies qui tiennent une place : celles en pause l'ont libérée.
+    var activeJobCount: Int { jobs.values.filter { !$0.paused }.count }
+
+    /// Retire une exécution de l'attente ; une reprise de disque amovible retrouve sa suspension.
+    func forgetQueued(at index: Int) {
+        let run = queue.remove(at: index)
+        if let suspended = pendingResumes.removeValue(forKey: run.id) { state.tasks[run.id.uuidString]?.suspendedRun = suspended }
+    }
+
+    /// Disque débranché pendant l'attente : la tâche quitte la file (son prochain branchement la relancera).
+    func dropUnpluggedDriveRuns() {
+        while let index = queue.firstIndex(where: { run in lookupTask(run.id).map { driveUnplugged($0) } == true }) {
+            forgetQueued(at: index)
+        }
+    }
+
+    /// Raison affichée de chaque attente : disque occupé, éjection, ou place.
+    func explainWaiting() {
+        queueReasons = [:]
+        var place = 0
+        let ordered = queue.map(\.id).sorted { rank(of: $0) < rank(of: $1) }
+        for id in ordered {
+            guard let task = lookupTask(id) else { continue }
+            if let busy = busyDevice(for: task) {
+                queueReasons[id] = "même disque que « \(lookupTask(busy.holder)?.name ?? "une autre copie") »"
+            } else if let drive = task.removableDrive, ejectingVolumes.contains(drive.volumeUUID) {
+                queueReasons[id] = "disque en cours d'éjection"
+            } else {
+                place += 1
+                queueReasons[id] = "en attente d'une place (n° \(place))"
+            }
+        }
+        for job in jobs.values where job.paused && job.resumeRequested {
+            queueReasons[job.task.id] = busyDevice(for: job.task).map { "même disque que « \(lookupTask($0.holder)?.name ?? "une autre copie") »" }
+                ?? "en attente d'une place"
+        }
+    }
+
+    /// Disques physiques touchés par une tâche (source et destination, disque amovible compris).
+    func devices(of task: SyncTask) -> Set<String> {
+        let resolved = resolvedForDrive(task)
+        var keys = Set([resolved.source, resolved.destination].compactMap { conditions.physicalDevice($0) })
+        if let uuid = task.removableDrive?.volumeUUID { keys.insert("drive:\(uuid)") }
+        return keys
+    }
+
+    /// Une autre copie en cours (pas en pause) tient un disque de cette tâche.
+    func busyDevice(for task: SyncTask) -> (key: String, holder: UUID)? {
+        let mine = devices(of: task)
+        guard !mine.isEmpty else { return nil }
+        for job in jobs.values where job.task.id != task.id && !job.paused {
+            if let key = devices(of: job.task).intersection(mine).first { return (key, job.task.id) }
+        }
+        return nil
     }
 
     /// Tient l'assertion anti-veille tant qu'une copie avance ; une copie figée (pause) ne l'exige pas.
@@ -732,6 +816,11 @@ public actor AgentCore {
                 driveMounted: task.removableDrive.flatMap { drive in drives == nil ? nil : mountedDrives[drive.volumeUUID] != nil }
             )
             info.rank = state.order.firstIndex(of: task.id).map { $0 + 1 }
+            if runState == .queued { info.waitReason = queueReasons[task.id] }
+            if let job = jobs[task.id], job.paused, job.resumeRequested {
+                info.resumePending = true
+                info.waitReason = queueReasons[task.id]
+            }
             return info
         }
         // Ordre de la liste : copies ponctuelles d'abord, puis les tâches par rang (1.7.0).

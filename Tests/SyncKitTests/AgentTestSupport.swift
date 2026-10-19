@@ -32,6 +32,16 @@ final class FakeConditions: SystemConditions, @unchecked Sendable {
     func isReachable(_ endpoint: Endpoint) -> Bool {
         reachable.get() && !(endpoint.filesystemPath.map { missingPaths.get().contains($0) } ?? false)
     }
+    /// Disques physiques (1.7.0) : préfixe de chemin → clé ; partages réseau par leur serveur.
+    let devices = Locked<[String: String]>([:])
+    func physicalDevice(_ endpoint: Endpoint) -> String? {
+        switch endpoint {
+        case .network(let url, _): return PhysicalDevice.networkKey(url: url)
+        case .cloud: return nil
+        case .local(let path):
+            return devices.get().filter { path == $0.key || path.hasPrefix($0.key + "/") }.max { $0.key.count < $1.key.count }?.value
+        }
+    }
 }
 
 final class FakeNotifier: AgentNotifier, @unchecked Sendable {
