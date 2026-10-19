@@ -191,12 +191,12 @@ do {
 
     case .queueAdd(let text):
         let task = try await resolve(text)
-        try await client.perform(.runNow(task.id))
+        try await client.perform(CtlFormatter.request(for: invocation.command, id: task.id)!)
         print("« \(task.name) » en attente : elle part selon son rang.")
 
     case .queueRemove(let text):
         let task = try await resolve(text)
-        try await client.perform(.stop(task.id))
+        try await client.perform(CtlFormatter.request(for: invocation.command, id: task.id)!)
         print("« \(task.name) » retirée de l'attente.")
 
     case .queueMove(let text, let up):
@@ -212,7 +212,7 @@ do {
 
     case .force(let text):
         let task = try await resolve(text)
-        try await client.perform(.force(task.id))
+        try await client.perform(CtlFormatter.request(for: invocation.command, id: task.id)!)
         print("« \(task.name) » lancée tout de suite.")
 
     case .bandwidth:

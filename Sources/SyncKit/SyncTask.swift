@@ -50,7 +50,7 @@ public struct TaskOptions: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-public struct SyncTask: Codable, Equatable, Identifiable, Sendable {
+public struct SyncTask: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var id: UUID
     public var name: String
     public var source: Endpoint

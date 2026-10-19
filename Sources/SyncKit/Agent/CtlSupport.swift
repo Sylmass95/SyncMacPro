@@ -90,6 +90,16 @@ public enum CtlFormatter {
         return result
     }
 
+    /// Requête envoyée à l'agent pour une commande de la liste (revue 1.7.0 : « queue remove » n'arrête jamais une copie).
+    public static func request(for command: CtlCommand, id: UUID) -> AgentRequest? {
+        switch command {
+        case .queueAdd: return .runNow(id)
+        case .queueRemove: return .dequeue(id)
+        case .force: return .force(id)
+        default: return nil
+        }
+    }
+
     public static let queueRunMessage = "La liste est la file : elle n'a plus besoin d'être lancée. Les tâches partent dans "
         + "l'ordre de la liste (« syncmacpro-ctl queue »), deux à la fois ; « run » les met en attente, « force » les lance tout de suite."
 

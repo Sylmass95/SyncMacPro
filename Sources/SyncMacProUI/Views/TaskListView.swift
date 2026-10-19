@@ -17,9 +17,19 @@ struct TaskRow: View {
 
     static func opacity(for info: AgentTaskInfo) -> Double { info.state == .disabled ? 0.5 : 1 }
 
+    /// Largeurs (revue 1.7.0) : les colonnes se resserrent ; la ligne tient dans la liste à la taille minimale de la
+    /// fenêtre (environ 680 pt une fois la barre latérale et les marges ôtées).
+    enum Column {
+        static let rank: CGFloat = 24, name: CGFloat = 170, schedule: CGFloat = 110, state: CGFloat = 160
+        static let last: CGFloat = 90, buttons: CGFloat = 84, spacing: CGFloat = 8
+    }
+    static var minimumWidth: CGFloat {
+        Column.rank + Column.name + Column.schedule + Column.state + Column.last + Column.buttons + 5 * Column.spacing
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(row.rank(info)).font(.callout.monospacedDigit()).foregroundStyle(.secondary).frame(width: 24, alignment: .trailing)
+        HStack(alignment: .center, spacing: Column.spacing) {
+            Text(row.rank(info)).font(.callout.monospacedDigit()).foregroundStyle(.secondary).frame(width: Column.rank, alignment: .trailing)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(info.name).font(.body.weight(.semibold)).lineLimit(1).truncationMode(.tail)
@@ -30,18 +40,18 @@ struct TaskRow: View {
                 }
                 if let task { Text(row.route(task)).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
             }
-            .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: Column.name, maxWidth: .infinity, alignment: .leading)
             Text(task.map { $0.removableDrive != nil ? l.text("card.schedule.drive") : text.schedule($0.schedule) } ?? "")
-                .font(.caption).foregroundStyle(.secondary).lineLimit(1).frame(width: 150, alignment: .leading)
+                .font(.caption).foregroundStyle(.secondary).lineLimit(2).frame(minWidth: Column.schedule, maxWidth: 150, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.state(info, text: text)).font(.caption).lineLimit(2)
                 if let progress, info.state == .running || info.state == .paused {
                     GlowProgressBar(value: Self.fraction(progress)).frame(height: 6)
                 }
             }
-            .frame(width: 230, alignment: .leading)
-            Text(text.lastRun(info.lastRun)).font(.caption).foregroundStyle(.secondary).lineLimit(1).frame(width: 130, alignment: .leading)
-            HStack(spacing: 4) { buttons }.controlSize(.small).frame(width: 150, alignment: .trailing)
+            .frame(minWidth: Column.state, maxWidth: 240, alignment: .leading)
+            Text(text.lastRun(info.lastRun)).font(.caption).foregroundStyle(.secondary).lineLimit(2).frame(minWidth: Column.last, maxWidth: 130, alignment: .leading)
+            HStack(spacing: 2) { buttons }.buttonStyle(.borderless).controlSize(.small).frame(width: Column.buttons, alignment: .trailing)
         }
         .padding(.vertical, 4)
         .opacity(Self.opacity(for: info))

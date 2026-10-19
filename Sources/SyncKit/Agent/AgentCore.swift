@@ -52,8 +52,6 @@ public actor AgentCore {
     var oneOffOrder: [UUID] = []
     /// Raison de l'attente d'une exécution en file ou d'une reprise demandée (1.7.0).
     var queueReasons: [UUID: String] = [:]
-    /// Branchement d'un disque : exécution suspendue à reprendre quand la tâche partira de la file.
-    var pendingResumes: [UUID: SuspendedRun] = [:]
     /// Identité du programme au démarrage, et vrai dès qu'une mise à jour l'a remplacé (1.6.7).
     var launchedIdentity: String?
     var restartPending = false
@@ -350,7 +348,7 @@ public actor AgentCore {
                     }
                 }
                 queue.remove(at: index)
-                startJob(task, overrideGuard: next.overrideGuard, resuming: pendingResumes.removeValue(forKey: task.id))
+                startJob(task, overrideGuard: next.overrideGuard)
                 started = true
                 break
             }
@@ -361,11 +359,8 @@ public actor AgentCore {
     /// Copies qui tiennent une place : celles en pause l'ont libérée.
     var activeJobCount: Int { jobs.values.filter { !$0.paused }.count }
 
-    /// Retire une exécution de l'attente ; une reprise de disque amovible retrouve sa suspension.
-    func forgetQueued(at index: Int) {
-        let run = queue.remove(at: index)
-        if let suspended = pendingResumes.removeValue(forKey: run.id) { state.tasks[run.id.uuidString]?.suspendedRun = suspended }
-    }
+    /// Retire une exécution de l'attente (la suspension d'un disque amovible reste dans l'état jusqu'au départ).
+    func forgetQueued(at index: Int) { queue.remove(at: index) }
 
     /// Disque débranché pendant l'attente : la tâche quitte la file (son prochain branchement la relancera).
     func dropUnpluggedDriveRuns() {

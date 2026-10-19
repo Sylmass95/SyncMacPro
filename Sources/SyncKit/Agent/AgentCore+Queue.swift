@@ -55,7 +55,7 @@ extension AgentCore {
         }
         let waitingRun = queue.first { $0.id == id }
         queue.removeAll { $0.id == id }
-        startJob(task, overrideGuard: waitingRun?.overrideGuard ?? false, resuming: pendingResumes.removeValue(forKey: id))
+        startJob(task, overrideGuard: waitingRun?.overrideGuard ?? false)
         explainWaiting()
         emit(.stateChanged)
     }

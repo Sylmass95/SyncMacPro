@@ -60,19 +60,18 @@ extension AgentCore {
                 waiting[task.id] = reason   // secteur, plage horaire : on réessaie au prochain passage
                 continue
             }
-            entry.lastMountHandled = seen
+            // Revue 1.7.0 : le branchement n'est marqué servi (et la suspension reprise) qu'au vrai départ (`startJob`) ;
+            // une attente perdue (arrêt de l'agent, condition, « Arrêter ») est resservie au passage suivant.
             if let suspended = entry.suspendedRun {
-                entry.suspendedRun = nil
-                state.tasks[key] = entry
                 if now.timeIntervalSince(suspended.since) <= Double(drive.resumeWindowDays) * 86_400 {
-                    pendingResumes[task.id] = suspended
                     queue.append(QueuedRun(id: task.id, dueDate: now))
                     enqueued = true
                     continue
                 }
+                entry.suspendedRun = nil
+                state.tasks[key] = entry
                 close(suspended, message: "Interrompue : disque débranché plus de \(drive.resumeWindowDays) jour(s).", at: now)
             }
-            state.tasks[key] = entry
             let due: Bool
             switch drive.trigger {
             case .everyConnection: due = true
@@ -82,7 +81,11 @@ extension AgentCore {
             if due {
                 queue.append(QueuedRun(id: task.id, dueDate: now))
                 enqueued = true
-            } else { persist() }
+            } else {
+                entry.lastMountHandled = seen   // pas dû : ce branchement est servi
+                state.tasks[key] = entry
+                persist()
+            }
         }
         if enqueued { persist(); startQueued() }
     }

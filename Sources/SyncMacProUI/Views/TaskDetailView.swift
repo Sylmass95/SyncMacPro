@@ -33,6 +33,15 @@ struct TaskDetailView: View {
     }
 
     enum Tab: Hashable { case history, settings, log }
+
+    /// Une copie ponctuelle n'a pas de réglages : l'onglet affiché revient à l'historique.
+    static func effectiveTab(_ tab: Tab, hasTask: Bool) -> Tab { tab == .settings && !hasTask ? .history : tab }
+
+    /// Recharge de l'historique : nouvelle exécution, ou fin de celle en cours (même identifiant).
+    static func historyReloadKey(_ info: AgentTaskInfo) -> String {
+        guard let run = info.lastRun else { return "" }
+        return "\(run.id)-\(run.status.rawValue)-\(run.finishedAt?.timeIntervalSince1970 ?? 0)"
+    }
     @State private var tab: Tab = .history
 
     private var l: Localizer { text.localizer }
@@ -53,18 +62,19 @@ struct TaskDetailView: View {
                 HStack {
                     Text(info?.name ?? "").font(.headline).lineLimit(1)
                     Spacer()
-                    Picker("", selection: $tab) {
+                    Picker("", selection: Binding(get: { Self.effectiveTab(tab, hasTask: model.tasks[id] != nil) }, set: { tab = $0 })) {
                         Text(l.text("detail.tab.history")).tag(Tab.history)
                         if model.tasks[id] != nil { Text(l.text("detail.tab.settings")).tag(Tab.settings) }
                         Text(l.text("detail.tab.log")).tag(Tab.log)
                     }
                     .pickerStyle(.segmented).fixedSize()
                 }
-                switch tab {
-                case .history: TaskHistoryTab(model: model, taskID: id, reloadKey: info?.lastRun?.id, text: text)
+                switch Self.effectiveTab(tab, hasTask: model.tasks[id] != nil) {
+                case .history: TaskHistoryTab(model: model, taskID: id, reloadKey: info.map(Self.historyReloadKey), text: text)
                 case .settings:
                     if let task = model.tasks[id] {
-                        TaskSettingsTab(model: model, task: task, localizer: l, onEdit: onEdit).id(task.id)
+                        // Recréé quand la tâche change ailleurs (éditeur, Désactiver) : jamais d'anciennes valeurs réécrites.
+                        TaskSettingsTab(model: model, task: task, localizer: l, onEdit: onEdit).id(TaskSettingsTab.identity(task))
                     }
                 case .log: TaskLogTab(model: model, record: info?.lastRun, localizer: l)
                 }
@@ -79,7 +89,7 @@ struct TaskDetailView: View {
 struct TaskHistoryTab: View {
     let model: AgentModel
     let taskID: UUID?
-    let reloadKey: UUID?
+    let reloadKey: String?
     let text: CardText
     @State private var records: [RunRecord] = []
     @State private var selected: UUID?
@@ -106,7 +116,8 @@ struct TaskHistoryTab: View {
             }
             .controlSize(.small)
         }
-        .task(id: "\(taskID?.uuidString ?? "autres")-\(reloadKey?.uuidString ?? "")") {
+        .task(id: "\(taskID?.uuidString ?? "autres")-\(reloadKey ?? "")") {
+            selected = nil
             records = await model.taskHistory(for: taskID)
         }
         .sheet(item: $logRecord) { record in
@@ -134,6 +145,8 @@ struct TaskSettingsTab: View {
     }
 
     func openEditor() { onEdit(task) }
+
+    static func identity(_ task: SyncTask) -> SyncTask { task }
 
     private var l: Localizer { localizer }
 
@@ -174,7 +187,6 @@ struct TaskSettingsTab: View {
                     saving = true
                     Task { _ = await model.saveTask(settings.apply(to: task)); saving = false }
                 }
-                .keyboardShortcut(.defaultAction)
                 .disabled(saving || settings == QuickSettings(task: task))
             }
         }
