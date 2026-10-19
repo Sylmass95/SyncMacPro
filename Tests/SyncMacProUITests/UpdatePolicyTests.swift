@@ -101,7 +101,9 @@ extension UpdatePolicyTests {
         let queued = status([.queued, .waiting(reason: "x")], queue: QueueInfo(running: true, items: [UUID()], current: nil))
         XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: queued), true)
         XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.running])), false)
-        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.paused])), false)
+        // 1.6.9 : une copie en pause ne bloque plus le redémarrage (elle bloquait tout, essai réel du 19/10) : elle est
+        // interrompue proprement et reprise par l'agent suivant.
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.paused])), true)
         XCTAssertNil(UpdatePolicy.agentCanRestart(connection: .connecting, status: nil))
         XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .unreachable, status: nil), true)
     }

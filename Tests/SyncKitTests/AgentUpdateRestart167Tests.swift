@@ -180,4 +180,40 @@ final class AgentUpdateRestart167Tests: XCTestCase {
         }
         do { _ = try await core.simulate(b); XCTFail("refus attendu") } catch {}
     }
+
+    /// 1.6.9 : seule une copie en pause reste : l'agent ouvre l'app (le redémarrage peut se faire).
+    func testOnlyAPausedCopyLeftStillOpensTheApp() async throws {
+        let h = try harness(gated: true)
+        let opened = Locked(0)
+        h.configuration.openApp = { opened.update { $0 += 1 } }
+        let a = task("A")
+        try h.save([a])
+        let core = h.makeCore()
+        await core.start()
+        try await core.runNow(a.id)
+        try await core.pause(a.id)
+        identity.set("v2")
+        await core.tick()
+        XCTAssertEqual(opened.get(), 1)
+    }
+
+    /// 1.6.9 : la copie en pause coupée par le redémarrage est reprise par l'agent suivant.
+    func testAPausedCopyCutByTheRestartIsTakenUpAgain() async throws {
+        let h = try harness(gated: true)
+        let a = task("A")
+        try h.save([a])
+        let core = h.makeCore()
+        await core.start()
+        try await core.runNow(a.id)
+        try await core.pause(a.id)
+        await core.shutdown()
+        XCTAssertEqual(try h.history.list(taskID: a.id).map(\.status), [.interrupted])
+        identity.set("v2")
+        let restarted = h.makeCore()
+        await restarted.start()
+        await restarted.tick()
+        XCTAssertEqual(h.factory.created, 2, "reprise après le redémarrage")
+        h.factory.runners.get()[1].release()
+        await restarted.waitForIdle()
+    }
 }
