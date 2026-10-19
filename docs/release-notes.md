@@ -1,3 +1,8 @@
+SyncMacPro 1.6.9 — une copie en pause ne bloque plus la mise à jour.
+
+**Correction (1.6.9)**
+- Après une mise à jour, une copie mise en pause empêchait l'agent de redémarrer : toutes les autres tâches restaient « en attente (mise à jour installée…) » tant qu'on ne la reprenait pas. Maintenant, seules les copies en cours retardent le redémarrage ; une copie en pause est interrompue proprement et reprend après le redémarrage, là où elle en était.
+
 SyncMacPro 1.6.8 — partage réseau perdu pendant une copie.
 
 **Correction (1.6.8)**

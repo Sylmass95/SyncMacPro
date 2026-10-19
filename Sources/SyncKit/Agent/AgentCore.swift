@@ -194,7 +194,7 @@ public actor AgentCore {
         purgeHistoryIfNeeded(now)
         checkReplacedProgram()
         // Au repos et en attente : l'app est ouverte pour qu'elle redémarre l'agent (une fois).
-        if restartPending, jobs.isEmpty, !appOpenedForRestart {
+        if restartPending, !jobs.values.contains(where: { !$0.paused }), !appOpenedForRestart {   // en pause : ne retient pas
             appOpenedForRestart = true
             configuration.openApp()
         }
