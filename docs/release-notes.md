@@ -1,3 +1,8 @@
+SyncMacPro 1.7.3 — la progression d'une copie de nouveau lisible.
+
+**Correction (1.7.3)**
+- Dans la liste, une copie en cours n'affichait qu'une barre de progression, sans chiffres : une copie déjà bien avancée paraissait à « 0 octet ». La ligne affiche maintenant le pourcentage, le volume copié sur le total, le débit, le temps restant et le fichier en cours (« 33 % · 51,5 Go sur 539 Go · 2,2 Mo/s · reste … »).
+
 SyncMacPro 1.7.2 — copies vers un NAS sans réécriture inutile des dates.
 
 **Corrections (1.7.2)**

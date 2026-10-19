@@ -47,6 +47,11 @@ struct TaskRow: View {
                 Text(row.state(info, text: text)).font(.caption).lineLimit(2)
                 if let progress, info.state == .running || info.state == .paused {
                     GlowProgressBar(value: Self.fraction(progress)).frame(height: 6)
+                    // 1.7.3 : volume, débit, temps restant et fichier en cours (une barre seule paraissait vide).
+                    ForEach(Array(Self.progressLines(progress, text: text).enumerated()), id: \.offset) { _, line in
+                        Text(line).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
                 }
             }
             .frame(minWidth: Column.state, maxWidth: 240, alignment: .leading)
@@ -57,6 +62,14 @@ struct TaskRow: View {
         .opacity(Self.opacity(for: info))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(row.rank(info)). \(info.name), \(row.state(info, text: text))")
+    }
+
+    /// « 33 % · 1,00 Go sur 3,00 Go · 45,0 Mo/s · reste 0:12 », puis le fichier en cours.
+    static func progressLines(_ progress: ProgressInfo, text: CardText) -> [String] {
+        let volume = text.progressLine(progress)
+        var lines = [progress.overallPercent.map { "\($0) % · \(volume)" } ?? volume]
+        if let name = progress.currentName, !name.isEmpty { lines.append(name) }
+        return lines
     }
 
     static func fraction(_ info: ProgressInfo) -> Double {
