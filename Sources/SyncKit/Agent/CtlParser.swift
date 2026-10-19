@@ -38,6 +38,8 @@ public enum CtlCommand: Equatable, Sendable {
     case version, doctor
     /// File d'attente explicite et plafonds de débit (1.3.0).
     case queue, queueAdd(String), queueRemove(String), queueMove(String, up: Bool), queueRun(Bool)
+    /// 1.7.0 : lancer tout de suite, quelles que soient les limites.
+    case force(String)
     case bandwidth, setBandwidth(down: String?, up: String?, local: String?)
     /// Disque amovible (1.4.0) : éjecter, abandonner l'exécution suspendue.
     case eject(String), abandon(String)
@@ -90,9 +92,10 @@ public enum CtlParser {
                                      copie ponctuelle par l'agent (sans créer de tâche)
       simulate <tâche>               ce que ferait la tâche, sans rien modifier
       log <tâche>                    journal de la dernière exécution
-      queue                          file d'attente (ordre, état)
-      queue add | remove | up | down <tâche>
-      queue start | stop             lancer ou suspendre la file
+      queue                          la liste dans l'ordre de départ
+      queue up | down <tâche>        monter ou descendre une tâche d'un rang
+      queue add | remove <tâche>     mettre en attente (comme run) ou retirer de l'attente
+      force <tâche>                  lancer tout de suite, même au-delà de deux copies ou sur un disque occupé
       bandwidth                      plafonds de débit (Mbit/s, comme speedtest)
       bandwidth [--down N] [--up N] [--local N]
                                      réception internet, envoi internet, réseau local ; « off » pour retirer
@@ -110,7 +113,7 @@ public enum CtlParser {
         "reprendre-tout": "resume-all", "ajouter": "add", "supprimer": "remove", "aide": "help",
         "simuler": "simulate", "journal": "log", "copier": "copy", "connexions": "remotes", "diagnostic": "doctor",
         "file": "queue", "debit": "bandwidth", "débit": "bandwidth",
-        "ejecter": "eject", "éjecter": "eject", "abandonner": "abandon",
+        "ejecter": "eject", "éjecter": "eject", "abandonner": "abandon", "forcer": "force",
     ]
 
     private static let valued: Set<String> = [
@@ -215,6 +218,10 @@ public enum CtlParser {
                 destination: (destination as NSString).expandingTildeInPath,
                 items: items, mirror: flagged.contains("mirror")
             )))
+        case "force":
+            let target = rest.joined(separator: " ")
+            guard !target.isEmpty else { throw CtlParseError.missingValue("tâche") }
+            return invocation(.force(target))
         case "queue":
             guard let action = rest.first else { return invocation(.queue) }
             let target = rest.dropFirst().joined(separator: " ")

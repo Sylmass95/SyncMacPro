@@ -20,32 +20,6 @@ final class Fix130AgentReviewTests: XCTestCase {
         XCTAssertEqual(h.factory.created, 1)
     }
 
-    // I4 : l'agent redémarre en pleine exécution d'un élément : le suivant attend la fin de l'élément repris.
-    func testInterruptedQueueItemStaysCurrentAfterARestart() async throws {
-        let h = try AgentHarness(start: Date(timeIntervalSince1970: 0), gated: true)
-        let a = makeTask("A", schedule: .manual), b = makeTask("B", schedule: .manual)
-        try h.save([a, b])
-        let core = h.makeCore()
-        await core.start()
-        try await core.enqueue(a.id)
-        try await core.enqueue(b.id)
-        await core.setQueueRunning(true)
-        XCTAssertEqual(h.factory.created, 1)
-        await core.shutdown()                       // A interrompue
-        let again = h.makeCore()
-        await again.start()
-        await again.tick()
-        let names = h.factory.runners.get().dropFirst().flatMap { $0.ranTasks.get().map(\.name) }
-        _ = await eventually { h.factory.created >= 2 }
-        XCTAssertEqual(h.factory.created, 2, "seule A reprend : B attend")
-        XCTAssertFalse(names.contains("B"))
-        h.factory.runners.get()[1].release()       // A reprise se termine
-        let next = await eventually { h.factory.created == 3 }
-        XCTAssertTrue(next, "puis B")
-        h.factory.runners.get()[2].release()
-        await again.waitForIdle()
-    }
-
     // I5 : deux fichiers différents qui échouent pour la même raison sont deux erreurs.
     func testRcloneErrorsKeepTheFileName() {
         let log = RunLog()

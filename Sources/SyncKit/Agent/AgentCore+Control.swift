@@ -130,16 +130,6 @@ extension AgentCore {
             )
             try? history.save(record)
         }
-        for (id, task) in queuedOneOffs {
-            let record = RunRecord(
-                taskID: id, taskName: task.name, engine: (try? EngineSelector.engine(for: task)) ?? .rsync,
-                mode: task.mode, startedAt: now, finishedAt: now, status: .interrupted,
-                summary: RunSummary(message: "Arrêt de l'agent avant le début de la copie.")
-            )
-            try? history.save(record)
-            state.userQueue.removeAll { $0 == id }
-        }
-        queuedOneOffs.removeAll()
         persist()
         queue.removeAll()
         for job in jobs.values { job.runner.stop() }

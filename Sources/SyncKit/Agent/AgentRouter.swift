@@ -48,11 +48,12 @@ public enum AgentRouter {
             case .enqueueOnce(let task): try await core.enqueueOnce(task)
             case .dequeue(let id): try await core.dequeue(id)
             case .moveInQueue(let id, let index): try await core.moveInQueue(id, to: index)
-            case .setQueueRunning(let running): await core.setQueueRunning(running)
+            case .setQueueRunning(let running): await core.setQueueRunning(running)   // sans effet depuis 1.7.0
             case .setBandwidth(let limits): await core.setBandwidth(limits)
             case .abandonSuspended(let id): try await core.abandonSuspended(id)
             case .ejectDrive(let id): try await core.ejectDrive(id)
             case .reorder(let ids): await core.reorder(ids)
+            case .force(let id): try await core.force(id)
             case .checkAccess:
                 // Les demandes de macOS attendent l'utilisateur : la réponse n'attend pas.
                 Task { await core.checkAccess() }

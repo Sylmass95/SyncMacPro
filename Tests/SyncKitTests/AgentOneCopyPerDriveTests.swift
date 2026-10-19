@@ -86,11 +86,10 @@ final class AgentOneCopyPerDriveTests: XCTestCase {
         drives.plug(uuid, at: "/Volumes/Extreme Pro")
         await core.drivesChanged()
         try await core.runNow(a.id)
-        try await core.enqueue(b.id)
-        await core.setQueueRunning(true)
+        try await core.runNow(b.id)
         XCTAssertEqual(h.factory.created, 1, "B attend que A libère le disque")
-        let items = await core.queueInfo.items
-        XCTAssertEqual(items, [b.id], "B reste dans la file")
+        let bState = await core.status().tasks.first { $0.id == b.id }?.state
+        XCTAssertEqual(bState, .queued, "B reste en attente")
         h.factory.runners.get()[0].release()
         let bStarted = await eventually { h.factory.created == 2 }
         XCTAssertTrue(bStarted)

@@ -177,13 +177,7 @@ do {
             + (result.message.map { "\n\($0)" } ?? ""))
 
     case .queue:
-        let status = try await client.status()
-        guard let queue = status.queue else { fail("Cet agent ne connaît pas encore la file d'attente (mettez l'app à jour).") }
-        let names = Dictionary(status.tasks.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
-        print("File : \(queue.running ? "lancée" : "suspendue")")
-        if let current = queue.current { print("En cours : \(names[current] ?? current.uuidString)") }
-        if queue.items.isEmpty { print("Aucune tâche en file.") }
-        for (index, id) in queue.items.enumerated() { print("\(index + 1). \(names[id] ?? id.uuidString)") }
+        CtlFormatter.orderLines(try await client.status()).forEach { print($0) }
 
     case .eject(let text):
         let task = try await resolve(text)
@@ -197,26 +191,29 @@ do {
 
     case .queueAdd(let text):
         let task = try await resolve(text)
-        try await client.perform(.enqueue(task.id))
-        print("« \(task.name) » mise en file.")
+        try await client.perform(.runNow(task.id))
+        print("« \(task.name) » en attente : elle part selon son rang.")
 
     case .queueRemove(let text):
         let task = try await resolve(text)
-        try await client.perform(.dequeue(task.id))
-        print("« \(task.name) » retirée de la file.")
+        try await client.perform(.stop(task.id))
+        print("« \(task.name) » retirée de l'attente.")
 
     case .queueMove(let text, let up):
         let task = try await resolve(text)
-        guard let items = try await client.status().queue?.items, let index = items.firstIndex(of: task.id) else {
-            fail("« \(task.name) » n'est pas dans la file.")
-        }
-        let target = max(0, min(items.count - 1, index + (up ? -1 : 1)))
-        try await client.perform(.moveInQueue(task.id, to: target))
-        print("« \(task.name) » : place \(target + 1) sur \(items.count).")
+        let status = try await client.status()
+        let order = status.tasks.filter { $0.rank != nil }.map(\.id)
+        let moved = CtlFormatter.moved(task.id, in: order, up: up)
+        try await client.perform(.reorder(moved))
+        print("« \(task.name) » : rang \((moved.firstIndex(of: task.id) ?? 0) + 1) sur \(moved.count).")
 
-    case .queueRun(let running):
-        try await client.perform(.setQueueRunning(running))
-        print(running ? "File lancée." : "File suspendue (l'élément en cours se termine).")
+    case .queueRun:
+        print(CtlFormatter.queueRunMessage)
+
+    case .force(let text):
+        let task = try await resolve(text)
+        try await client.perform(.force(task.id))
+        print("« \(task.name) » lancée tout de suite.")
 
     case .bandwidth:
         printBandwidth(try await client.status().bandwidth ?? BandwidthLimits())

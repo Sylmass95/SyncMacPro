@@ -156,8 +156,6 @@ extension AgentCore {
         refreshActivity()
         emit(.stateChanged)
         startQueued()
-        if userQueueCurrent == id && !shuttingDown { userQueueCurrent = nil; persist() }
-        advanceUserQueue()
         handleDrives(clock.now())
     }
 
@@ -209,7 +207,7 @@ extension AgentCore {
         // Autres sauvegardes sur ce disque, en cours ou en file : l'éjection attend la dernière.
         let onDrive = { (id: UUID) in self.lookupTask(id)?.removableDrive?.volumeUUID == drive.volumeUUID }
         let othersOnDrive = jobs.values.contains { $0.task.removableDrive?.volumeUUID == drive.volumeUUID }
-            || state.userQueue.contains(where: onDrive) || queue.contains { onDrive($0.id) }
+            || queue.contains { onDrive($0.id) }
         guard drive.eject == .automatic, !othersOnDrive, let drives, let mount = mountedDrives[drive.volumeUUID] else {
             notify(task, .succeeded, summary, note: othersOnDrive ? nil : "vous pouvez éjecter « \(drive.volumeName) ».")
             return

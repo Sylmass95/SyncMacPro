@@ -17,7 +17,7 @@ extension AgentCore {
         }
         // Une tâche modifiée doit être replanifiée : une validation de suppressions ne vaut que pour l'ancienne version.
         state.tasks[task.id.uuidString]?.awaitingApproval = false
-        if !task.isEnabled { state.userQueue.removeAll { $0 == task.id } }   // désactivée : elle sort de la file
+        if !task.isEnabled { queue.removeAll { $0.id == task.id } }   // désactivée : elle sort de l'attente
         queue.removeAll { $0.id == task.id && $0.overrideGuard }
         loadTasks()
         persist()
@@ -38,7 +38,7 @@ extension AgentCore {
                 try? FileManager.default.removeItem(at: work.appendingPathComponent(folder))
             }
         }
-        state.userQueue.removeAll { $0 == id }
+        queue.removeAll { $0.id == id }
         loadTasks()
         persist()
         emit(.stateChanged)

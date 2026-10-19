@@ -25,7 +25,8 @@ extension AgentCore {
 
     /// Place dans l'ordre de départ (0 = la première) : les copies ponctuelles avant toutes les tâches.
     func rank(of id: UUID) -> Int {
-        if let index = oneOffOrder.firstIndex(of: id) { return index - oneOffOrder.count }
+        let live = oneOffOrder.filter { oneOffs[$0] != nil }   // copies ponctuelles encore là
+        if let index = live.firstIndex(of: id) { return index - live.count }
         return state.order.firstIndex(of: id) ?? Int.max
     }
 
