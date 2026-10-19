@@ -98,7 +98,8 @@ public struct RootView: View {
         } else {
             switch selection ?? .dashboard {
             case .dashboard:
-                DashboardView(model: model, installer: installer, localizer: localizer, updates: updates, onCreate: { open($0, isNew: true) })
+                DashboardView(model: model, installer: installer, localizer: localizer, updates: updates,
+                              onCreate: { open($0, isNew: true) }, onEdit: { open(TaskDraft(task: $0), isNew: false) })
             case .tasks:
                 TasksView(model: model, localizer: localizer) { open($0, isNew: $1) }
             case .copy:

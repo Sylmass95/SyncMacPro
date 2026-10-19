@@ -10,11 +10,13 @@ struct DashboardContent: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
+    var onEdit: (SyncTask) -> Void = { _ in }
     var update: UpdateBannerInfo?
 
     // 1.7.0 : la liste défile elle-même (une `List` dans un `ScrollView` s'écrase).
     var body: some View {
-        DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate, update: update)
+        DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate, onEdit: onEdit,
+                      update: update)
     }
 }
 
@@ -25,6 +27,8 @@ struct DashboardBody: View {
     let text: CardText
     let onInstall: () -> Void
     var onCreate: (TaskDraft) -> Void = { _ in }
+    /// « Modifier… » du détail : éditeur complet (1.7.0).
+    var onEdit: (SyncTask) -> Void = { _ in }
     /// Une mise à jour est prête (installation à la demande, ou en attente de la fin des copies).
     var update: UpdateBannerInfo?
     /// Lignes sélectionnées dans la liste (1.7.0).
@@ -120,9 +124,9 @@ struct DashboardBody: View {
         }
     }
 
-    /// Détail de la sélection (Tâche 6).
+    /// Détail de la sélection, sous la liste.
     @ViewBuilder private var detail: some View {
-        Color.clear
+        TaskDetailView(model: model, selection: selection, text: text, onEdit: onEdit)
     }
 
 }
@@ -133,17 +137,19 @@ public struct DashboardView: View {
     let installer: AgentInstaller
     let localizer: Localizer
     let onCreate: (TaskDraft) -> Void
+    let onEdit: (SyncTask) -> Void
     let updates: UpdateModel?
 
     public init(
         model: AgentModel, installer: AgentInstaller, localizer: Localizer = .system, updates: UpdateModel? = nil,
-        onCreate: @escaping (TaskDraft) -> Void = { _ in }
+        onCreate: @escaping (TaskDraft) -> Void = { _ in }, onEdit: @escaping (SyncTask) -> Void = { _ in }
     ) {
         self.model = model
         self.installer = installer
         self.localizer = localizer
         self.updates = updates
         self.onCreate = onCreate
+        self.onEdit = onEdit
     }
 
     public var body: some View {
@@ -153,7 +159,7 @@ public struct DashboardView: View {
                 model: model, installState: installer.state,
                 text: CardText(localizer: localizer, now: context.date),
                 onInstall: { installer.install(); model.restart() },
-                onCreate: onCreate,
+                onCreate: onCreate, onEdit: onEdit,
                 update: updates.flatMap(UpdateBannerInfo.make)
             )
         }
