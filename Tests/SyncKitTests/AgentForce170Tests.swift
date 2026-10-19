@@ -17,6 +17,12 @@ final class AgentForce170Tests: XCTestCase {
 
     func runner(_ h: AgentHarness, _ name: String) -> FakeRunner? { h.factory.runners.get().first { $0.ranTasks.get().first?.name == name } }
 
+    /// Libère la copie `name` une fois que son exécuteur l'a enregistrée (CI lente).
+    func release(_ h: AgentHarness, _ name: String) async {
+        _ = await eventually(timeout: 5) { self.runner(h, name) != nil }
+        runner(h, name)?.release()
+    }
+
     /// Libère les copies (y compris celles qui partent pendant l'attente) jusqu'au repos de l'agent.
     func finish(_ h: AgentHarness, _ core: AgentCore) async {
         let factory = h.factory
@@ -123,7 +129,7 @@ final class AgentForce170Tests: XCTestCase {
         let first = await core.status().tasks.first
         XCTAssertEqual(first?.isOneOff, true)
         XCTAssertNil(first?.rank)
-        runner(h, "A")?.release()
+        await release(h, "A")
         let next = await eventually(timeout: 5) { h.factory.created == 3 && h.factory.runners.get().last?.ranTasks.get().isEmpty == false }
         XCTAssertTrue(next)
         XCTAssertEqual(h.factory.runners.get().last?.ranTasks.get().first?.name, "Ponctuelle", "avant C")

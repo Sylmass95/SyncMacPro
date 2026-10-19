@@ -22,6 +22,12 @@ final class AgentDevices170Tests: XCTestCase {
         await eventually(timeout: 5) { h.factory.created == count && self.startedNames(h).count == count }
     }
     func runner(_ h: AgentHarness, _ name: String) -> FakeRunner? { h.factory.runners.get().first { $0.ranTasks.get().first?.name == name } }
+
+    /// Libère la copie `name` une fois que son exécuteur l'a enregistrée (CI lente).
+    func release(_ h: AgentHarness, _ name: String) async {
+        _ = await eventually(timeout: 5) { self.runner(h, name) != nil }
+        runner(h, name)?.release()
+    }
     func info(_ core: AgentCore, _ id: UUID) async -> AgentTaskInfo? { await core.status().tasks.first { $0.id == id } }
 
     func testWaitingRunsStartInListOrder() async throws {
@@ -34,12 +40,12 @@ final class AgentDevices170Tests: XCTestCase {
         try await core.runNow(y.id)
         for t in [a, b, c] { try await core.runNow(t.id) }
         await core.reorder([x.id, y.id, c.id, b.id, a.id])
-        runner(h, "X")?.release()
-        runner(h, "Y")?.release()
+        await release(h, "X")
+        await release(h, "Y")
         let next = await waitStarted(h, 4)
         XCTAssertTrue(next)
         XCTAssertEqual(Array(startedNames(h).suffix(2)), ["C", "B"])
-        runner(h, "C")?.release()
+        await release(h, "C")
         let last = await waitStarted(h, 5)
         XCTAssertTrue(last)
         XCTAssertEqual(startedNames(h).last, "A")
@@ -150,8 +156,9 @@ final class AgentDevices170Tests: XCTestCase {
         XCTAssertEqual(pending?.resumePending, true)
         XCTAssertTrue(pending?.waitReason?.contains("même disque que « B »") == true, pending?.waitReason ?? "nil")
         XCTAssertNotEqual(runner(h, "A")?.calls.get().last, "resume")
-        runner(h, "B")?.release()
-        let resumed = await eventually { self.runner(h, "A")?.calls.get().last == "resume" }
+        _ = await waitStarted(h, 2)   // B a bien enregistré sa tâche avant d'être libérée (CI lente)
+        await release(h, "B")
+        let resumed = await eventually(timeout: 5) { self.runner(h, "A")?.calls.get().last == "resume" }
         XCTAssertTrue(resumed)
         h.factory.runners.get().forEach { $0.release() }
         await core.waitForIdle()
@@ -185,7 +192,7 @@ final class AgentDevices170Tests: XCTestCase {
         XCTAssertEqual(h.factory.created, 2)
         let waiting = await info(core, d.id)
         XCTAssertEqual(waiting?.state, .queued)
-        runner(h, "A")?.release()
+        await release(h, "A")
         let started = await waitStarted(h, 3)
         XCTAssertTrue(started)
         h.factory.runners.get().forEach { $0.release() }
