@@ -57,8 +57,7 @@ public struct TasksView: View {
                                              text: text, actions: TaskCardActions(
                                                 pause: { Task { await model.pause(info.id) } },
                                                 resume: { Task { await model.resume(info.id) } },
-                                                stop: { Task { await model.stop(info.id) } },
-                                                dequeue: { Task { await model.stop(info.id) } }))
+                                                stop: { Task { await model.stop(info.id) } }))
                                     if finished {
                                         Button { model.dismissFinishedCopy(info.id) } label: { Image(systemName: "xmark.circle.fill") }
                                             .buttonStyle(.borderless).help(localizer.text("tasks.copies.dismiss")).padding(8)

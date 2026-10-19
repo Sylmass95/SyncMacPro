@@ -498,3 +498,20 @@
 "card.drive.suspended.slot" = "En pause sur « %@ » (branché) : reprise dès qu’une place se libère";
 "update.banner.daytime" = "SyncMacPro %@ s’installera en journée (entre %d h et %d h).";
 "update.hours" = "Installer automatiquement entre %d h et %d h";
+
+/* 1.7.0 : liste ordonnée */
+"card.force" = "Forcer";
+"list.oneoff" = "ponctuelle";
+"list.otherRuns" = "Autres exécutions (copies ponctuelles, tâches supprimées)";
+"list.selection.count" = "%d tâches sélectionnées";
+"list.enable" = "Activer";
+"list.disable" = "Désactiver";
+"place.nas" = "NAS « %@ »";
+"place.shared" = "Drive partagé";
+"place.cloud" = "« %@ »";
+"place.disk" = "Disque « %@ »";
+"place.desktop" = "Bureau";
+"place.documents" = "Documents";
+"place.downloads" = "Téléchargements";
+"state.resume.pending" = "En pause, reprise en attente : %@";
+"state.queued.reason" = "En file — %@";

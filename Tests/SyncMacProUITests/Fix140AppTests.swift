@@ -12,7 +12,7 @@ final class Fix140AppTests: XCTestCase {
         let idleCopy = AgentTaskInfo(id: UUID(), name: "Copie", state: .idle, isOneOff: true)
         XCTAssertFalse(TaskCard.availableActions(info: idleCopy, task: nil, driveMounted: nil).contains(.run))
         let task = AgentTaskInfo(id: UUID(), name: "Tâche", state: .idle)
-        XCTAssertEqual(TaskCard.availableActions(info: task, task: nil, driveMounted: nil), [.run, .enqueue])
+        XCTAssertEqual(TaskCard.availableActions(info: task, task: nil, driveMounted: nil), [.run, .force])   // 1.7.0
     }
 
     func testFinishedOneOffSummaryIsKeptUntilDismissed() async {

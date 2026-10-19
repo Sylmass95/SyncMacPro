@@ -161,30 +161,6 @@ final class MenuBarStateTests: XCTestCase {
     }
 }
 
-final class CardOrderingTests: XCTestCase {
-    func testOrder() {
-        let tasks = [
-            info("idle-late", next: at(14, 3)),
-            info("disabled", .disabled),
-            info("idle-soon", next: at(13, 3)),
-            info("waiting", .waiting(reason: "x")),
-            info("approval", .awaitingApproval),
-            info("paused", .paused),
-            info("running", .running),
-            info("manual"),
-        ]
-        XCTAssertEqual(
-            CardOrdering.sorted(tasks).map(\.name),
-            ["paused", "running", "approval", "waiting", "idle-soon", "idle-late", "manual", "disabled"]
-        )
-    }
-
-    func testRunningOrPausedKeepAlphabeticalOrder() {
-        let tasks = [info("b", .running), info("a", .paused)]
-        XCTAssertEqual(CardOrdering.sorted(tasks).map(\.name), ["a", "b"])
-    }
-}
-
 final class HistoryFilterTests: XCTestCase {
     let now = at(12, 12)
 

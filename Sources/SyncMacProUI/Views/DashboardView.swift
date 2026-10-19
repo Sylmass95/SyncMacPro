@@ -12,10 +12,9 @@ struct DashboardContent: View {
     var onCreate: (TaskDraft) -> Void = { _ in }
     var update: UpdateBannerInfo?
 
+    // 1.7.0 : la liste défile elle-même (une `List` dans un `ScrollView` s'écrase).
     var body: some View {
-        ScrollView {
-            DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate, update: update)
-        }
+        DashboardBody(model: model, installState: installState, text: text, onInstall: onInstall, onCreate: onCreate, update: update)
     }
 }
 
@@ -28,6 +27,8 @@ struct DashboardBody: View {
     var onCreate: (TaskDraft) -> Void = { _ in }
     /// Une mise à jour est prête (installation à la demande, ou en attente de la fin des copies).
     var update: UpdateBannerInfo?
+    /// Lignes sélectionnées dans la liste (1.7.0).
+    @State var selection: Set<UUID> = []
 
     private var l: Localizer { text.localizer }
 
@@ -109,31 +110,21 @@ struct DashboardBody: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16, alignment: .top)], spacing: 16) {
-                    ForEach(CardOrdering.sorted(status.tasks)) { info in
-                        TaskCard(
-                            info: info, task: model.tasks[info.id], progress: model.progress[info.id],
-                            busy: model.busyTasks.contains(info.id), text: text, actions: actions(for: info.id)
-                        )
-                    }
+                // 1.7.0 : une seule liste ordonnée, le détail de la tâche sélectionnée en dessous.
+                VSplitView {
+                    TaskListView(model: model, selection: $selection, text: text)
+                        .frame(minHeight: 220)
+                    detail.frame(minHeight: 160)
                 }
             }
         }
     }
 
-    private func actions(for id: UUID) -> TaskCardActions {
-        TaskCardActions(
-            run: { Task { await model.runNow(id) } },
-            pause: { Task { await model.pause(id) } },
-            resume: { Task { await model.resume(id) } },
-            stop: { Task { await model.stop(id) } },
-            approve: { Task { await model.approve(id) } },
-            enqueue: { Task { await model.force(id) } },   // remplacé par la liste en Tâche 5
-            dequeue: { Task { await model.stop(id) } },
-            abandon: { Task { await model.abandonSuspended(id) } },
-            eject: { Task { await model.ejectDrive(id) } }
-        )
+    /// Détail de la sélection (Tâche 6).
+    @ViewBuilder private var detail: some View {
+        Color.clear
     }
+
 }
 
 @MainActor
