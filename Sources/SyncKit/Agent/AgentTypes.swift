@@ -132,6 +132,8 @@ public struct AgentTaskInfo: Codable, Equatable, Identifiable, Sendable {
     /// Disque amovible : suspendue depuis (disque débranché) ; disque branché ou non. `nil` hors disque amovible.
     public var driveSuspendedSince: Date?
     public var driveMounted: Bool?
+    /// Rang dans la liste (1 = la première à partir) ; `nil` pour une copie ponctuelle ou un agent plus ancien (1.7.0).
+    public var rank: Int?
 
     public init(
         id: UUID, name: String, state: TaskRunState, nextDue: Date? = nil, lastRun: RunRecord? = nil,

@@ -48,6 +48,8 @@ public actor AgentCore {
     var jobTasks: [UUID: Task<Void, Never>] = [:]
     var queue: [QueuedRun] = []
     var waiting: [UUID: String] = [:]
+    /// Copies ponctuelles dans l'ordre de leur demande : en haut de la liste (1.7.0).
+    var oneOffOrder: [UUID] = []
     /// Identité du programme au démarrage, et vrai dès qu'une mise à jour l'a remplacé (1.6.7).
     var launchedIdentity: String?
     var restartPending = false
@@ -142,6 +144,7 @@ public actor AgentCore {
             if linked { state.tasks[key]?.lastMountHandled = nil }
         }
         if configuration.startupHold > 0 { holdUntil = now.addingTimeInterval(configuration.startupHold) }
+        migrateOldQueue()
         // L'élément en cours au moment de l'arrêt est repris par le rattrapage : la file l'attend. Disparu : oublié.
         // Une tâche liée n'est pas rattrapée (elle repart au branchement) : la file ne l'attend pas.
         if let current = userQueueCurrent, !tasks.contains(where: { $0.id == current && $0.removableDrive == nil }) {
@@ -178,6 +181,7 @@ public actor AgentCore {
         }
         // Une tâche supprimée ne reste pas dans la file d'attente.
         state.userQueue = state.userQueue.filter { known.contains($0.uuidString) || queuedOneOffs[$0] != nil }
+        syncOrder()
     }
 
     // MARK: évaluation
@@ -720,16 +724,20 @@ public actor AgentCore {
             // Une tâche liée à un disque part au branchement : aucune échéance à annoncer.
             let next = task.isEnabled && task.removableDrive == nil ? entry.flatMap { dueDate(task, $0, now) } : nil
             let last = (try? history.list(taskID: task.id, limit: 1))?.first
-            return AgentTaskInfo(
+            var info = AgentTaskInfo(
                 id: task.id, name: task.name, state: runState, nextDue: next, lastRun: last,
                 progress: jobs[task.id]?.latest, isOneOff: oneOffs[task.id] != nil || queuedOneOffs[task.id] != nil,
                 queuePosition: state.userQueue.firstIndex(of: task.id).map { $0 + 1 },
                 driveSuspendedSince: entry?.suspendedRun?.since,
                 driveMounted: task.removableDrive.flatMap { drive in drives == nil ? nil : mountedDrives[drive.volumeUUID] != nil }
             )
+            info.rank = state.order.firstIndex(of: task.id).map { $0 + 1 }
+            return info
         }
+        // Ordre de la liste : copies ponctuelles d'abord, puis les tâches par rang (1.7.0).
+        let ordered = infos.sorted { rank(of: $0.id) < rank(of: $1.id) }
         return AgentStatus(
-            globalPause: state.paused, stateRecovered: stateRecovered, taskLoadError: taskLoadError, tasks: infos,
+            globalPause: state.paused, stateRecovered: stateRecovered, taskLoadError: taskLoadError, tasks: ordered,
             queue: queueInfo, bandwidth: settingsLimits, restartPending: restartPending
         )
     }
