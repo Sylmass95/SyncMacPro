@@ -40,6 +40,7 @@ public enum RsyncCommandBuilder {
             }
         }
         if let file = run.excludeFrom { args.append("--exclude-from=\(file)") }
+        if task.mode != .verify { args += timeTolerance(task) }
         args += task.options.excludes.map { "--exclude=\($0)" }
         args += task.options.extraArguments
         if run.dryRun, task.mode != .verify { args.append("-n") }
@@ -48,6 +49,13 @@ public enum RsyncCommandBuilder {
     }
 
     /// `--bwlimit` de rsync (Kio/s) : un seul débit, le plus bas des deux côtés.
+    /// Partage réseau en source ou en destination : une seconde d'écart sur les dates est tolérée (1.7.2). Le partage
+    /// garde les dates moins finement que le Mac, et rsync réécrivait sinon la date de chaque fichier à chaque passage.
+    static func timeTolerance(_ task: SyncTask) -> [String] {
+        let network = [task.source, task.destination].contains { if case .network = $0 { return true }; return false }
+        return network ? ["--modify-window=1"] : []
+    }
+
     public static func bwlimitKBps(_ rate: BandwidthRate) -> Int? {
         let sides = [rate.upBytesPerSecond, rate.downBytesPerSecond].compactMap { $0 }
         guard let lowest = sides.min() else { return nil }
@@ -70,7 +78,7 @@ public enum RsyncCommandBuilder {
         if task.mode.requiresRclone || task.mode == .verify {
             throw CommandError.unsupportedMode(mode: task.mode, engine: .rsync)
         }
-        var args = ["-rtn", "--stats", "--out-format=%l|%n"]
+        var args = ["-rtn", "--stats", "--out-format=%l|%n"] + timeTolerance(task)
         if task.mode == .mirror {
             args += ["--delete", "--exclude=/\(task.options.archiveFolder)/"]
         }

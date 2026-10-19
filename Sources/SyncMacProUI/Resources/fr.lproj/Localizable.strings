@@ -476,7 +476,7 @@
 "editor.drive.eject.never" = "Notification seulement";
 "editor.drive.eject.button" = "Bouton « Éjecter »";
 "editor.drive.eject.automatic" = "Éjection automatique";
-"card.schedule.drive" = "Au branchement du disque";
+"card.schedule.drive" = "Déclenchée au branchement du disque";
 "card.drive.suspended.back" = "En pause sur « %@ » (branché) : reprise en attente (%@)";
 
 /* Mises à jour (Sparkle, 1.6.0) */
