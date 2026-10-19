@@ -476,7 +476,7 @@
 "editor.drive.eject.never" = "Notification only";
 "editor.drive.eject.button" = "“Eject” button";
 "editor.drive.eject.automatic" = "Eject automatically";
-"card.schedule.drive" = "When the drive is plugged in";
+"card.schedule.drive" = "Starts when the drive is plugged in";
 "card.drive.suspended.back" = "Paused on “%@” (connected): resume waiting (%@)";
 
 /* Mises à jour (Sparkle, 1.6.0) */

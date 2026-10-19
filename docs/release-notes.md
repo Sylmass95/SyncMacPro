@@ -1,3 +1,9 @@
+SyncMacPro 1.7.2 — copies vers un NAS sans réécriture inutile des dates.
+
+**Corrections (1.7.2)**
+- Un partage réseau (QNAP, NAS) garde les dates des fichiers moins finement que le Mac : rsync croyait chaque fichier modifié et réécrivait sa date à chaque passage (15 811 fichiers en 2 h pour 0 octet copié lors d'un essai réel). Une seconde d'écart est maintenant tolérée pour les copies depuis ou vers un partage réseau (`--modify-window=1`).
+- Colonne Horaire d'une tâche de disque amovible : « Déclenchée au branchement du disque » (et non un état d'attente).
+
 SyncMacPro 1.7.1 — on voit ce que fait une copie qui se prépare.
 
 **Corrections (1.7.1)**
