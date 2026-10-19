@@ -295,6 +295,7 @@ public final class AgentModel {
             await refreshNow()
         } catch {
             alertMessage = Self.describe(error)
+            await refreshNow()   // 1.7.1 : un affichage changé d'avance (déplacement) reprend l'état réel
         }
     }
 
@@ -492,7 +493,11 @@ public final class AgentModel {
     }
 
     static func describe(_ error: Error) -> String {
-        (error as? LocalizedError)?.errorDescription ?? "\(error)"
+        // Pendant une mise à jour, l'ancien agent ne comprend pas une requête nouvelle (1.7.1).
+        if case AgentClientError.agent(.internalFailure("requête illisible"))? = error as? AgentClientError {
+            return "SyncMacPro termine sa mise à jour : réessayez dans un instant."
+        }
+        return (error as? LocalizedError)?.errorDescription ?? "\(error)"
     }
 }
 

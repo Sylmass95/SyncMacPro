@@ -1,3 +1,9 @@
+SyncMacPro 1.7.1 — on voit ce que fait une copie qui se prépare.
+
+**Corrections (1.7.1)**
+- Avant de copier, rsync compare la source et la destination (garde-fou contre une source vide) : sur un disque externe ou un NAS, cela peut prendre plusieurs minutes, et la copie semblait ne rien faire. La ligne dit maintenant « Préparation : comparaison avec la destination… », puis « Vérification après la copie… » à la fin.
+- Pendant une mise à jour, l'agent encore en ancienne version ne comprend pas un déplacement de ligne ni « Forcer » : au lieu de « Erreur interne de l'agent : requête illisible », le message dit « SyncMacPro termine sa mise à jour : réessayez dans un instant » et la liste reprend aussitôt son ordre réel.
+
 SyncMacPro 1.7.0 — une seule liste, comme SyncBackPro.
 
 **Nouveautés (1.7.0)**

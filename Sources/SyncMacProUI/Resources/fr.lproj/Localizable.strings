@@ -540,3 +540,6 @@
 "detail.settings.other" = "Autre (voir l'éditeur)";
 "detail.settings.minutes" = "Toutes les %d minutes";
 "mini.next" = "Prochaines";
+"state.phase.preparing" = "Préparation…";
+"state.phase.planning" = "Préparation : comparaison avec la destination…";
+"state.phase.verifying" = "Vérification après la copie…";

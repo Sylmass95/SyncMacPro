@@ -20,6 +20,8 @@ public actor AgentCore {
         var lastProgressEmit: Date?
         var latest: ProgressInfo?
         var logWriter: RunLogWriter?
+        /// Étape annoncée par le moteur (1.7.1).
+        var phase: RunPhase?
         /// Reprise demandée pendant la pause, en attente d'une place ou de son disque (1.7.0).
         var resumeRequested = false
         /// Disque amovible : débranché pendant l'exécution ; exécution suspendue reprise.
@@ -500,7 +502,7 @@ public actor AgentCore {
                     switch update {
                     case .snapshot(let snapshot): Task { await core.progress(id, snapshot) }
                     case .line(let text): logWriter?.append(text)
-                    case .phase: break
+                    case .phase(let phase): Task { await core.phaseChanged(id, phase) }
                     }
                 })
             } catch {
@@ -508,6 +510,13 @@ public actor AgentCore {
             }
             await core.finish(id, outcome)
         }
+    }
+
+    /// L'app montre l'étape d'une copie sans progression (vérification préalable, contrôle final) (1.7.1).
+    func phaseChanged(_ id: UUID, _ phase: RunPhase) {
+        guard jobs[id] != nil, jobs[id]?.phase != phase else { return }
+        jobs[id]?.phase = phase
+        emit(.stateChanged)
     }
 
     func progress(_ id: UUID, _ snapshot: TransferSnapshot) {
@@ -677,6 +686,15 @@ public actor AgentCore {
         return true
     }
 
+    static func phaseName(_ phase: RunPhase) -> String {
+        switch phase {
+        case .preparing: return "preparing"
+        case .planning: return "planning"
+        case .running: return "running"
+        case .verifying: return "verifying"
+        }
+    }
+
     static let restartReason = "mise à jour installée : départ après le redémarrage de l'agent"
 
     /// Une mise à jour a remplacé le programme de l'agent : macOS ne reconnaît plus celui qui tourne (autorisations
@@ -789,6 +807,7 @@ public actor AgentCore {
                 driveMounted: task.removableDrive.flatMap { drive in drives == nil ? nil : mountedDrives[drive.volumeUUID] != nil }
             )
             info.rank = state.order.firstIndex(of: task.id).map { $0 + 1 }
+            info.phase = jobs[task.id]?.phase.map(Self.phaseName)
             if runState == .queued { info.waitReason = queueReasons[task.id] }
             if let job = jobs[task.id], job.paused, job.resumeRequested {
                 info.resumePending = true

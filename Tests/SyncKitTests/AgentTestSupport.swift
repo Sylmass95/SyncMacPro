@@ -100,6 +100,8 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
     let unavailableNames = Locked<Set<String>>([])
     /// Fichiers copiés avant la perte du partage (1.6.8).
     let copiedBeforeLoss = Locked(0)
+    /// Étape annoncée au départ (1.7.1).
+    let phase = Locked<RunPhase>(.running)
     private let gate: Gate?
     private let stopped = Locked(false)
 
@@ -116,7 +118,7 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         calls.set(calls.get() + ["run"])
         dryRuns.set(dryRuns.get() + [dryRun])
         ranTasks.set(ranTasks.get() + [task])
-        onUpdate(.phase(.running))
+        onUpdate(.phase(phase.get()))
         if let current = snapshot.get() { onUpdate(.snapshot(current)) }
         for line in lines.get() { onUpdate(.line(line)) }
         if let gate { await gate.wait() }
@@ -155,6 +157,7 @@ final class RunnerFactory: @unchecked Sendable {
     /// Partagé avec chaque exécuteur créé : le test peut le changer entre deux essais.
     let unavailableNames = Locked<Set<String>>([])
     let copiedBeforeLoss = Locked(0)
+    let phase = Locked<RunPhase>(.running)
     let gated: Bool
 
     init(gated: Bool = false) { self.gated = gated }
@@ -167,6 +170,7 @@ final class RunnerFactory: @unchecked Sendable {
         runner.lines.set(lines.get())
         runner.unavailableNames.set(unavailableNames.get())
         runner.copiedBeforeLoss.set(copiedBeforeLoss.get())
+        runner.phase.set(phase.get())
         runners.set(runners.get() + [runner])
         return runner
     }
