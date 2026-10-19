@@ -124,7 +124,7 @@ final class AgentForce170Tests: XCTestCase {
         XCTAssertEqual(first?.isOneOff, true)
         XCTAssertNil(first?.rank)
         runner(h, "A")?.release()
-        let next = await eventually { h.factory.created == 3 }
+        let next = await eventually(timeout: 5) { h.factory.created == 3 && h.factory.runners.get().last?.ranTasks.get().isEmpty == false }
         XCTAssertTrue(next)
         XCTAssertEqual(h.factory.runners.get().last?.ranTasks.get().first?.name, "Ponctuelle", "avant C")
         await finish(h, core)

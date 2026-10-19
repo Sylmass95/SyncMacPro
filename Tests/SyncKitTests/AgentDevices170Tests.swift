@@ -16,6 +16,11 @@ final class AgentDevices170Tests: XCTestCase {
     }
 
     func startedNames(_ h: AgentHarness) -> [String] { h.factory.runners.get().compactMap { $0.ranTasks.get().first?.name } }
+
+    /// `created` augmente avant que l'exécuteur n'enregistre sa tâche (tâche détachée) : on attend les deux (CI plus lente).
+    func waitStarted(_ h: AgentHarness, _ count: Int) async -> Bool {
+        await eventually(timeout: 5) { h.factory.created == count && self.startedNames(h).count == count }
+    }
     func runner(_ h: AgentHarness, _ name: String) -> FakeRunner? { h.factory.runners.get().first { $0.ranTasks.get().first?.name == name } }
     func info(_ core: AgentCore, _ id: UUID) async -> AgentTaskInfo? { await core.status().tasks.first { $0.id == id } }
 
@@ -31,11 +36,11 @@ final class AgentDevices170Tests: XCTestCase {
         await core.reorder([x.id, y.id, c.id, b.id, a.id])
         runner(h, "X")?.release()
         runner(h, "Y")?.release()
-        let next = await eventually { h.factory.created == 4 }
+        let next = await waitStarted(h, 4)
         XCTAssertTrue(next)
         XCTAssertEqual(Array(startedNames(h).suffix(2)), ["C", "B"])
         runner(h, "C")?.release()
-        let last = await eventually { h.factory.created == 5 }
+        let last = await waitStarted(h, 5)
         XCTAssertTrue(last)
         XCTAssertEqual(startedNames(h).last, "A")
         h.factory.runners.get().forEach { $0.release() }
@@ -49,13 +54,13 @@ final class AgentDevices170Tests: XCTestCase {
         let core = h.makeCore()
         await core.start()
         for t in [a, b, c] { try await core.runNow(t.id) }
-        _ = await eventually { h.factory.created == 2 }
+        _ = await waitStarted(h, 2)
         XCTAssertEqual(Set(startedNames(h)), ["A", "C"])
         let waiting = await info(core, b.id)
         XCTAssertEqual(waiting?.state, .queued)
         XCTAssertTrue(waiting?.waitReason?.contains("même disque que « A »") == true, waiting?.waitReason ?? "nil")
         h.factory.runners.get().forEach { $0.release() }
-        _ = await eventually { h.factory.created == 3 }
+        _ = await waitStarted(h, 3)
         h.factory.runners.get().forEach { $0.release() }
         await core.waitForIdle()
     }
@@ -71,7 +76,7 @@ final class AgentDevices170Tests: XCTestCase {
         try await core.runNow(b.id)
         XCTAssertEqual(h.factory.created, 1)
         h.factory.runners.get().forEach { $0.release() }
-        _ = await eventually { h.factory.created == 2 }
+        _ = await waitStarted(h, 2)
         h.factory.runners.get().forEach { $0.release() }
         await core.waitForIdle()
     }
@@ -109,7 +114,7 @@ final class AgentDevices170Tests: XCTestCase {
         XCTAssertEqual(third?.state, .queued)
         XCTAssertTrue(third?.waitReason?.contains("place") == true, third?.waitReason ?? "nil")
         h.factory.runners.get().forEach { $0.release() }
-        _ = await eventually { h.factory.created == 3 }
+        _ = await waitStarted(h, 3)
         h.factory.runners.get().forEach { $0.release() }
         await core.waitForIdle()
     }
@@ -124,7 +129,7 @@ final class AgentDevices170Tests: XCTestCase {
         try await core.runNow(b.id)
         XCTAssertEqual(h.factory.created, 1)
         try await core.pause(a.id)
-        let started = await eventually { h.factory.created == 2 }
+        let started = await waitStarted(h, 2)
         XCTAssertTrue(started, "B part sur le disque libéré")
         h.factory.runners.get().forEach { $0.release() }
         await core.waitForIdle()
@@ -181,7 +186,7 @@ final class AgentDevices170Tests: XCTestCase {
         let waiting = await info(core, d.id)
         XCTAssertEqual(waiting?.state, .queued)
         runner(h, "A")?.release()
-        let started = await eventually { h.factory.created == 3 }
+        let started = await waitStarted(h, 3)
         XCTAssertTrue(started)
         h.factory.runners.get().forEach { $0.release() }
         await core.waitForIdle()
