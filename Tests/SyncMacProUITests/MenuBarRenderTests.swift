@@ -38,4 +38,18 @@ final class MenuBarRenderTests: XCTestCase {
             XCTAssertGreaterThan(image.width, 0)
         }
     }
+
+    /// 1.7.0 : « à venir » suit l'ordre de la liste (en attente et programmées), trois au plus.
+    func testMenuBarUpcomingFollowsTheList() {
+        let ids = (0..<5).map { _ in UUID() }
+        let infos = [
+            AgentTaskInfo(id: ids[0], name: "A", state: .idle, nextDue: Date(timeIntervalSince1970: 9_000)),
+            AgentTaskInfo(id: ids[1], name: "B", state: .queued),
+            AgentTaskInfo(id: ids[2], name: "C", state: .idle),
+            AgentTaskInfo(id: ids[3], name: "D", state: .idle, nextDue: Date(timeIntervalSince1970: 1_000)),
+            AgentTaskInfo(id: ids[4], name: "E", state: .idle, nextDue: Date(timeIntervalSince1970: 500)),
+        ]
+        let manual: Set<UUID> = [ids[2]]
+        XCTAssertEqual(MenuBarPanel.upcoming(infos, isManual: { manual.contains($0) }).map(\.name), ["A", "B", "D"])
+    }
 }

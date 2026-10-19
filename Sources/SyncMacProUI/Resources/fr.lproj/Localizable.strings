@@ -539,3 +539,4 @@
 "detail.settings.every" = "Toutes les N minutes";
 "detail.settings.other" = "Autre (voir l'éditeur)";
 "detail.settings.minutes" = "Toutes les %d minutes";
+"mini.next" = "Prochaines";

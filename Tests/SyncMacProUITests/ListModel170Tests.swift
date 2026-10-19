@@ -74,4 +74,13 @@ final class ListModel170Tests: XCTestCase {
         XCTAssertEqual(records.map(\.taskName), ["Ponctuelle"])
         model.shutdown()
     }
+
+    /// 1.7.0 : « Forcer » de l'écran Copier : la copie ponctuelle part tout de suite.
+    func testCopyForceStartsTheOneOffAtOnce() async {
+        let (model, agent) = await model(with: [])
+        let copy = SyncTask(name: "Copie", source: .local(path: "/a"), destination: .local(path: "/b"))
+        _ = await model.runOnce([copy], force: true)
+        XCTAssertEqual(agent.performed, [.runOnce(copy), .force(copy.id)])
+        model.shutdown()
+    }
 }

@@ -302,10 +302,12 @@ public final class AgentModel {
 
     /// `nil` si l'agent a enregistré la tâche ; sinon le message, affiché dans l'éditeur (qui reste ouvert).
     /// Copies ponctuelles : `nil` si l'agent les a toutes prises en charge, sinon le premier refus.
-    public func runOnce(_ tasks: [SyncTask]) async -> String? {
+    /// Copies ponctuelles, en haut de la liste ; `force` : elles partent tout de suite, quelles que soient les limites.
+    public func runOnce(_ tasks: [SyncTask], force: Bool = false) async -> String? {
         for (index, task) in tasks.enumerated() {
             do {
                 try await agent.perform(.runOnce(task))
+                if force { try await agent.perform(.force(task.id)) }
             } catch {
                 if index > 0 { await refreshNow() }   // les copies déjà acceptées doivent apparaître
                 return Self.describe(error)

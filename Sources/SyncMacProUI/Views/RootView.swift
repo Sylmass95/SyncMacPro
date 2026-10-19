@@ -1,7 +1,7 @@
 import SwiftUI
 
 public enum SidebarItem: String, CaseIterable, Identifiable, Sendable {
-    case dashboard, tasks, copy, history, connections, settings
+    case dashboard, tasks, copy, connections, settings
     public var id: String { rawValue }
 }
 
@@ -104,7 +104,6 @@ public struct RootView: View {
                 TasksView(model: model, localizer: localizer) { open($0, isNew: $1) }
             case .copy:
                 CopyView(model: model, localizer: localizer) { open($0, isNew: true) }
-            case .history: HistoryView(model: model, localizer: localizer)
             case .connections: ConnectionsView(model: model, localizer: localizer)
             case .settings: SettingsView(installer: installer, loginItem: loginItem, localizer: localizer, updates: updates, model: model)
             }
@@ -120,7 +119,6 @@ public struct RootView: View {
         case .dashboard: return localizer.text("sidebar.dashboard")
         case .tasks: return localizer.text("sidebar.tasks")
         case .copy: return localizer.text("sidebar.copy")
-        case .history: return localizer.text("sidebar.history")
         case .connections: return localizer.text("sidebar.connections")
         case .settings: return localizer.text("sidebar.settings")
         }
@@ -131,7 +129,6 @@ public struct RootView: View {
         case .dashboard: return "square.grid.2x2"
         case .tasks: return "list.bullet.rectangle"
         case .copy: return "doc.on.doc"
-        case .history: return "clock.arrow.circlepath"
         case .connections: return "link"
         case .settings: return "gearshape"
         }

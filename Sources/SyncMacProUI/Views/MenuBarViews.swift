@@ -39,9 +39,16 @@ public struct MenuBarPanel: View {
     private var tasks: [AgentTaskInfo] { model.status?.tasks ?? [] }
     private var active: [AgentTaskInfo] { tasks.filter { $0.state == .running || $0.state == .paused } }
     private var upcoming: [AgentTaskInfo] {
-        // Une tâche manuelle n'a pas d'échéance à annoncer (une nouvelle tentative non plus n'est pas « à venir »).
-        let planned = tasks.filter { $0.nextDue != nil && $0.state != .disabled && model.tasks[$0.id]?.schedule != .manual }
-        return Array(planned.sorted { ($0.nextDue ?? .distantFuture) < ($1.nextDue ?? .distantFuture) }.prefix(3))
+        Self.upcoming(tasks, isManual: { model.tasks[$0]?.schedule == .manual })
+    }
+
+    /// « À venir » (1.7.0) : les tâches en attente et les tâches programmées, dans l'ordre de la liste, trois au plus.
+    /// Une tâche manuelle n'a pas d'échéance à annoncer.
+    static func upcoming(_ infos: [AgentTaskInfo], isManual: (UUID) -> Bool) -> [AgentTaskInfo] {
+        let next = infos.filter { info in
+            info.state == .queued || (info.nextDue != nil && info.state != .disabled && !isManual(info.id))
+        }
+        return Array(next.prefix(3))
     }
 
     public var body: some View {

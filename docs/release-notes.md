@@ -1,3 +1,16 @@
+SyncMacPro 1.7.0 — une seule liste, comme SyncBackPro.
+
+**Nouveautés (1.7.0)**
+- Le tableau de bord devient une seule liste de tâches en lignes : rang, nom, « source → destination » en clair (Bureau, NAS « … », Disque « … », Drive partagé), horaire, état avec la progression et la raison de l'attente (« même disque que « … » », « en attente d'une place »), dernière exécution, boutons.
+- L'ordre de la liste est l'ordre de départ : quand plusieurs copies attendent, la plus haute part en premier. On change l'ordre en glissant les lignes, une ou plusieurs à la fois (sélection avec ⌘ ou ⇧).
+- Deux copies en même temps au plus, et jamais deux sur un même disque physique, en source comme en destination : le NAS du travail (ses partages comptent pour un seul disque), le QNAP, chaque disque externe. Le disque interne du Mac et Google Drive ne sont pas limités.
+- « Forcer » lance tout de suite, même au-delà de deux copies ou sur un disque occupé ; « Lancer » met la tâche en attente, à son rang.
+- Une copie en pause libère sa place et son disque ; sa reprise attend son tour (« Forcer » la reprend tout de suite).
+- Une copie ponctuelle (écran Copier) se place en haut de la liste ; « Forcer » la démarre aussitôt.
+- Clic sur une tâche : son détail s'ouvre sous la liste — Historique, Réglages (horaire, activation, conditions, déclencheur du disque ; « Modifier… » ouvre l'éditeur complet) et Journal. Les exécutions des copies ponctuelles et des tâches supprimées sont dans la ligne « Autres exécutions ».
+- Plus de file d'attente à remplir ni de bouton « Lancer la file », plus d'écran Historique global. Le mode mini et la barre de menus suivent l'ordre de la liste.
+- `syncmacpro-ctl` : `queue` affiche la liste dans l'ordre, `queue up|down <tâche>` change le rang, `force <tâche>` lance tout de suite.
+
 SyncMacPro 1.6.9 — une copie en pause ne bloque plus la mise à jour.
 
 **Correction (1.6.9)**
