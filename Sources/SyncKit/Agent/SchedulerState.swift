@@ -20,6 +20,9 @@ public struct TaskScheduleState: Codable, Equatable, Sendable {
     public var lastMountHandled: Date?
     /// Début de l'attente d'un partage réseau injoignable (1.6.5).
     public var shareWaitSince: Date?
+    /// Disque amovible : une exécution coupée par un redémarrage de l'agent, ou demandée pendant l'attente d'une mise à
+    /// jour, repart sans attendre un nouveau branchement (1.7.4).
+    public var manualRunPending: Bool?
 
     public init(firstSeen: Date) { self.firstSeen = firstSeen }
 }

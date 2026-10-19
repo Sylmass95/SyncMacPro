@@ -38,13 +38,14 @@ public enum UpdatePolicy {
         case .connecting, .reconnecting: return nil
         case .unreachable, .versionMismatch: return true
         case .connected:
-            guard let status else { return true }
-            return !status.tasks.contains { if case .running = $0.state { return true }; return false }
+            return true   // 1.7.4 : tout de suite, copies en cours comprises (elles reprennent après le redémarrage)
         }
     }
 
+    /// 1.7.4 : les copies en cours ne retardent plus une mise à jour (une copie de plusieurs jours la bloquait) ; elles
+    /// sont coupées par le redémarrage de l'agent et reprennent juste après. `idle` reste pour l'affichage.
     public static func shouldInstall(ready: Bool, autoInstall: Bool, idle: Bool) -> Bool {
-        ready && autoInstall && idle
+        ready && autoInstall
     }
 
     /// Une version plus récente que celle du lancement précédent (pas à la première installation).

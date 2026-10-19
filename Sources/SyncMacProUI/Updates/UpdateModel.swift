@@ -76,7 +76,8 @@ public final class UpdateModel {
     }
 
     /// Prête, installation automatique, mais une copie tourne : elle s'installera à la fin.
-    public var waitingForCopies: Bool { readyVersion != nil && autoInstall && !agentIdle && inInstallHours }
+    /// 1.7.4 : une mise à jour n'attend plus la fin des copies.
+    public var waitingForCopies: Bool { false }
 
     /// Prête, installation automatique, mais hors de la plage horaire : elle s'installera en journée.
     public var waitingForDaytime: Bool { readyVersion != nil && autoInstall && !inInstallHours }

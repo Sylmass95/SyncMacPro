@@ -37,12 +37,11 @@ final class UpdateUITests: XCTestCase {
         store.set(0, forKey: UpdateModel.installFromKey)
         store.set(24, forKey: UpdateModel.installUntilKey)
         let model = UpdateModel(driver: driver, defaults: store)
+        model.autoInstall = false
         model.agentActivity(idle: false)
         driver.send(.ready("1.6.1"))
-        XCTAssertEqual(UpdateBannerInfo.make(model)?.waitingForCopies, true, "auto : elle attend les copies")
-        model.autoInstall = false
         let manual = UpdateBannerInfo.make(model)
-        XCTAssertEqual(manual?.waitingForCopies, false)
+        XCTAssertEqual(manual?.waitingForCopies, false, "1.7.4 : plus d'attente des copies")
         manual?.install?()
         XCTAssertEqual(driver.installs, 1)
         XCTAssertNil(UpdateBannerInfo.make(UpdateModel(driver: FakeUpdateDriver(), defaults: store)), "rien de prêt : pas de bannière")

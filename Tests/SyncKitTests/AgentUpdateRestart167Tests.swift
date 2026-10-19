@@ -144,12 +144,12 @@ final class AgentUpdateRestart167Tests: XCTestCase {
         try await core.runNow(a.id)
         identity.set("v2")
         await core.tick()
-        XCTAssertEqual(opened.get(), 0, "une copie tourne encore")
+        XCTAssertEqual(opened.get(), 1, "1.7.4 : sans attendre la fin de la copie")
         h.factory.runners.get()[0].release()
         await core.waitForIdle()
         await core.tick()
         await core.tick()
-        XCTAssertEqual(opened.get(), 1)
+        XCTAssertEqual(opened.get(), 1, "une seule fois")
     }
 
     /// Revue : remplacement vu tout de suite (pas au prochain passage du minuteur) quand on lance une tâche.

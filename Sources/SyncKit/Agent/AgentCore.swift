@@ -188,7 +188,7 @@ public actor AgentCore {
         purgeHistoryIfNeeded(now)
         checkReplacedProgram()
         // Au repos et en attente : l'app est ouverte pour qu'elle redémarre l'agent (une fois).
-        if restartPending, !jobs.values.contains(where: { !$0.paused }), !appOpenedForRestart {   // en pause : ne retient pas
+        if restartPending, !appOpenedForRestart {   // 1.7.4 : sans attendre la fin des copies (elles reprennent après)
             appOpenedForRestart = true
             configuration.openApp()
         }
@@ -471,6 +471,7 @@ public actor AgentCore {
         entry.runningSince = now
         entry.retryAt = nil
         entry.awaitingApproval = false
+        entry.manualRunPending = nil
         // Ce branchement est servi (à la main, par la file ou au branchement) : pas de deuxième sauvegarde.
         if let drive = original.removableDrive { entry.lastMountHandled = mountSeen[drive.volumeUUID] ?? now }
         state.tasks[key] = entry
@@ -621,6 +622,8 @@ public actor AgentCore {
             entry.retryAt = nil
         case .interrupted:
             entry.retryAt = now
+            // Une tâche liée à un disque ne repart pas par un nouvel essai : on note qu'elle doit repartir (1.7.4).
+            if job.task.removableDrive != nil { entry.retryAt = nil; entry.manualRunPending = true }
         case .stopped:
             entry.attempts = 0
             entry.retryAt = nil
@@ -723,7 +726,11 @@ public actor AgentCore {
     func keepQueuedForRestart() {
         var changed = false
         for run in queue where run.manual && oneOffs[run.id] == nil {
-            guard let task = lookupTask(run.id), task.removableDrive == nil else { continue }
+            guard let task = lookupTask(run.id) else { continue }
+            if task.removableDrive != nil {   // repart au redémarrage, branchement déjà servi ou non (1.7.4)
+                if state.tasks[run.id.uuidString]?.manualRunPending != true { state.tasks[run.id.uuidString]?.manualRunPending = true; changed = true }
+                continue
+            }
             let key = run.id.uuidString
             var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: clock.now())
             if entry.retryAt == nil || entry.retryAt! > clock.now() { entry.retryAt = clock.now(); state.tasks[key] = entry; changed = true }

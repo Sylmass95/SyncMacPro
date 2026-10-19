@@ -45,12 +45,9 @@ final class UpdateModelSparkleTests: XCTestCase {
         let model = UpdateModel(driver: driver, defaults: defaults())
         model.agentActivity(idle: false)
         driver.send(.ready("1.6.1"))
-        XCTAssertEqual(driver.installs, 0, "une copie tourne : on attend")
-        XCTAssertTrue(model.waitingForCopies)
-        model.agentActivity(idle: false)
-        XCTAssertEqual(driver.installs, 0)
-        model.agentActivity(idle: true)
+        // 1.7.4 : une copie en cours (parfois de plusieurs jours) ne retarde plus l'installation ; elle reprend après.
         XCTAssertEqual(driver.installs, 1)
+        XCTAssertFalse(model.waitingForCopies)
         XCTAssertEqual(model.state, .installing)
         model.agentActivity(idle: true)
         XCTAssertEqual(driver.installs, 1, "une seule installation")
@@ -78,8 +75,7 @@ final class UpdateModelSparkleTests: XCTestCase {
         model.agentActivity(idle: false)
         driver.send(.ready("1.6.1"))
         model.autoInstall = true
-        XCTAssertEqual(driver.installs, 0)
-        model.agentActivity(idle: true)
+        model.agentActivity(idle: false)   // 1.7.4 : même pendant une copie
         XCTAssertEqual(driver.installs, 1)
     }
 
@@ -115,14 +111,8 @@ final class UpdateModelSparkleTests: XCTestCase {
         var idle: Bool? = true
         let model = UpdateModel(driver: driver, defaults: defaults(), isIdle: { idle })
         model.agentActivity(idle: true)
-        idle = false   // une copie vient de partir
+        idle = false   // une copie vient de partir : 1.7.4, elle ne retarde plus l'installation
         driver.send(.ready("1.6.1"))
-        XCTAssertEqual(driver.installs, 0)
-        idle = nil     // agent pas encore joint
-        model.agentActivity(idle: true)
-        XCTAssertEqual(driver.installs, 0)
-        idle = true
-        model.agentActivity(idle: true)
         XCTAssertEqual(driver.installs, 1)
     }
 

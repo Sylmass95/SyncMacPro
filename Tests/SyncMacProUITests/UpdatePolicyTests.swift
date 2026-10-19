@@ -38,7 +38,8 @@ final class UpdatePolicyTests: XCTestCase {
 
     func testInstallDecision() {
         XCTAssertTrue(UpdatePolicy.shouldInstall(ready: true, autoInstall: true, idle: true))
-        XCTAssertFalse(UpdatePolicy.shouldInstall(ready: true, autoInstall: true, idle: false))
+        // 1.7.4 : une copie de plusieurs jours ne retarde plus une mise à jour (elle reprend après).
+        XCTAssertTrue(UpdatePolicy.shouldInstall(ready: true, autoInstall: true, idle: false))
         XCTAssertFalse(UpdatePolicy.shouldInstall(ready: true, autoInstall: false, idle: true))
         XCTAssertFalse(UpdatePolicy.shouldInstall(ready: false, autoInstall: true, idle: true))
     }
@@ -100,7 +101,8 @@ extension UpdatePolicyTests {
     func testOnlyRunningCopiesDelayTheRestartOfAStaleAgent() {
         let queued = status([.queued, .waiting(reason: "x")], queue: QueueInfo(running: true, items: [UUID()], current: nil))
         XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: queued), true)
-        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.running])), false)
+        // 1.7.4 : redémarrage tout de suite, copies en cours comprises (elles reprennent juste après).
+        XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.running])), true)
         // 1.6.9 : une copie en pause ne bloque plus le redémarrage (elle bloquait tout, essai réel du 19/10) : elle est
         // interrompue proprement et reprise par l'agent suivant.
         XCTAssertEqual(UpdatePolicy.agentCanRestart(connection: .connected, status: status([.paused])), true)
