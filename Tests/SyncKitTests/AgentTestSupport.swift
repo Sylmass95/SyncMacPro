@@ -88,6 +88,8 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
     let lines = Locked<[String]>([])
     /// Tâches dont le partage réseau est injoignable (1.6.5).
     let unavailableNames = Locked<Set<String>>([])
+    /// Fichiers copiés avant la perte du partage (1.6.8).
+    let copiedBeforeLoss = Locked(0)
     private let gate: Gate?
     private let stopped = Locked(false)
 
@@ -110,8 +112,9 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         if let gate { await gate.wait() }
         if let failure = failure.get() { throw failure }
         if !stopped.get(), unavailableNames.get().contains(task.name) {
-            return RunResult(status: .failed, engine: .rsync, summary: RunSummary(errors: 1, message: "« NAS » ne répond pas"),
-                             snapshot: TransferSnapshot(), shareUnavailable: "NAS")
+            return RunResult(status: .failed, engine: .rsync,
+                             summary: RunSummary(filesTransferred: copiedBeforeLoss.get(), errors: 1, message: "« NAS » ne répond pas"),
+                             snapshot: TransferSnapshot(), shareUnavailable: "NAS", shareLostDuringRun: copiedBeforeLoss.get() > 0)
         }
         let final = stopped.get() ? RunStatus.stopped : status.get()
         return RunResult(
@@ -141,6 +144,7 @@ final class RunnerFactory: @unchecked Sendable {
     let lines = Locked<[String]>([])
     /// Partagé avec chaque exécuteur créé : le test peut le changer entre deux essais.
     let unavailableNames = Locked<Set<String>>([])
+    let copiedBeforeLoss = Locked(0)
     let gated: Bool
 
     init(gated: Bool = false) { self.gated = gated }
@@ -152,6 +156,7 @@ final class RunnerFactory: @unchecked Sendable {
         runner.snapshot.set(snapshot.get())
         runner.lines.set(lines.get())
         runner.unavailableNames.set(unavailableNames.get())
+        runner.copiedBeforeLoss.set(copiedBeforeLoss.get())
         runners.set(runners.get() + [runner])
         return runner
     }

@@ -21,6 +21,8 @@ public struct RunnerConfiguration: Sendable {
     /// Montage des partages réseau non montés (1.6.5) et délai d'un montage.
     public var shares: ShareMounting = NetFSShareMounter()
     public var shareMountTimeout: TimeInterval = 60
+    /// Pendant la copie, le partage est revérifié à cet intervalle : démonté, la copie s'arrête (1.6.8).
+    public var shareWatchInterval: TimeInterval = 30
 
     public static let defaultStallTimeout: TimeInterval = 20 * 60
     /// Lister un dossier : un instant d'ordinaire, et macOS y demande l'autorisation d'un dossier protégé.
@@ -72,6 +74,8 @@ public struct RunResult: Equatable, Sendable {
     public var retryable: Bool = true
     /// Partage réseau injoignable (nom du partage) : l'agent fait attendre la tâche au lieu d'un échec (1.6.5).
     public var shareUnavailable: String? = nil
+    /// Le partage était là au départ et a disparu pendant la copie (1.6.8) : l'attente part de maintenant.
+    public var shareLostDuringRun: Bool = false
 }
 
 public enum RunnerError: Error, Equatable, LocalizedError {

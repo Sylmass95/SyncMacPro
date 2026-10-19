@@ -37,6 +37,10 @@ public final class TaskRunner: @unchecked Sendable {
             failed.shareUnavailable = unavailable.share
             return failed
         }
+        // Partage démonté pendant la copie (coupure du réseau) : le moteur tournerait des heures dans le vide (1.6.8).
+        let lostShare = Locked<String?>(nil)
+        let watch = watchShares(task, lost: lostShare)
+        defer { watch?.cancel() }
         if let message = await probeAccess(task) {
             return result(status: .failed, engine: engine, snapshot: TransferSnapshot(), started: configuration.now(),
                           errors: 1, message: message, retryable: true)
@@ -50,6 +54,14 @@ public final class TaskRunner: @unchecked Sendable {
         if let timeout = control.stalledAfter, outcome.status == .failed {
             outcome.summary.message = Self.stallMessage(after: timeout)
             outcome.retryable = true
+        }
+        if let share = lostShare.get() {
+            outcome.status = .failed
+            outcome.retryable = true
+            outcome.shareUnavailable = share
+            outcome.shareLostDuringRun = true
+            outcome.summary.errors = max(1, outcome.summary.errors)
+            outcome.summary.message = Self.lostShareMessage(share)
         }
         return outcome
     }

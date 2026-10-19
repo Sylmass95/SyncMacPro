@@ -7,7 +7,9 @@ public enum NotificationPolicy: String, Codable, CaseIterable, Sendable {
 }
 
 public struct TaskOptions: Codable, Equatable, Hashable, Sendable {
-    public static let defaultExcludes = [".DS_Store", "Thumbs.db", "._*", "@eaDir/", "#recycle/"]
+    /// `.tmp.driveupload/` et `.tmp.drivedownload/` : fichiers en cours d'envoi ou de réception de Google Drive pour
+    /// ordinateur, dans un dossier qu'il synchronise ; temporaires, gros et changeants (1.6.8).
+    public static let defaultExcludes = [".DS_Store", "Thumbs.db", "._*", "@eaDir/", "#recycle/", ".tmp.driveupload/", ".tmp.drivedownload/"]
 
     public var excludes: [String]
     /// Limite de débit en Ko/s ; `nil` = illimité.

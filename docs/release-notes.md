@@ -1,3 +1,9 @@
+SyncMacPro 1.6.8 — partage réseau perdu pendant une copie.
+
+**Correction (1.6.8)**
+- Si le partage du NAS se démonte pendant une copie (coupure du réseau ou du VPN), la copie s'arrête dans les 30 s au lieu de tourner des heures dans le vide (les Go « à copier » augmentaient sans que rien ne soit copié). La tâche passe « en attente : partage injoignable, nouvel essai à HH:MM », remonte le partage dès que le NAS répond et reprend là où elle en était. Ce qui avait déjà été copié reste dans l'historique (exécution interrompue).
+- Les dossiers temporaires de Google Drive pour ordinateur (`.tmp.driveupload`, `.tmp.drivedownload`) sont exclus par défaut des nouvelles tâches : dans un dossier synchronisé par Drive, la copie y passait des heures (fichiers en cours d'envoi, gros et changeants).
+
 SyncMacPro 1.6.7 — plus d'échecs en série après une mise à jour.
 
 **Correction (1.6.7)**
