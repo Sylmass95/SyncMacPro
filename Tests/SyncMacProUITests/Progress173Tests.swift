@@ -19,9 +19,9 @@ final class Progress173Tests: XCTestCase {
     }
 
     func testTheRowShowsPercentVolumeSpeedAndFile() {
-        let lines = TaskRow.progressLines(progress(), text: UIFixtures.french)
-        XCTAssertEqual(lines.first, "33 % · 1,00 Go sur 3,00 Go · 45,0 Mo/s · reste 0:12")
-        XCTAssertEqual(lines.last, "BEHIND_THE_STREAMS/C0070.MP4")
+        // 1.7.5 : trois lignes complètes plutôt qu'une ligne coupée.
+        XCTAssertEqual(TaskRow.progressLines(progress(), text: UIFixtures.french),
+                       ["33 % · 1,00 Go sur 3,00 Go", "45,0 Mo/s · reste 0:12", "BEHIND_THE_STREAMS/C0070.MP4"])
     }
 
     func testWithoutATotalItSaysWhatIsCopied() {
@@ -29,7 +29,7 @@ final class Progress173Tests: XCTestCase {
         p.totalBytes = nil
         p.overallPercent = nil
         p.currentName = nil
-        XCTAssertEqual(TaskRow.progressLines(p, text: UIFixtures.french), ["1,00 Go copiés"])
+        XCTAssertEqual(TaskRow.progressLines(p, text: UIFixtures.french), ["1,00 Go copiés", "45,0 Mo/s"])
     }
 
     func testARowWithProgressRenders() throws {

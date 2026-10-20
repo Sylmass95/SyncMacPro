@@ -95,6 +95,8 @@ public struct Localizer: Sendable {
         // Débit presque nul : durée restante énorme ou infinie, que `Int(_:)` refuse (l'app plantait, 1.6.5).
         guard seconds.isFinite, seconds < Formatting.longestShownDuration else { return "—" }
         let total = max(0, Int(seconds.rounded()))
+        // 1.7.5 : au-delà d'un jour, « 1 j 21 h 32 » plutôt que « 45:32:38 ».
+        if total >= 86_400 { return format("duration.days", total / 86_400, (total % 86_400) / 3_600, (total % 3_600) / 60) }
         let hours = total / 3_600, minutes = (total % 3_600) / 60, secs = total % 60
         return hours > 0
             ? String(format: "%d:%02d:%02d", hours, minutes, secs)
