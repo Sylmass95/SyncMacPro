@@ -543,3 +543,13 @@
 "state.phase.preparing" = "Préparation…";
 "state.phase.planning" = "Préparation : comparaison avec la destination…";
 "state.phase.verifying" = "Vérification après la copie…";
+"duration.days" = "%d j %d h %02d";
+"list.column.rank" = "N°";
+"list.column.task" = "Tâche";
+"list.column.schedule" = "Horaire";
+"list.column.state" = "État";
+"list.column.last" = "Dernière exécution";
+"list.column.actions" = "Actions";
+"list.column.reset" = "Double-clic : largeur d'origine";
+"progress.volume" = "%@ sur %@";
+"progress.remaining" = "reste %@";

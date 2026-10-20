@@ -1,3 +1,10 @@
+SyncMacPro 1.7.5 — une liste plus lisible, colonnes redimensionnables.
+
+**Améliorations (1.7.5)**
+- Rien n'est plus coupé dans la liste : les textes passent à la ligne. La progression tient sur trois lignes complètes (« 21 % · 143,57 Go sur 683,59 Go », « 6,0 Mo/s · reste 1 j 21 h 32 », puis le chemin entier du fichier en cours), en caractères plus grands.
+- Au-delà d'un jour, le temps restant s'écrit en jours et heures (« 1 j 21 h 32 ») au lieu de « 45:32:38 ».
+- Un en-tête au-dessus de la liste nomme les colonnes (N°, Tâche, Horaire, État, Dernière exécution, Actions). On glisse un séparateur pour élargir ou rétrécir une colonne ; un double-clic lui rend sa largeur d'origine ; les largeurs sont retenues.
+
 SyncMacPro 1.7.4 — les mises à jour n'attendent plus la fin des copies.
 
 **Changements (1.7.4)**
