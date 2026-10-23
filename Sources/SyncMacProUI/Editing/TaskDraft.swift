@@ -9,7 +9,8 @@ extension TaskProblem {
     /// L'étape de l'éditeur où l'utilisateur corrige ce problème.
     public var step: EditorStep {
         switch self {
-        case .missingSource, .missingDestination, .sameSourceAndDestination, .nestedFolders, .relativePath, .invalidItem: return .endpoints
+        case .missingSource, .missingDestination, .sameSourceAndDestination, .nestedFolders, .relativePath, .invalidItem, .invalidSSH:
+            return .endpoints
         case .engineMismatch: return .mode
         case .invalidThreshold, .invalidArchiveFolder: return .options
         case .invalidSchedule: return .schedule
@@ -171,6 +172,8 @@ public struct TaskDraft: Equatable, Sendable {
     public var isEnabled: Bool
     /// `nil` : destination ni sur un disque externe ni liée à un disque.
     public var removable: RemovableDraft?
+    /// Accès SSH au partage réseau (1.8.1) ; `nil` : par le partage monté seulement.
+    public var ssh: SSHAccess?
 
     public init(id: UUID = UUID()) {
         self.id = id
@@ -199,6 +202,22 @@ public struct TaskDraft: Equatable, Sendable {
         notifications = task.notifications
         isEnabled = task.isEnabled
         removable = task.removableDrive.map(RemovableDraft.init)
+        ssh = task.sshAccess
+    }
+
+    /// Le côté sur un partage réseau, s'il y en a un seul (rsync par SSH ne relie qu'une machine distante).
+    public func networkSide(resolver: EndpointResolver = .system) -> Endpoint? {
+        let sides = [source.endpoint(resolver), destination.endpoint(resolver)].filter {
+            if case .network = $0 { return true }
+            return false
+        }
+        return sides.count == 1 ? sides[0] : nil
+    }
+
+    /// Activer SSH propose l'accès déduit du partage (même serveur et utilisateur, dossier `/share/…` d'un QNAP).
+    public mutating func setSSH(_ on: Bool, resolver: EndpointResolver = .system) {
+        guard on else { ssh = nil; return }
+        if ssh == nil, let side = networkSide(resolver: resolver) { ssh = SSHAccess.suggested(for: side) }
     }
 
     public static func duplicate(of task: SyncTask, suffix: String) -> TaskDraft {
@@ -238,6 +257,8 @@ public struct TaskDraft: Equatable, Sendable {
             conditions: conditions, isEnabled: isEnabled
         )
         task.removableDrive = destination.kind == .folder ? removable?.drive : nil
+        // Un accès prévu pour un autre partage (tâche redirigée ou dupliquée) n'est pas gardé.
+        task.sshAccess = networkSide(resolver: resolver).flatMap { side in ssh.flatMap { $0.trimmed.remotePath(for: side) != nil ? $0.trimmed : nil } }
         return task
     }
 

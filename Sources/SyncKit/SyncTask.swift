@@ -65,6 +65,8 @@ public struct SyncTask: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var isEnabled: Bool
     /// Destination sur un disque amovible (1.4.0) ; `nil` pour une tâche ordinaire.
     public var removableDrive: RemovableDrive?
+    /// Partage réseau joint par SSH (1.8.1) ; `nil` : par le partage monté seulement.
+    public var sshAccess: SSHAccess?
 
     public init(
         id: UUID = UUID(),
@@ -107,5 +109,6 @@ public struct SyncTask: Codable, Equatable, Hashable, Identifiable, Sendable {
         conditions = try container.decodeIfPresent(TaskConditions.self, forKey: .conditions) ?? TaskConditions()
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         removableDrive = try container.decodeIfPresent(RemovableDrive.self, forKey: .removableDrive)
+        sshAccess = try container.decodeIfPresent(SSHAccess.self, forKey: .sshAccess)
     }
 }

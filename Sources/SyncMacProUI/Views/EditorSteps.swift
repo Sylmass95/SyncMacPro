@@ -26,7 +26,7 @@ struct EditorStepContent: View {
         switch step {
         case .endpoints: EndpointsStepView(draft: $draft, localizer: text.localizer, remotes: remotes)
         case .mode: ModeStepView(draft: $draft, text: text)
-        case .options: OptionsStepView(draft: $draft, text: text)
+        case .options: OptionsStepView(draft: $draft, text: text, resolver: resolver)
         case .schedule: ScheduleStepView(draft: $draft, text: text, resolver: resolver)
         case .summary:
             SummaryStepView(
@@ -184,6 +184,7 @@ struct ModeCard: View {
 struct OptionsStepView: View {
     @Binding var draft: TaskDraft
     let text: TaskSummaryText
+    var resolver: EndpointResolver = .system
 
     private var l: Localizer { text.localizer }
     private var touchesCloud: Bool { draft.source.kind == .cloud || draft.destination.kind == .cloud }
@@ -208,6 +209,9 @@ struct OptionsStepView: View {
                     if draft.mode == .mirror { field(l.text("editor.options.archive"), text: $draft.options.archiveFolder) }
                     if draft.mode == .versioned { field(l.text("editor.options.retention"), text: $draft.retentionText) }
                 }
+            }
+            if draft.networkSide(resolver: resolver) != nil {
+                SSHSection(draft: $draft, resolver: resolver, localizer: l)
             }
             group(l.text("editor.options.conditions")) {
                 Toggle(l.text("editor.options.ac"), isOn: $draft.conditions.requiresACPower)
@@ -352,6 +356,71 @@ struct ScheduleStepView: View {
                 if on { draft.scheduleDraft.days.insert(day) } else { draft.scheduleDraft.days.remove(day) }
             }
         )
+    }
+}
+
+/// Section « Accès SSH » (1.8.1) : rsync tourne aussi sur le NAS, qui parcourt son propre disque.
+@MainActor
+struct SSHSection: View {
+    @Binding var draft: TaskDraft
+    let resolver: EndpointResolver
+    let localizer: Localizer
+    @State private var probe: SSHProbe.Outcome?
+    @State private var probing = false
+
+    private var l: Localizer { localizer }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(l.text("editor.ssh.title"), systemImage: "bolt.horizontal").font(.headline)
+            Toggle(l.text("editor.ssh.enable"), isOn: Binding(get: { draft.ssh != nil }, set: { draft.setSSH($0, resolver: resolver); probe = nil }))
+            Text(l.text("editor.ssh.help")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if draft.ssh != nil {
+                field(l.text("editor.ssh.user"), \.user)
+                field(l.text("editor.ssh.host"), \.host)
+                field(l.text("editor.ssh.path"), \.path)
+                if let folder = remoteFolder {
+                    Text(l.format("editor.ssh.folder", folder)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
+                HStack {
+                    Button(l.text("editor.ssh.test")) {
+                        guard let access = draft.ssh?.trimmed, let folder = remoteFolder else { return }
+                        probing = true
+                        Task { probe = await SSHProbe.run(access, folder: folder); probing = false }
+                    }
+                    .disabled(probing)
+                    if probing { ProgressView().controlSize(.small) }
+                    if let probe { Text(message(probe)).font(.callout).foregroundStyle(probe == .ok ? .green : .orange) }
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(cornerRadius: 12)
+    }
+
+    /// Dossier utilisé sur le NAS : la racine du partage, plus le dossier de la tâche dans le partage.
+    private var remoteFolder: String? {
+        draft.networkSide(resolver: resolver).flatMap { draft.ssh?.trimmed.remotePath(for: $0) }
+    }
+
+    private func field(_ label: String, _ key: WritableKeyPath<SSHAccess, String>) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField("", text: Binding(get: { draft.ssh?[keyPath: key] ?? "" }, set: { draft.ssh?[keyPath: key] = $0; probe = nil }))
+                .textFieldStyle(.roundedBorder).frame(width: 320)
+        }
+    }
+
+    private func message(_ outcome: SSHProbe.Outcome) -> String {
+        switch outcome {
+        case .ok: return l.text("editor.ssh.ok")
+        case .noRsync: return l.text("editor.ssh.norsync")
+        case .noFolder: return l.text("editor.ssh.nofolder")
+        case .refused: return l.text("editor.ssh.refused")
+        case .other(let code): return l.format("editor.ssh.other", Int(code))
+        }
     }
 }
 

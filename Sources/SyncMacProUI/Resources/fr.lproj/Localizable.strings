@@ -570,3 +570,17 @@
 "detail.history.title" = "Historique — %@";
 "list.edit" = "Modifier…";
 "list.duplicate" = "Dupliquer";
+"problem.invalidSSH" = "L’accès SSH demande un utilisateur, un serveur et un chemin complet (commençant par /), et un seul côté sur un partage réseau.";
+"editor.ssh.title" = "Accès SSH (plus rapide)";
+"editor.ssh.enable" = "Passer par SSH pour ce partage réseau";
+"editor.ssh.help" = "rsync tourne aussi sur le NAS, qui parcourt lui-même ses fichiers : la préparation passe de plusieurs minutes à quelques secondes. Votre clé SSH sert (aucun mot de passe enregistré) ; le partage reste monté pour les petites vérifications.";
+"editor.ssh.user" = "Utilisateur";
+"editor.ssh.host" = "Serveur";
+"editor.ssh.path" = "Racine du partage sur le NAS";
+"editor.ssh.test" = "Tester la connexion";
+"editor.ssh.ok" = "Connexion réussie : rsync est présent et le dossier existe.";
+"editor.ssh.norsync" = "Connexion réussie, mais rsync est introuvable sur le NAS.";
+"editor.ssh.nofolder" = "Connexion réussie, mais ce dossier n’existe pas sur le NAS.";
+"editor.ssh.refused" = "Connexion refusée : serveur injoignable ou clé SSH non installée (ssh-copy-id).";
+"editor.ssh.other" = "Le test a échoué (code %d).";
+"editor.ssh.folder" = "Dossier utilisé sur le NAS : %@";

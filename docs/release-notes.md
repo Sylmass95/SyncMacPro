@@ -1,3 +1,11 @@
+SyncMacPro 1.8.1 — copies vers un NAS par SSH, bien plus rapides.
+
+**Nouveauté (1.8.1)**
+- Une tâche vers ou depuis un partage réseau peut passer par SSH (éditeur, étape Options, « Accès SSH »). rsync tourne alors aussi sur le NAS, qui parcourt lui-même ses fichiers au lieu de répondre à une question réseau par fichier. Essai réel sur un QNAP, 155 000 fichiers : préparation en 26 à 55 s au lieu de plus de 18 min. Un fichier dont seule la date diffère n'est plus recopié en entier : seules des sommes de contrôle passent sur le réseau.
+- Utilisateur, serveur et dossier sur le NAS sont proposés d'après le partage (disposition `/share/…` d'un QNAP) ; « Tester la connexion » vérifie la clé SSH, la présence de rsync et le dossier. Aucun mot de passe n'est enregistré : votre clé SSH sert.
+- Les noms accentués sont convertis (le Mac les écrit décomposés, le NAS composés) : sans cela, rsync les aurait crus absents et recopiés.
+- Si SSH échoue, le message dit pourquoi et propose de tester « ssh utilisateur@serveur » dans le Terminal. Le partage reste monté pour les petites vérifications.
+
 SyncMacPro 1.8.0 — les tâches se gèrent depuis le tableau de bord.
 
 **Changements (1.8.0)**

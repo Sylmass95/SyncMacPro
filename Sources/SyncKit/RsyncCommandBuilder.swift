@@ -41,7 +41,8 @@ public enum RsyncCommandBuilder {
         }
         if let file = run.excludeFrom { args.append("--exclude-from=\(file)") }
         if task.mode != .verify { args += timeTolerance(task) }
-        args += task.options.excludes.map { "--exclude=\($0)" }
+        args += ssh(task)?.rsyncArguments ?? []
+        args += excludes(task).map { "--exclude=\($0)" }
         args += task.options.extraArguments
         if run.dryRun, task.mode != .verify { args.append("-n") }
         args += sources + [destination]
@@ -68,20 +69,45 @@ public enum RsyncCommandBuilder {
         if task.mode.requiresRclone || task.mode == .verify {
             throw CommandError.unsupportedMode(mode: task.mode, engine: .rsync)
         }
-        var args = ["-rtn", "--stats", "--out-format=%l|%n"] + timeTolerance(task)
+        var args = ["-rtn", "--stats", "--out-format=%l|%n"] + timeTolerance(task) + (ssh(task)?.rsyncArguments ?? [])
         if task.mode == .mirror {
             args += ["--delete", "--exclude=/\(task.options.archiveFolder)/"]
         }
-        args += task.options.excludes.map { "--exclude=\($0)" }
+        args += excludes(task).map { "--exclude=\($0)" }
         args += sources + [destination]
         return EngineCommand(engine: .rsync, arguments: args)
     }
 
-    /// Sources (le contenu du dossier, ou chaque élément choisi), destination et dossier de destination.
+    /// Accès SSH utilisable : complet, un seul côté sur un partage réseau (rsync ne relie pas deux machines distantes),
+    /// et ce partage est bien celui de l'accès.
+    static func ssh(_ task: SyncTask) -> SSHAccess? {
+        guard let access = task.sshAccess, access.isComplete else { return nil }
+        let networkSides = [task.source, task.destination].filter { if case .network = $0 { return true }; return false }
+        guard networkSides.count == 1, access.remotePath(for: networkSides[0]) != nil else { return nil }
+        return access
+    }
+
+    /// Exclusions de l'utilisateur ; par SSH, chacune sous ses deux formes Unicode (rsync ne les convertit pas).
+    static func excludes(_ task: SyncTask) -> [String] {
+        ssh(task) == nil ? task.options.excludes : SSHAccess.bothForms(task.options.excludes)
+    }
+
+    /// Sources (le contenu du dossier, ou chaque élément choisi), destination et dossier de destination. Avec SSH
+    /// (1.8.1), le côté réseau devient `utilisateur@serveur:/chemin` et le dossier de destination est celui du NAS.
     private static func paths(for task: SyncTask) throws -> (sources: [String], destination: String, folder: String) {
-        guard let source = task.source.filesystemPath, let destination = task.destination.filesystemPath else {
+        guard var source = task.source.filesystemPath, var destination = task.destination.filesystemPath else {
             throw CommandError.missingFilesystemPath
         }
+        var sourcePrefix = "", destinationPrefix = ""
+        if let access = ssh(task) {
+            if let remote = access.remotePath(for: task.source) { source = remote; sourcePrefix = "\(access.target):" }
+            if let remote = access.remotePath(for: task.destination) { destination = remote; destinationPrefix = "\(access.target):" }
+        }
+        let (sources, target, folder) = try localPaths(task, source: source, destination: destination)
+        return (sources.map { sourcePrefix + $0 }, destinationPrefix + target, folder)
+    }
+
+    private static func localPaths(_ task: SyncTask, source: String, destination: String) throws -> (sources: [String], destination: String, folder: String) {
         let sources: [String]
         if task.sourceItems.isEmpty {
             sources = [PathText.withTrailingSlash(source)]
