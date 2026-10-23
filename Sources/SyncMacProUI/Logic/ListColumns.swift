@@ -24,8 +24,8 @@ enum ListColumn: String, CaseIterable, Sendable {
     }
     var maximum: CGFloat {
         switch self {
-        case .state: return 600
-        case .last: return 280
+        case .state: return 1200
+        case .last: return 500
         default: return standard
         }
     }
@@ -54,6 +54,26 @@ struct ListColumns: Equatable {
     }
 
     mutating func reset(_ column: ListColumn) { widths[column] = nil }
+
+    /// 1.7.7 : les colonnes à droite de Tâche sont collées au bord droit de la liste ; un séparateur agit donc sur la
+    /// colonne à sa droite (sinon le trait ne suit pas la souris).
+    static func separatorTarget(after column: ListColumn) -> ListColumn? {
+        let all = ListColumn.allCases
+        guard let index = all.firstIndex(of: column), index + 1 < all.count else { return nil }
+        let next = all[index + 1]
+        return next.resizable ? next : nil
+    }
+
+    /// Glisser le séparateur à gauche de `column` : vers la droite il la rétrécit, vers la gauche il l'élargit, sans
+    /// jamais rendre Tâche plus étroite que son minimum dans la largeur `available`.
+    mutating func drag(_ column: ListColumn, from start: CGFloat, translation: CGFloat, available: CGFloat) {
+        guard column.resizable else { return }
+        let others = ListColumn.allCases.filter { $0 != .task && $0 != column }.reduce(0) { $0 + width($1) }
+            + CGFloat(ListColumn.allCases.count - 1) * Self.spacing
+        let room = available - others - ListColumn.task.minimum
+        let upper = max(column.minimum, min(column.maximum, room))
+        widths[column] = min(upper, max(column.minimum, start - translation))
+    }
 
     func save(to defaults: UserDefaults) {
         for column in ListColumn.allCases where column.resizable {

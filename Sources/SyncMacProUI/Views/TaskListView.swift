@@ -239,6 +239,8 @@ struct TaskListHeader: View {
     let localizer: Localizer
     let onChange: () -> Void
     @State private var dragStart: CGFloat?
+    /// Largeur des colonnes (sans les marges), pour que Tâche garde son minimum.
+    @State private var available: CGFloat = 10_000
 
     var body: some View {
         HStack(spacing: 0) {
@@ -249,6 +251,10 @@ struct TaskListHeader: View {
         }
         .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
         .padding(.horizontal, 16).padding(.vertical, 4)
+        .background(GeometryReader { proxy in
+            Color.clear.onAppear { available = proxy.size.width - 32 }
+                .onChange(of: proxy.size.width) { _, width in available = width - 32 }
+        })
     }
 
     @ViewBuilder private func title(_ column: ListColumn) -> some View {
@@ -260,10 +266,9 @@ struct TaskListHeader: View {
         }
     }
 
-    /// Séparateur entre `column` et la suivante : il agit sur la colonne redimensionnable la plus proche.
+    /// Séparateur entre `column` et la suivante : il agit sur la colonne à sa droite (1.7.7).
     @ViewBuilder private func separator(after column: ListColumn) -> some View {
-        // Après Tâche (qui prend la place restante), le séparateur agit sur État ; après N°, il ne fait rien.
-        let target: ListColumn? = column.resizable ? column : (column == .task ? .state : nil)
+        let target = ListColumns.separatorTarget(after: column)
         Rectangle().fill(Color.secondary.opacity(target == nil ? 0 : 0.35)).frame(width: 1, height: 14)
             .padding(.horizontal, (ListColumns.spacing - 1) / 2)
             .contentShape(Rectangle().inset(by: -4))
@@ -273,9 +278,7 @@ struct TaskListHeader: View {
                     guard let target else { return }
                     let start = dragStart ?? columns.width(target)
                     if dragStart == nil { dragStart = start }
-                    // Séparateur à droite de la colonne : glisser à droite l'élargit ; à gauche d'une colonne (après Tâche), l'inverse.
-                    let sign: CGFloat = column.resizable ? 1 : -1
-                    columns.resize(target, by: start + sign * value.translation.width - columns.width(target))
+                    columns.drag(target, from: start, translation: value.translation.width, available: available)
                 }
                 .onEnded { _ in dragStart = nil; onChange() })
             .onTapGesture(count: 2) { if let target { columns.reset(target); onChange() } }

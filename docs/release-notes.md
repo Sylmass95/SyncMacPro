@@ -1,3 +1,14 @@
+SyncMacPro 1.7.8 — préparation des copies plus courte.
+
+**Améliorations (1.7.8)**
+- Une copie ou un miroir rsync parcourait la source trois fois : une passe pour trouver les fichiers vides à protéger, la copie, et en même temps un calcul du total qui se disputait le disque avec elle (sur un essai réel : 17 min de préparation, puis 16 min pour 23 Mo copiés). Il n'y a plus que deux parcours : un calcul préalable, qui sert à la fois aux fichiers vides et au total, puis la copie. Le pourcentage est connu dès le départ.
+- Les copies avec Google Drive (et les autres services en ligne) listent les dossiers avec `--fast-list` : quelques requêtes au lieu d'une par sous-dossier.
+
+SyncMacPro 1.7.7 — colonnes qui se redimensionnent dans le bon sens.
+
+**Correction (1.7.7)**
+- Dans l'en-tête de la liste, glisser un séparateur agissait à l'envers : la colonne s'élargissait du côté opposé et le trait ne suivait pas la souris, puis l'élargissement bloquait. Chaque séparateur agit maintenant sur la colonne à sa droite et suit la souris ; une colonne s'élargit jusqu'à ne laisser à « Tâche » que sa largeur minimale, et peut aller plus loin sur une grande fenêtre.
+
 SyncMacPro 1.7.6 — une interface plus compacte.
 
 **Améliorations (1.7.6)**
