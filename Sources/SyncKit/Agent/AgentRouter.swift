@@ -35,6 +35,7 @@ public enum AgentRouter {
             case .simulate(let task): return .simulation(try await core.simulate(task))
             case .cancelSimulation(let id): await core.cancelSimulation(id)
             case .runLog(let id, let maxBytes): return .log(try await core.runLog(runID: id, maxBytes: maxBytes))
+            case .runDetails(let id, let maxRows): return .details(try await core.runDetails(runID: id, maxRows: maxRows))
             case .runOnce(let task): try await core.runOnce(task)
             case .listRemotes: return .remotes(try await core.listRemotes())
             case .configureRemote(let step): return .remoteConfig(try await core.configureRemote(step))

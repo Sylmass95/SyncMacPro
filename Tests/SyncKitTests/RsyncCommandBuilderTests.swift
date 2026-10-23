@@ -21,7 +21,7 @@ final class RsyncCommandBuilderTests: XCTestCase {
         let cmd = try RsyncCommandBuilder.command(for: task(), run: run)
         XCTAssertEqual(cmd.engine, .rsync)
         XCTAssertEqual(cmd.arguments, [
-            "-rtv", "--inplace", "--partial", "--progress", "--out-format=%i|%n",
+            "-rtv", "--inplace", "--partial", "--progress", "--out-format=%i|%l|%n",
             "--modify-window=1",   // 1.7.2 : destination sur un partage réseau
             "/src/", "/Volumes/s/",
         ])

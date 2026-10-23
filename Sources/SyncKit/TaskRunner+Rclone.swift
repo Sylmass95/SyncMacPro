@@ -52,8 +52,15 @@ extension TaskRunner {
 
         // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
         var protectedEmpty: [String] = []
-        if !dryRun, [.copy, .mirror, .versioned, .move].contains(task.mode) {
+        if !dryRun, [.copy, .mirror, .versioned, .move, .bidirectional].contains(task.mode) {
             protectedEmpty = await protectedEmptyFiles(task, options: options, onUpdate: onUpdate)
+            // 1.8.2 : la synchronisation bidirectionnelle copie dans les deux sens ; un fichier protégé est exclu des deux
+            // côtés et reste tel quel (essai réel BTS : un .MP4 de 700 Mo remplacé par sa copie vide du Drive).
+            if task.mode == .bidirectional {
+                var reverse = task
+                (reverse.source, reverse.destination) = (task.destination, task.source)
+                protectedEmpty = Array(Set(protectedEmpty + (await protectedEmptyFiles(reverse, options: options, onUpdate: onUpdate)))).sorted()
+            }
             options.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rcloneEscape)
             protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
         }

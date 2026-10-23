@@ -236,6 +236,13 @@ public final class AgentClient: @unchecked Sendable {
         return text
     }
 
+    public func runDetails(runID: UUID, maxRows: Int) async throws -> RunDetails {
+        guard case .details(let details) = try await send(.runDetails(runID: runID, maxRows: maxRows), timeout: 60) else {
+            throw AgentClientError.badReply
+        }
+        return details
+    }
+
     public func status() async throws -> AgentStatus {
         guard case .status(let status) = try await send(.status) else { throw AgentClientError.badReply }
         return status

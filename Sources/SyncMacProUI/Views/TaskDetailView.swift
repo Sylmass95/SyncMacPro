@@ -76,6 +76,7 @@ struct TaskHistoryTab: View {
     @State private var records: [RunRecord] = []
     @State private var selected: UUID?
     @State private var logRecord: RunRecord?
+    @State private var detailsRecord: RunRecord?
 
     private var l: Localizer { text.localizer }
 
@@ -90,6 +91,7 @@ struct TaskHistoryTab: View {
                     }
                     .disabled(records.isEmpty)
                 }
+                Button(l.text("details.button")) { detailsRecord = records.first { $0.id == selected } }.disabled(selected == nil)
                 Button(l.text("detail.history.log")) { logRecord = records.first { $0.id == selected } }.disabled(selected == nil)
             }
             .controlSize(.small)
@@ -105,6 +107,9 @@ struct TaskHistoryTab: View {
         }
         .sheet(item: $logRecord) { record in
             RunLogSheet(model: model, record: record, localizer: l) { logRecord = nil }
+        }
+        .sheet(item: $detailsRecord) { record in
+            RunDetailsView(model: model, record: record, localizer: l) { detailsRecord = nil }
         }
     }
 }

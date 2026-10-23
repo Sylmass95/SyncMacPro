@@ -12,6 +12,16 @@ public final class RunLogWriter: @unchecked Sendable {
     private var truncated = false
     private var closed = false
     private var failed = false
+    /// 1.8.2 : fichier de détails (un fichier traité par ligne), à côté du journal ; il n'est pas plafonné comme lui
+    /// (environ 100 octets par fichier), seulement au-delà de `detailsLimit`.
+    private let details: FileHandle?
+    private var detailsWritten = 0
+    public static let detailsLimit = 100_000_000
+
+    /// `run.log` → `run.details.tsv`.
+    public static func detailsURL(for log: URL) -> URL {
+        log.deletingPathExtension().appendingPathExtension("details.tsv")
+    }
 
     /// `append` : reprise d'une exécution suspendue, le journal existant est complété.
     public init(url: URL, limit: Int = RunLogWriter.defaultLimit, now: @escaping @Sendable () -> Date = { Date() }, append: Bool = false) {
@@ -21,6 +31,12 @@ public final class RunLogWriter: @unchecked Sendable {
         }
         handle = try? FileHandle(forWritingTo: url)
         if append, let end = try? handle?.seekToEnd() { written = Int(end) }
+        let detailsURL = Self.detailsURL(for: url)
+        if !append || !FileManager.default.fileExists(atPath: detailsURL.path) {
+            FileManager.default.createFile(atPath: detailsURL.path, contents: nil)
+        }
+        details = try? FileHandle(forWritingTo: detailsURL)
+        if append, let end = try? details?.seekToEnd() { detailsWritten = Int(end) }
         self.limit = limit
         self.now = now
     }
@@ -28,6 +44,7 @@ public final class RunLogWriter: @unchecked Sendable {
     /// `force` : écrit même au-delà du plafond (la ligne de fin doit toujours y être).
     /// Les lignes de progression du moteur sont ignorées : elles rempliraient le journal sans rien apprendre.
     public func append(_ line: String, force: Bool = false) {
+        if let row = RunDetailParser.parse(line) { writeDetail(row) }
         if !force && Self.isProgress(line) { return }
         write("[\(Self.clock(now()))] \(line)\n", force: force)
     }
@@ -38,6 +55,7 @@ public final class RunLogWriter: @unchecked Sendable {
         guard !closed else { return }
         closed = true
         try? handle?.close()
+        try? details?.close()
     }
 
     private func write(_ text: String, force: Bool) {
@@ -55,6 +73,14 @@ public final class RunLogWriter: @unchecked Sendable {
         }
         put(data, into: handle)
         written += data.count
+    }
+
+    private func writeDetail(_ row: RunDetailRow) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let details, !closed, detailsWritten < Self.detailsLimit else { return }
+        let data = Data(row.line.utf8)
+        do { try details.write(contentsOf: data); detailsWritten += data.count } catch { detailsWritten = Self.detailsLimit }
     }
 
     /// `write(contentsOf:)` lève une erreur Swift (disque plein…) : l'ancienne API lèverait une exception

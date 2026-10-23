@@ -13,6 +13,8 @@ public protocol AgentConnecting: Sendable {
     func perform(_ request: AgentRequest) async throws
     func simulate(_ task: SyncTask) async throws -> SimulationResult
     func runLog(runID: UUID) async throws -> RunLogText
+    /// 1.8.2 : détails d'une exécution (fichiers copiés, supprimés…).
+    func runDetails(runID: UUID) async throws -> RunDetails
     func listRemotes() async throws -> [RemoteInfo]
     func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome
     func testRemote(_ name: String) async throws -> RemoteTestResult
@@ -34,6 +36,11 @@ extension AgentClient: AgentConnecting {
     public func runLog(runID: UUID) async throws -> RunLogText {
         try await runLog(runID: runID, maxBytes: 262_144)
     }
+
+    /// Au plus 200 000 lignes (une très grosse exécution) ; les totaux comptent tout.
+    public func runDetails(runID: UUID) async throws -> RunDetails {
+        try await runDetails(runID: runID, maxRows: 200_000)
+    }
 }
 
 /// Agent absent : tout échoue comme un agent injoignable. Sert aux aperçus et aux captures.
@@ -45,6 +52,7 @@ public struct UnavailableAgent: AgentConnecting {
     public func perform(_ request: AgentRequest) async throws { throw AgentClientError.unreachable }
     public func simulate(_ task: SyncTask) async throws -> SimulationResult { throw AgentClientError.unreachable }
     public func runLog(runID: UUID) async throws -> RunLogText { throw AgentClientError.unreachable }
+    public func runDetails(runID: UUID) async throws -> RunDetails { throw AgentClientError.unreachable }
     public func listRemotes() async throws -> [RemoteInfo] { throw AgentClientError.unreachable }
     public func configureRemote(_ step: RemoteConfigStep) async throws -> RemoteConfigOutcome { throw AgentClientError.unreachable }
     public func testRemote(_ name: String) async throws -> RemoteTestResult { throw AgentClientError.unreachable }
