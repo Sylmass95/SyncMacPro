@@ -1,3 +1,8 @@
+SyncMacPro 1.7.7 — colonnes qui se redimensionnent dans le bon sens.
+
+**Correction (1.7.7)**
+- Dans l'en-tête de la liste, glisser un séparateur agissait à l'envers : la colonne s'élargissait du côté opposé et le trait ne suivait pas la souris, puis l'élargissement bloquait. Chaque séparateur agit maintenant sur la colonne à sa droite et suit la souris ; une colonne s'élargit jusqu'à ne laisser à « Tâche » que sa largeur minimale, et peut aller plus loin sur une grande fenêtre.
+
 SyncMacPro 1.7.6 — une interface plus compacte.
 
 **Améliorations (1.7.6)**
