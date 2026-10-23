@@ -118,6 +118,20 @@ public enum RcloneCommandBuilder {
         return EngineCommand(engine: .rclone, arguments: args)
     }
 
+    /// 1.8.3 : un fichier copié tel quel d'un côté à l'autre (réparation d'une copie vide).
+    public static func copyToCommand(from: Endpoint, to: Endpoint, run: RunOptions) -> EngineCommand {
+        var args = ["copyto", from.rcloneSpec, to.rcloneSpec]
+        if let config = run.rcloneConfigPath { args += ["--config", config] }
+        return EngineCommand(engine: .rclone, arguments: args)
+    }
+
+    /// 1.8.3 : tailles des fichiers d'un dossier (archive d'une exécution), `lsjson -R --files-only`.
+    public static func listSizesCommand(for endpoint: Endpoint, run: RunOptions) -> EngineCommand {
+        var args = ["lsjson", "-R", "--files-only", endpoint.rcloneSpec] + fastList(endpoint)
+        if let config = run.rcloneConfigPath { args += ["--config", config] }
+        return EngineCommand(engine: .rclone, arguments: args)
+    }
+
     /// Crée un dossier distant (bisync refuse un côté absent).
     public static func mkdirCommand(for endpoint: Endpoint, run: RunOptions) -> EngineCommand {
         var args = ["mkdir", endpoint.rcloneSpec]

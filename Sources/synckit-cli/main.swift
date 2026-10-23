@@ -90,7 +90,7 @@ do {
         case .snapshot(let snapshot):
             let line = Formatting.line(for: snapshot)
             if !line.isEmpty { print("\r\u{1B}[2K\(line)", terminator: ""); fflush(stdout) }
-        case .line: break
+        case .line, .detail: break
         }
     }
     print("\n\(result.status.rawValue) : \(result.summary.message ?? "")")

@@ -597,7 +597,7 @@
 "details.action.added" = "New";
 "details.action.updated" = "Updated";
 "details.action.deleted" = "Deleted";
-"details.action.archived" = "Archived";
+"details.action.archived" = "Archived (_ARCHIVE)";
 "details.action.touched" = "Date fixed";
 "details.total.added" = "%d new (%@)";
 "details.total.updated" = "%d updated (%@)";
@@ -608,3 +608,7 @@
 "details.column.size" = "Size";
 "details.column.bytes" = "Size (bytes)";
 "details.column.path" = "Path";
+"details.column.where" = "Where";
+"details.where.on" = "on %@";
+"details.finder" = "Show in Finder";
+"details.select" = "Select a row to see the full path.";

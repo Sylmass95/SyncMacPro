@@ -1,3 +1,13 @@
+SyncMacPro 1.8.3 — des détails lisibles, et la réparation des copies vides.
+
+**Améliorations (1.8.3)**
+- Les détails d'une exécution s'ouvrent dans leur propre fenêtre, redimensionnable. Une colonne « Où » dit d'où vient chaque fichier et où il va (« NAS « 01_PROJETS_ACTIFS » → Drive partagé », « sur Drive partagé ») ; la ligne choisie affiche son chemin complet, avec « Afficher dans le Finder » pour un fichier sur le Mac ou un partage monté.
+- Les fichiers mis dans _ARCHIVE ont maintenant leur taille, lue dans l'archive à la fin de l'exécution. Un fichier n'apparaît qu'une fois (rclone écrivait deux fois chaque déplacement), et un fichier dont l'ancienne version est archivée puis remplacée apparaît en « Mis à jour ».
+
+**Corrections (1.8.3)**
+- Synchronisation bidirectionnelle : quand un côté a une copie vide et l'autre la version pleine, la version pleine remplace maintenant la copie vide (en 1.8.2, le fichier était seulement laissé de côté, et la copie vide restait).
+- La « vérification après copie » était arrêtée d'office dès la fin de la copie et passait pour réussie sans avoir rien vérifié. Elle va maintenant au bout.
+
 SyncMacPro 1.8.2 — le détail de chaque exécution, et une synchronisation bidirectionnelle plus sûre.
 
 **Nouveautés (1.8.2)**

@@ -3,6 +3,9 @@ import XCTest
 
 /// 1.8.2 : détails de chaque exécution (fichier par fichier : action, taille, chemin), lus depuis l'historique.
 final class Details182Tests: XCTestCase {
+    /// La provenance (1.8.3) n'est pas jugée ici.
+    func bare(_ row: RunDetailRow?) -> RunDetailRow? { row.map { var r = $0; r.origin = nil; return r } }
+
     var folder: URL!
     override func setUpWithError() throws {
         folder = FileManager.default.temporaryDirectory.appendingPathComponent("details-\(UUID().uuidString)")
@@ -10,11 +13,11 @@ final class Details182Tests: XCTestCase {
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: folder) }
 
     func testRsyncLinesWithTheirSize() {
-        XCTAssertEqual(RunDetailParser.parse(">f+++++++++|1234|dossier/photo.jpg"), RunDetailRow(action: .added, size: 1234, path: "dossier/photo.jpg"))
-        XCTAssertEqual(RunDetailParser.parse("<f.st......|99|a|b.txt"), RunDetailRow(action: .updated, size: 99, path: "a|b.txt"))
-        XCTAssertEqual(RunDetailParser.parse(".f..t......|5|seule-la-date.txt"), RunDetailRow(action: .touched, size: 5, path: "seule-la-date.txt"))
-        XCTAssertEqual(RunDetailParser.parse("*deleting  |0|vieux.txt"), RunDetailRow(action: .deleted, size: nil, path: "vieux.txt"))
-        XCTAssertEqual(RunDetailParser.parse("deleting vieux.txt"), RunDetailRow(action: .deleted, size: nil, path: "vieux.txt"))
+        XCTAssertEqual(bare(RunDetailParser.parse(">f+++++++++|1234|dossier/photo.jpg")), RunDetailRow(action: .added, size: 1234, path: "dossier/photo.jpg"))
+        XCTAssertEqual(bare(RunDetailParser.parse("<f.st......|99|a|b.txt")), RunDetailRow(action: .updated, size: 99, path: "a|b.txt"))
+        XCTAssertEqual(bare(RunDetailParser.parse(".f..t......|5|seule-la-date.txt")), RunDetailRow(action: .touched, size: 5, path: "seule-la-date.txt"))
+        XCTAssertEqual(bare(RunDetailParser.parse("*deleting  |0|vieux.txt")), RunDetailRow(action: .deleted, size: nil, path: "vieux.txt"))
+        XCTAssertEqual(bare(RunDetailParser.parse("deleting vieux.txt")), RunDetailRow(action: .deleted, size: nil, path: "vieux.txt"))
         XCTAssertNil(RunDetailParser.parse("cd+++++++++|4096|nouveau-dossier/"), "les dossiers ne comptent pas")
         XCTAssertNil(RunDetailParser.parse("sending incremental file list"))
     }
@@ -23,11 +26,11 @@ final class Details182Tests: XCTestCase {
         func json(_ msg: String, _ object: String, size: Int? = 42) -> String {
             #"{"time":"t","level":"info","msg":"\#(msg)",\#(size.map { "\"size\":\($0)," } ?? "")"object":"\#(object)","objectType":"*local.Object"}"#
         }
-        XCTAssertEqual(RunDetailParser.parse(json("Copied (new)", "a/b.mov")), RunDetailRow(action: .added, size: 42, path: "a/b.mov"))
-        XCTAssertEqual(RunDetailParser.parse(json("Copied (replaced existing)", "c.docx")), RunDetailRow(action: .updated, size: 42, path: "c.docx"))
-        XCTAssertEqual(RunDetailParser.parse(json("Deleted", "d.txt", size: nil)), RunDetailRow(action: .deleted, size: nil, path: "d.txt"))
-        XCTAssertEqual(RunDetailParser.parse(json("Moved (server-side) to: _ARCHIVE/2026/e.txt", "e.txt")), RunDetailRow(action: .archived, size: 42, path: "e.txt"))
-        XCTAssertEqual(RunDetailParser.parse(json("Updated modification time in destination", "f.txt")), RunDetailRow(action: .touched, size: 42, path: "f.txt"))
+        XCTAssertEqual(bare(RunDetailParser.parse(json("Copied (new)", "a/b.mov"))), RunDetailRow(action: .added, size: 42, path: "a/b.mov"))
+        XCTAssertEqual(bare(RunDetailParser.parse(json("Copied (replaced existing)", "c.docx"))), RunDetailRow(action: .updated, size: 42, path: "c.docx"))
+        XCTAssertEqual(bare(RunDetailParser.parse(json("Deleted", "d.txt", size: nil))), RunDetailRow(action: .deleted, size: nil, path: "d.txt"))
+        XCTAssertEqual(bare(RunDetailParser.parse(json("Moved (server-side) to: _ARCHIVE/2026/e.txt", "e.txt"))), RunDetailRow(action: .archived, size: 42, path: "e.txt"))
+        XCTAssertEqual(bare(RunDetailParser.parse(json("Updated modification time in destination", "f.txt"))), RunDetailRow(action: .touched, size: 42, path: "f.txt"))
         XCTAssertNil(RunDetailParser.parse(#"{"level":"notice","msg":"Transferred: 1 / 1"}"#))
     }
 

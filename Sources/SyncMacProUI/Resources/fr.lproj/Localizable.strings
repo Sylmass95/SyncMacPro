@@ -597,7 +597,7 @@
 "details.action.added" = "Nouveau";
 "details.action.updated" = "Mis à jour";
 "details.action.deleted" = "Supprimé";
-"details.action.archived" = "Archivé";
+"details.action.archived" = "Archivé (_ARCHIVE)";
 "details.action.touched" = "Date corrigée";
 "details.total.added" = "%d nouveau(x) (%@)";
 "details.total.updated" = "%d mis à jour (%@)";
@@ -608,3 +608,7 @@
 "details.column.size" = "Taille";
 "details.column.bytes" = "Taille (octets)";
 "details.column.path" = "Chemin";
+"details.column.where" = "Où";
+"details.where.on" = "sur %@";
+"details.finder" = "Afficher dans le Finder";
+"details.select" = "Sélectionnez une ligne pour voir le chemin complet.";

@@ -182,6 +182,7 @@ extension TaskRunner {
         control.setBandwidthHook(nil)
         sampler.cancel()
         control.stopAuxiliary()
+        control.allowAuxiliary()   // 1.8.3 : la vérification après copie vient après
 
         var status: RunStatus
         var message: String?
@@ -216,6 +217,13 @@ extension TaskRunner {
             return tracker.snapshot()
         }
         onUpdate(.snapshot(snapshot))
+        // 1.8.3 : taille des fichiers mis de côté dans l'archive (rsync n'écrit pas celle des fichiers qu'il retire).
+        if task.mode == .mirror, status == .succeeded {
+            let root = Endpoint.join(destination, task.options.archiveFolder)
+            for (path, size) in Self.localArchiveSizes(root: root, stamp: stamp) {
+                onUpdate(.detail(RunDetailRow(action: .archived, size: size, path: path, origin: .destination)))
+            }
+        }
         return result(status: status, engine: .rsync, snapshot: snapshot, started: started,
                       deletions: log.deletions, errors: log.errors, message: message)
     }

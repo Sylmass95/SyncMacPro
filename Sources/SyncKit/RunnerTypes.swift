@@ -62,6 +62,8 @@ public enum RunUpdate: Sendable {
     case snapshot(TransferSnapshot)
     /// Une ligne de la sortie du moteur (pour le journal).
     case line(String)
+    /// 1.8.3 : un détail qui n'est pas dans la sortie du moteur (taille d'un fichier mis dans l'archive).
+    case detail(RunDetailRow)
 }
 
 public struct RunResult: Equatable, Sendable {
@@ -229,6 +231,13 @@ final class RunControl: @unchecked Sendable {
         auxiliaryStopped = true
         auxiliary.forEach { $0.terminate() }
         auxiliary = []
+    }
+
+    /// 1.8.3 : après la copie, les annexes de comptage sont arrêtées ; ce qui suit (vérification, réparation, liste de
+    /// l'archive) doit pouvoir démarrer.
+    func allowAuxiliary() {
+        lock.lock(); defer { lock.unlock() }
+        auxiliaryStopped = false
     }
 }
 
