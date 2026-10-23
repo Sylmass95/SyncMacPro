@@ -9,6 +9,8 @@ struct TaskSheet: View {
     let taskID: UUID
     let text: CardText
     let onClose: () -> Void
+    /// Dupliquer, Supprimer (1.8.0) : la fiche se ferme et le tableau de bord s'en charge.
+    var onManage: (TaskListView.ManageAction, UUID) -> Void = { _, _ in }
 
     enum Tab: Hashable { case configuration, settings, log }
 
@@ -32,6 +34,10 @@ struct TaskSheet: View {
                 }
                 .pickerStyle(.segmented).fixedSize()
                 Spacer()
+                if task != nil {
+                    Button { onManage(.duplicate, taskID) } label: { Label(l.text("list.duplicate"), systemImage: "plus.square.on.square") }
+                    Button(role: .destructive) { onManage(.delete, taskID) } label: { Label(l.text("tasks.delete"), systemImage: "trash") }
+                }
                 Button(l.text("sheet.close"), action: onClose).keyboardShortcut(.cancelAction)
             }
             .padding(12)

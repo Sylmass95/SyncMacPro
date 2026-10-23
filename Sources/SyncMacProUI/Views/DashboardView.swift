@@ -35,8 +35,25 @@ struct DashboardBody: View {
     @State var selection: Set<UUID> = []
     /// Fiche ouverte d'un double-clic (1.7.6).
     @State private var openTask: OpenTask?
+    /// Tâche à supprimer, après confirmation (1.8.0).
+    @State private var pendingDelete: SyncTask?
 
-    struct OpenTask: Identifiable { let id: UUID }
+    struct OpenTask: Identifiable {
+        let id: UUID
+        var tab: TaskSheet.Tab = .settings
+    }
+
+    /// « Modifier… » du clic droit ouvre la fiche sur sa configuration ; le double-clic, sur ses réglages.
+    static func sheetTab(for action: TaskListView.ManageAction?) -> TaskSheet.Tab { action == .edit ? .configuration : .settings }
+
+    private func manage(_ action: TaskListView.ManageAction, _ id: UUID) {
+        guard let task = model.tasks[id] else { return }
+        switch action {
+        case .edit: openTask = OpenTask(id: id, tab: Self.sheetTab(for: .edit))
+        case .duplicate: onCreate(.duplicate(of: task, suffix: l.text("tasks.copy.suffix")))
+        case .delete: pendingDelete = task
+        }
+    }
 
     private var l: Localizer { text.localizer }
 
@@ -75,6 +92,12 @@ struct DashboardBody: View {
             if model.status?.globalPause == true {
                 Text(l.text("dashboard.pause.on")).font(.caption.bold()).foregroundStyle(.orange)
             }
+            // 1.8.0 : créer une tâche se fait ici (l'écran Tâches a rejoint le tableau de bord).
+            TemplatesMenu(localizer: l) { onCreate(.template($0)) }
+                .disabled(model.connection != .connected)
+            Button { onCreate(TaskDraft()) } label: { Label(l.text("tasks.new"), systemImage: "plus") }
+                .buttonStyle(GlassButtonStyle(prominent: false))
+                .disabled(model.connection != .connected)
             pauseButton.help(l.text("dashboard.pause.help"))
         }
     }
@@ -116,12 +139,26 @@ struct DashboardBody: View {
                 // 1.7.0 : une seule liste ordonnée, le détail de la tâche sélectionnée en dessous.
                 // 1.7.6 : en bas, l'historique seul (environ quatre lignes) ; double-clic → fiche de la tâche.
                 VSplitView {
-                    TaskListView(model: model, selection: $selection, text: text, onOpen: { openTask = OpenTask(id: $0) })
+                    TaskListView(model: model, selection: $selection, text: text, onOpen: { openTask = OpenTask(id: $0) },
+                                 onManage: { manage($0, $1) })
                         .frame(minHeight: 220)
                     detail.frame(minHeight: 120, idealHeight: 150)
                 }
                 .sheet(item: $openTask) { open in
-                    TaskSheet(model: model, taskID: open.id, text: text) { openTask = nil }
+                    TaskSheet(model: model, taskID: open.id, text: text, onClose: { openTask = nil },
+                              onManage: { action, id in openTask = nil; manage(action, id) }, tab: open.tab)
+                }
+                .confirmationDialog(
+                    pendingDelete.map { l.format("tasks.delete.confirm", $0.name) } ?? "",
+                    isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                    titleVisibility: .visible, presenting: pendingDelete
+                ) { task in
+                    Button(l.text("tasks.delete"), role: .destructive) {
+                        selection.remove(task.id)
+                        Task { await model.removeTask(task.id) }
+                    }
+                } message: { _ in
+                    Text(l.text("tasks.delete.body"))
                 }
             }
         }

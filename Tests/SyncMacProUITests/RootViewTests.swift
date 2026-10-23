@@ -17,7 +17,7 @@ final class RootViewTests: XCTestCase {
 
     func testSidebarEntries() {
         // 1.7.0 : plus d'historique global (il est dans le détail de chaque tâche).
-        XCTAssertEqual(SidebarItem.allCases, [.dashboard, .tasks, .copy, .connections, .settings])
+        XCTAssertEqual(SidebarItem.allCases, [.dashboard, .copy, .connections, .settings])
     }
 
     func testOnboardingRendersForEveryInstallState() throws {

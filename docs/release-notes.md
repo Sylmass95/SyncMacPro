@@ -1,3 +1,11 @@
+SyncMacPro 1.8.0 — les tâches se gèrent depuis le tableau de bord.
+
+**Changements (1.8.0)**
+- L'écran « Tâches » rejoint le tableau de bord, et disparaît de la barre latérale. « Modèles » et « Nouvelle tâche » sont en haut, à côté de « Pause globale ».
+- Clic droit sur une tâche : Modifier…, Dupliquer et Supprimer, en plus de Lancer, Forcer, Pause, Activer et Désactiver. « Modifier… » ouvre la fiche sur sa configuration.
+- La fiche d'une tâche (double-clic) propose aussi Dupliquer et Supprimer. Supprimer demande toujours confirmation ; les fichiers copiés et l'historique sont conservés.
+- Les copies ponctuelles terminées restent consultables dans la ligne « Autres exécutions ».
+
 SyncMacPro 1.7.9 — colonnes qui se redimensionnent comme dans le Finder.
 
 **Correction (1.7.9)**
