@@ -1,7 +1,7 @@
 import SwiftUI
 import SyncKit
 
-/// Détail de la sélection, sous la liste (1.7.0) : Historique, Réglages (l'essentiel), Journal.
+/// Sous la liste (1.7.6) : l'historique de la tâche sélectionnée. Réglages et journal sont dans la fiche (double-clic).
 @MainActor
 struct TaskDetailView: View {
     let model: AgentModel
@@ -42,12 +42,10 @@ struct TaskDetailView: View {
         guard let run = info.lastRun else { return "" }
         return "\(run.id)-\(run.status.rawValue)-\(run.finishedAt?.timeIntervalSince1970 ?? 0)"
     }
-    @State private var tab: Tab = .history
-
     private var l: Localizer { text.localizer }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             switch Self.mode(for: selection) {
             case .empty:
                 Text(l.text("detail.empty")).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -55,32 +53,14 @@ struct TaskDetailView: View {
                 Text(l.format("list.selection.count", count)).font(.headline)
                 Text(l.text("detail.several")).foregroundStyle(.secondary)
             case .otherRuns:
-                Text(l.text("list.otherRuns")).font(.headline)
-                TaskHistoryTab(model: model, taskID: nil, reloadKey: nil, text: text)
+                TaskHistoryTab(model: model, taskID: nil, reloadKey: nil, text: text, title: l.text("list.otherRuns"))
             case .task(let id):
                 let info = model.orderedTasks.first { $0.id == id }
-                HStack {
-                    Text(info?.name ?? "").font(.headline).lineLimit(1)
-                    Spacer()
-                    Picker("", selection: Binding(get: { Self.effectiveTab(tab, hasTask: model.tasks[id] != nil) }, set: { tab = $0 })) {
-                        Text(l.text("detail.tab.history")).tag(Tab.history)
-                        if model.tasks[id] != nil { Text(l.text("detail.tab.settings")).tag(Tab.settings) }
-                        Text(l.text("detail.tab.log")).tag(Tab.log)
-                    }
-                    .pickerStyle(.segmented).fixedSize()
-                }
-                switch Self.effectiveTab(tab, hasTask: model.tasks[id] != nil) {
-                case .history: TaskHistoryTab(model: model, taskID: id, reloadKey: info.map(Self.historyReloadKey), text: text)
-                case .settings:
-                    if let task = model.tasks[id] {
-                        // Recréé quand la tâche change ailleurs (éditeur, Désactiver) : jamais d'anciennes valeurs réécrites.
-                        TaskSettingsTab(model: model, task: task, localizer: l, onEdit: onEdit).id(TaskSettingsTab.identity(task))
-                    }
-                case .log: TaskLogTab(model: model, record: info?.lastRun, localizer: l)
-                }
+                TaskHistoryTab(model: model, taskID: id, reloadKey: info.map(Self.historyReloadKey), text: text,
+                               title: l.format("detail.history.title", info?.name ?? ""))
             }
         }
-        .padding(12)
+        .padding(.horizontal, 12).padding(.vertical, 8)
     }
 }
 
@@ -91,6 +71,8 @@ struct TaskHistoryTab: View {
     let taskID: UUID?
     let reloadKey: String?
     let text: CardText
+    /// « Historique — nom de la tâche », sur la ligne des boutons (1.7.6).
+    var title: String?
     @State private var records: [RunRecord] = []
     @State private var selected: UUID?
     @State private var logRecord: RunRecord?
@@ -98,14 +80,9 @@ struct TaskHistoryTab: View {
     private var l: Localizer { text.localizer }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ScrollView {
-                HistoryTableBody(rows: records, selection: selected, text: text, localizer: l) { id in
-                    if selected == id { logRecord = records.first { $0.id == id } } else { selected = id }
-                }
-            }
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Button(l.text("detail.history.log")) { logRecord = records.first { $0.id == selected } }.disabled(selected == nil)
+                if let title { Text(title).font(.headline).lineLimit(1) }
                 Spacer()
                 if let taskID {
                     Button(l.text("detail.history.clear")) {
@@ -113,8 +90,14 @@ struct TaskHistoryTab: View {
                     }
                     .disabled(records.isEmpty)
                 }
+                Button(l.text("detail.history.log")) { logRecord = records.first { $0.id == selected } }.disabled(selected == nil)
             }
             .controlSize(.small)
+            ScrollView {
+                HistoryTableBody(rows: records, selection: selected, text: text, localizer: l) { id in
+                    if selected == id { logRecord = records.first { $0.id == id } } else { selected = id }
+                }
+            }
         }
         .task(id: "\(taskID?.uuidString ?? "autres")-\(reloadKey ?? "")") {
             selected = nil

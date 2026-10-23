@@ -11,6 +11,8 @@ struct TaskCardActions {
     var approve: () -> Void = {}
     var abandon: () -> Void = {}
     var eject: () -> Void = {}
+    /// 1.7.6 : activer ou désactiver la tâche depuis sa ligne.
+    var setEnabled: (Bool) -> Void = { _ in }
 }
 
 @MainActor
@@ -31,7 +33,7 @@ struct TaskCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(info.name).font(.headline).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 8)
-                StatePill(state: info.state, label: info.driveSuspendedSince != nil && info.driveMounted != true ? l.text("state.drive.suspended") : text.state(info.state))
+                StatePill(state: info.state, label: info.driveSuspendedSince != nil && info.driveMounted != true ? l.text("state.drive.suspended") : Self.stateLabel(info, text: text))
             }
             if let task {
                 Text("\(text.mode(task.mode)) · \(task.removableDrive != nil ? l.text("card.schedule.drive") : text.schedule(task.schedule))")
@@ -64,7 +66,7 @@ struct TaskCard: View {
         .padding(14)
         .glassCard(cornerRadius: 16)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(info.name), \(text.state(info.state))")
+        .accessibilityLabel("\(info.name), \(Self.stateLabel(info, text: text))")
     }
 
     @ViewBuilder private var progressSection: some View {
@@ -89,6 +91,9 @@ struct TaskCard: View {
         guard let total = info.totalBytes, total > 0 else { return 0 }
         return min(1, Double(info.doneBytes) / Double(total))
     }
+
+    /// Vrai état (1.7.6) : « Préparation… » plutôt que « En cours » pendant la comparaison préalable.
+    static func stateLabel(_ info: AgentTaskInfo, text: CardText) -> String { RowText(localizer: text.localizer).state(info, text: text) }
 
     /// Boutons d'une carte selon l'état (fonction pure, testée).
     enum CardAction: Equatable { case run, force, pause, resume, stop, approve, abandon, eject }

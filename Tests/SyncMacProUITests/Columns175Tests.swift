@@ -29,10 +29,10 @@ final class Columns175Tests: XCTestCase {
     func testWidthsAreRemembered() {
         let defaults = store()
         var columns = ListColumns()
-        columns.resize(.schedule, by: 40)
+        columns.resize(.last, by: 40)
         columns.save(to: defaults)
-        XCTAssertEqual(ListColumns(from: defaults).width(.schedule), ListColumn.schedule.standard + 40)
-        XCTAssertEqual(ListColumns(from: defaults).width(.last), ListColumn.last.standard)
+        XCTAssertEqual(ListColumns(from: defaults).width(.last), ListColumn.last.standard + 40)
+        XCTAssertEqual(ListColumns(from: defaults).width(.state), ListColumn.state.standard)
     }
 
     func testTheTaskColumnIsNotResizable() {

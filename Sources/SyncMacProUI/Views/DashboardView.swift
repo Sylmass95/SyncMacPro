@@ -33,11 +33,15 @@ struct DashboardBody: View {
     var update: UpdateBannerInfo?
     /// Lignes sélectionnées dans la liste (1.7.0).
     @State var selection: Set<UUID> = []
+    /// Fiche ouverte d'un double-clic (1.7.6).
+    @State private var openTask: OpenTask?
+
+    struct OpenTask: Identifiable { let id: UUID }
 
     private var l: Localizer { text.localizer }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 10) {
             header
             ConnectionBanner(
                 connection: model.connection, installState: installState, localizer: l,
@@ -65,18 +69,13 @@ struct DashboardBody: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            Text(l.text("dashboard.title")).font(.largeTitle.bold())
+        HStack(alignment: .center, spacing: 10) {
+            Text(l.text("dashboard.title")).font(.title2.bold())
             Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                pauseButton
-                if model.status?.globalPause == true {
-                    Text(l.text("dashboard.pause.on")).font(.caption.bold()).foregroundStyle(.orange)
-                }
-                Text(l.text("dashboard.pause.help"))
-                    .font(.caption).foregroundStyle(.primary.opacity(0.7)).multilineTextAlignment(.trailing)
+            if model.status?.globalPause == true {
+                Text(l.text("dashboard.pause.on")).font(.caption.bold()).foregroundStyle(.orange)
             }
-            .frame(maxWidth: 260, alignment: .trailing)
+            pauseButton.help(l.text("dashboard.pause.help"))
         }
     }
 
@@ -115,10 +114,14 @@ struct DashboardBody: View {
                 .padding(.vertical, 40)
             } else {
                 // 1.7.0 : une seule liste ordonnée, le détail de la tâche sélectionnée en dessous.
+                // 1.7.6 : en bas, l'historique seul (environ quatre lignes) ; double-clic → fiche de la tâche.
                 VSplitView {
-                    TaskListView(model: model, selection: $selection, text: text)
+                    TaskListView(model: model, selection: $selection, text: text, onOpen: { openTask = OpenTask(id: $0) })
                         .frame(minHeight: 220)
-                    detail.frame(minHeight: 160)
+                    detail.frame(minHeight: 120, idealHeight: 150)
+                }
+                .sheet(item: $openTask) { open in
+                    TaskSheet(model: model, taskID: open.id, text: text) { openTask = nil }
                 }
             }
         }
