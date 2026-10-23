@@ -74,7 +74,7 @@ final class RcloneCommandBuilderTests: XCTestCase {
 
     func testVerifyUsesCheckWithCombinedOutput() throws {
         let cmd = try RcloneCommandBuilder.command(for: task(mode: .verify), run: run)
-        XCTAssertEqual(cmd.arguments, ["check", "/Volumes/s", "gdrive:BACKUP", "--combined", "-", "--filter", "- /_ARCHIVE/**"])
+        XCTAssertEqual(cmd.arguments, ["check", "/Volumes/s", "gdrive:BACKUP", "--combined", "-", "--filter", "- /_ARCHIVE/**", "--fast-list"])
     }
 
     func testQuotaBandwidthDryRunAndConfig() throws {
@@ -109,7 +109,7 @@ final class RcloneCommandBuilderTests: XCTestCase {
     func testSizeCommandIgnoresTheArchiveAndTheUsersExclusions() {
         let options = TaskOptions(excludes: [".DS_Store"])
         let cmd = RcloneCommandBuilder.sizeCommand(for: .cloud(remote: "gdrive", path: "BACKUP"), task: task(options: options), run: run)
-        XCTAssertEqual(cmd.arguments, ["size", "--json", "gdrive:BACKUP", "--exclude", "/_ARCHIVE/**", "--exclude", ".DS_Store"])
+        XCTAssertEqual(cmd.arguments, ["size", "--json", "gdrive:BACKUP", "--exclude", "/_ARCHIVE/**", "--exclude", ".DS_Store", "--fast-list"])
     }
 
     func testVerifyHonorsTheSelectionAndTheExclusionsLikeTheCopy() throws {

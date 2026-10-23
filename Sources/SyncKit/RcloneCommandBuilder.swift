@@ -59,6 +59,7 @@ public enum RcloneCommandBuilder {
         }
         if let file = run.excludeFrom, task.mode != .verify { args += ["--exclude-from", file] }
         args += filterArguments(for: task)
+        if task.mode != .bidirectional { args += fastList(task.source, task.destination) }
         args += task.options.extraArguments
         if run.dryRun, task.mode != .verify { args.append("--dry-run") }
         if let config = run.rcloneConfigPath { args += ["--config", config] }
@@ -87,8 +88,15 @@ public enum RcloneCommandBuilder {
     public static func sizeCommand(for endpoint: Endpoint, task: SyncTask, run: RunOptions) -> EngineCommand {
         var args = ["size", "--json", endpoint.rcloneSpec, "--exclude", "/\(task.options.archiveFolder)/**"]
         args += task.options.excludes.flatMap { ["--exclude", $0] }
+        args += fastList(endpoint)
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
+    }
+
+    /// 1.7.8 : sur un service en ligne (Drive…), `--fast-list` liste un dossier entier en quelques requêtes au lieu
+    /// d'une par sous-dossier. Sans effet utile entre dossiers locaux ; jamais pour bisync (ses listes lui sont propres).
+    static func fastList(_ endpoints: Endpoint...) -> [String] {
+        endpoints.contains { $0.isCloud } ? ["--fast-list"] : []
     }
 
     /// Fichiers vides de la source (même sélection et mêmes exclusions que la copie), un chemin par ligne.
@@ -97,6 +105,7 @@ public enum RcloneCommandBuilder {
         var listing = task
         listing.mode = .copy
         args += filterArguments(for: listing)
+        args += fastList(task.source)
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
     }

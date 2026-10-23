@@ -62,20 +62,20 @@ extension TaskRunner {
             knownPlan = plan
         }
 
-        // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
+        // 1.7.8 : un seul parcours avant la copie. Le calcul préalable donne la taille de chaque fichier à copier : il
+        // sert à la fois au total (progression connue dès le départ) et aux fichiers vides à protéger. Avant, une passe
+        // séparée cherchait les fichiers vides puis un calcul tournait en même temps que la copie : trois parcours.
         var protectedEmpty: [String] = []
         if [.copy, .mirror, .move].contains(task.mode) {
-            // rsync lui-même liste les fichiers vides qui seraient copiés (`-n --max-size=0`) : même parcours que la copie,
-            // arrêtable, et seuls ces fichiers sont ensuite regardés à la destination.
-            let found = Locked<[String]>([])
-            let code = try await stream(RsyncCommandBuilder.emptyFilesCommand(for: task, run: runOptions)) { line in
-                if !line.hasSuffix("/") { found.update { $0.append(line) } }
+            if knownPlan == nil {
+                onUpdate(.phase(.planning))
+                knownPlan = try await rsyncPlan(task, runOptions)
+                if control.stopRequested { return result(status: .stopped, engine: .rsync, snapshot: TransferSnapshot(), started: started) }
+                if knownPlan == nil {
+                    onUpdate(.line("Calcul préalable impossible : pas de protection des fichiers vides pour cette exécution."))
+                }
             }
-            if control.stopRequested { return result(status: .stopped, engine: .rsync, snapshot: TransferSnapshot(), started: started) }
-            if code != 0 && code != 23 && code != 24 {
-                onUpdate(.line("Liste des fichiers vides impossible (code \(code)) : pas de protection pour cette exécution."))
-            }
-            let empty = found.get()
+            let empty = knownPlan.map { plan in plan.files.filter { $0.value == 0 }.map(\.key).sorted() } ?? []
             protectedEmpty = EmptySourceGuard.protectedPaths(
                 sourceEmpty: empty, destinationSizes: EmptySourceGuard.sizes(of: empty, in: destination)
             )
@@ -93,8 +93,8 @@ extension TaskRunner {
         control.setHooks(pause: { tracker.perform { $0.pause() } }, resume: { tracker.perform { $0.resume() } })
         if let plan = knownPlan { tracker.perform { $0.setPlan(files: plan.files, directories: plan.directories) } }
 
-        // Sans plan connu, le total se calcule en arrière-plan : la copie démarre tout de suite.
-        if knownPlan == nil {
+        // Sans plan connu (autres modes, ou calcul préalable impossible), le total se calcule en arrière-plan.
+        if knownPlan == nil && ![.copy, .mirror, .move].contains(task.mode) {
             let planOptions = runOptions   // copie immuable : Swift 5.10 refuse une `var` capturée dans une closure concurrente
             Task.detached { [self] in
                 guard let plan = try? await self.rsyncPlan(task, planOptions), !self.control.stopRequested else { return }
