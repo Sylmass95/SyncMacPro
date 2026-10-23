@@ -1,3 +1,12 @@
+SyncMacPro 1.8.2 — le détail de chaque exécution, et une synchronisation bidirectionnelle plus sûre.
+
+**Nouveautés (1.8.2)**
+- Historique : un bouton « Détails » montre, pour une exécution, chaque fichier nouveau, mis à jour, supprimé ou archivé, avec sa taille. Le tableau se trie et se filtre (Tout, Copiés, Supprimés, Dates), avec une recherche par nom (sans tenir compte des accents) et les totaux en haut. « Exporter en CSV… » pour l'ouvrir dans un tableur. Les détails sont gardés pour les 30 dernières exécutions de chaque tâche, et seulement pour les exécutions faites à partir de cette version.
+- La synchronisation bidirectionnelle liste maintenant ses fichiers dans le journal (il n'y avait que deux lignes).
+
+**Correction (1.8.2)**
+- Synchronisation bidirectionnelle : un fichier vide ne remplace plus jamais une version non vide de l'autre côté, dans un sens comme dans l'autre. Lors d'un essai réel, un .MP4 de 700 Mo sur le NAS avait été remplacé par sa copie vide du Drive (un envoi jamais terminé). Le fichier protégé reste tel quel des deux côtés, et le journal le signale.
+
 SyncMacPro 1.8.1 — copies vers un NAS par SSH, bien plus rapides.
 
 **Nouveauté (1.8.1)**

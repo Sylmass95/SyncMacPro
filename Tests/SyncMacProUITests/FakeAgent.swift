@@ -53,6 +53,8 @@ final class FakeAgent: AgentConnecting, @unchecked Sendable {
         return try result.get()
     }
 
+    func runDetails(runID: UUID) async throws -> RunDetails { RunDetails(rows: [], totals: [:], truncated: false) }
+
     func runLog(runID: UUID) async throws -> RunLogText {
         let result = locked { () -> Result<RunLogText, Error> in
             _logRequests.append(runID)

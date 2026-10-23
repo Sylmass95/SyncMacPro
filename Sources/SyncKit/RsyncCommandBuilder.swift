@@ -2,12 +2,13 @@ import Foundation
 
 /// Transforme une tâche en arguments rsync.
 public enum RsyncCommandBuilder {
-    /// `--out-format=%i|%n` : rsync indique lui-même si un fichier est nouveau (`>f+++++++++`) ou mis à jour.
+    /// `--out-format=%i|%l|%n` : rsync indique lui-même si un fichier est nouveau (`>f+++++++++`) ou mis à jour, et
+    /// sa taille (1.8.2 : détails de l'exécution).
     /// Pas de `--timeout` : rsync compare l'horloge murale à sa dernière entrée/sortie, donc une pause
     /// (SIGSTOP) plus longue que le délai ferait échouer la copie à la reprise. La détection d'un moteur
     /// bloqué revient à l'agent (« pas de progression pendant N minutes »).
     private static let transferFlags = [
-        "-rtv", "--inplace", "--partial", "--progress", "--out-format=%i|%n",
+        "-rtv", "--inplace", "--partial", "--progress", "--out-format=%i|%l|%n",
     ]
 
     /// Commande d'exécution (ou de simulation si `run.dryRun`).

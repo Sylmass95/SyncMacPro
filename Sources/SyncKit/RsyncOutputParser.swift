@@ -50,12 +50,12 @@ public enum RsyncOutputParser {
         case event(RsyncEvent)
     }
 
-    /// Format `%i|%n` : 11 caractères d'état, « | », puis le nom.
+    /// Format `%i|%l|%n` (1.8.2 : la taille en plus) ou `%i|%n` : 11 caractères d'état, « | », puis le nom.
     private static func parseItemized(_ line: String) -> Itemized {
         let characters = Array(line)
         guard characters.count > 12, characters[11] == "|" else { return .notItemized }
         let flags = String(characters[0..<11])
-        let name = String(characters[12...])
+        let name = withoutSize(String(characters[12...]))
         if flags.hasPrefix("*deleting") { return .event(.deleting(name: name)) }
         guard let first = flags.first, "<>c.h".contains(first) else { return .notItemized }
         let type = characters[1]
@@ -63,6 +63,12 @@ public enum RsyncOutputParser {
         // Seuls « > » (reçu) et « < » (envoyé) transfèrent des données d'un fichier.
         guard type == "f", first == ">" || first == "<" else { return .ignored }
         return .event(.fileStarted(name: name, isNew: flags.dropFirst(2).allSatisfy { $0 == "+" }))
+    }
+
+    /// « 1234|chemin » → « chemin » (format `%i|%l|%n`).
+    static func withoutSize(_ rest: String) -> String {
+        guard let bar = rest.firstIndex(of: "|"), bar > rest.startIndex, rest[..<bar].allSatisfy(\.isNumber) else { return rest }
+        return String(rest[rest.index(after: bar)...])
     }
 
     private static func parseProgress(_ line: String) -> RsyncEvent? {

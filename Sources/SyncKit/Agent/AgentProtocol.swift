@@ -60,6 +60,8 @@ public enum AgentRequest: Codable, Equatable, Sendable {
     case reorder([UUID])
     /// 1.7.0 : lancer (ou reprendre) tout de suite, quelles que soient les limites.
     case force(UUID)
+    /// 1.8.2 : détails d'une exécution (fichiers copiés, supprimés…), `maxRows` lignes au plus.
+    case runDetails(runID: UUID, maxRows: Int)
 }
 
 public enum AgentResponse: Codable, Equatable, Sendable {
@@ -76,6 +78,7 @@ public enum AgentResponse: Codable, Equatable, Sendable {
     case folders([String])
     /// Nombre d'exécutions supprimées de l'historique.
     case cleared(Int)
+    case details(RunDetails)
 }
 
 public struct AgentRequestEnvelope: Codable, Sendable {

@@ -295,6 +295,7 @@ public actor AgentCore {
             let folder = logDirectory.standardizedFileURL.path + "/"
             for path in removed.logPaths where URL(fileURLWithPath: path).standardizedFileURL.path.hasPrefix(folder) {
                 try? FileManager.default.removeItem(atPath: path)
+                try? FileManager.default.removeItem(at: RunLogWriter.detailsURL(for: URL(fileURLWithPath: path)))
             }
         }
         emit(.stateChanged)
@@ -305,6 +306,25 @@ public actor AgentCore {
         guard let record = try history.record(id: runID), let path = record.logPath,
               FileManager.default.fileExists(atPath: path) else { throw AgentError.unknownRun }
         return try RunLogWriter.readTail(url: URL(fileURLWithPath: path), maxBytes: maxBytes)
+    }
+
+    /// 1.8.2 : détails d'une exécution ; vides pour une exécution d'avant (rien n'avait été noté).
+    public func runDetails(runID: UUID, maxRows: Int) throws -> RunDetails {
+        guard let record = try history.record(id: runID), let path = record.logPath else { throw AgentError.unknownRun }
+        let url = RunLogWriter.detailsURL(for: URL(fileURLWithPath: path))
+        guard FileManager.default.fileExists(atPath: url.path) else { return RunDetails(rows: [], totals: [:], truncated: false) }
+        return try RunDetails.read(url: url, maxRows: max(1, maxRows))
+    }
+
+    /// Détails gardés pour les `keptDetails` dernières exécutions de chaque tâche (le journal, lui, reste).
+    static let keptDetails = 30
+
+    func pruneDetails(taskID: UUID) {
+        guard let records = try? history.list(taskID: taskID, limit: 1_000), records.count > Self.keptDetails else { return }
+        for record in records.dropFirst(Self.keptDetails) {
+            guard let path = record.logPath else { continue }
+            try? FileManager.default.removeItem(at: RunLogWriter.detailsURL(for: URL(fileURLWithPath: path)))
+        }
     }
 
     // MARK: exécution
@@ -591,6 +611,7 @@ public actor AgentCore {
         try? history.save(job.record)
         job.logWriter?.append("Fin : \(status.rawValue)" + (summary.message.map { " — \($0)" } ?? ""), force: true)
         job.logWriter?.close()
+        pruneDetails(taskID: job.task.id)
 
         let key = id.uuidString
         var entry = state.tasks[key] ?? TaskScheduleState(firstSeen: now)

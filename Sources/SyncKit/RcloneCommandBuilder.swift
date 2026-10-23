@@ -31,7 +31,8 @@ public enum RcloneCommandBuilder {
             // Un côté sur le disque passe donc par un lien court (`run.bisyncPath1`, `run.bisyncPath2`), préparé par le runner.
             let sideA = run.bisyncPath1.map { Endpoint.local(path: $0) } ?? task.source
             let sideB = run.bisyncPath2.map { Endpoint.local(path: $0) } ?? task.destination
-            args = ["bisync", sideA.rcloneSpec, sideB.rcloneSpec] + loggingFlags + [
+            // 1.8.2 : `-v` aussi, pour que le journal (et les détails) listent les fichiers copiés ou supprimés.
+            args = ["bisync", sideA.rcloneSpec, sideB.rcloneSpec] + verbosity(task) + loggingFlags + [
                 "--resilient", "--recover",
                 "--conflict-resolve", "newer",
                 "--max-delete", String(task.options.deleteThresholdPercent),

@@ -436,6 +436,11 @@ public final class AgentModel {
         }
     }
 
+    /// 1.8.2 : détails d'une exécution ; `nil` si l'agent ne répond pas (ou est trop ancien).
+    public func runDetails(_ runID: UUID) async -> RunDetails? {
+        try? await agent.runDetails(runID: runID)
+    }
+
     // MARK: connexions
 
     public func reloadRemotes() async {
