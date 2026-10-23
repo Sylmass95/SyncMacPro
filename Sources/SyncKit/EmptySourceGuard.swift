@@ -8,6 +8,11 @@ public enum EmptySourceGuard {
         sourceEmpty.filter { (destinationSizes[$0] ?? 0) > 0 }.sorted()
     }
 
+    /// 1.8.3 : synchronisation bidirectionnelle, la version pleine a remplacé la copie vide de l'autre côté.
+    public static func repairedMessage(count: Int) -> String {
+        "\(count) copie(s) vide(s) réparée(s) avec la version pleine de l'autre côté (voir le journal)."
+    }
+
     public static func message(count: Int) -> String {
         "\(count) fichier(s) vide(s) à la source non copié(s) : la destination a une version non vide (voir le journal)."
     }

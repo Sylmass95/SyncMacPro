@@ -13,7 +13,7 @@ final class AgentDetails182Tests: XCTestCase {
         await core.waitForIdle()
         let record = try XCTUnwrap(try h.history.list(taskID: task.id).first)
         let details = try await core.runDetails(runID: record.id, maxRows: 100)
-        XCTAssertEqual(details.rows, [RunDetailRow(action: .added, size: 5, path: "photo.jpg"), RunDetailRow(action: .deleted, size: nil, path: "vieux.txt")])
+        XCTAssertEqual(details.rows.map { var r = $0; r.origin = nil; return r }, [RunDetailRow(action: .added, size: 5, path: "photo.jpg"), RunDetailRow(action: .deleted, size: nil, path: "vieux.txt")])
         _ = try await core.clearHistory(taskID: task.id)
         XCTAssertFalse(FileManager.default.fileExists(atPath: RunLogWriter.detailsURL(for: URL(fileURLWithPath: try XCTUnwrap(record.logPath))).path),
                        "vider l'historique efface aussi les détails")

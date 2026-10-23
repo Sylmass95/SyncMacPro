@@ -42,7 +42,7 @@ public enum Endpoint: Codable, Equatable, Hashable, Sendable {
         }
     }
 
-    static func join(_ base: String, _ component: String) -> String {
+    public static func join(_ base: String, _ component: String) -> String {
         if base.isEmpty { return component }
         let trimmedBase = base.hasSuffix("/") ? String(base.dropLast()) : base
         let trimmedComponent = component.hasPrefix("/") ? String(component.dropFirst()) : component

@@ -184,3 +184,21 @@ final class LineBox: @unchecked Sendable {
     func add(_ line: String) { lock.lock(); lines.append(line); lock.unlock() }
     var joined: String { lock.lock(); defer { lock.unlock() }; return lines.joined(separator: "\n") }
 }
+
+extension TaskRunner {
+    /// 1.8.3 : chemin → taille des fichiers mis de côté sous `root/<stamp>` (et ses relances `<stamp>-r2`…).
+    static func localArchiveSizes(root: String, stamp: String) -> [String: Int64] {
+        let folders = ((try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []).filter { $0 == stamp || $0.hasPrefix(stamp + "-r") }
+        var sizes: [String: Int64] = [:]
+        for folder in folders {
+            let base = URL(fileURLWithPath: root).appendingPathComponent(folder)
+            guard let walker = FileManager.default.enumerator(at: base, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else { continue }
+            for case let url as URL in walker {
+                guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]), values.isRegularFile == true else { continue }
+                let relative = String(url.standardizedFileURL.path.dropFirst(base.standardizedFileURL.path.count + 1))
+                sizes[relative] = Int64(values.fileSize ?? 0)
+            }
+        }
+        return sizes
+    }
+}

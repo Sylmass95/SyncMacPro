@@ -75,6 +75,9 @@ public final class RunLogWriter: @unchecked Sendable {
         written += data.count
     }
 
+    /// 1.8.3 : une ligne de détails qui ne vient pas du moteur (taille d'un fichier archivé, lue dans l'archive).
+    public func appendDetail(_ row: RunDetailRow) { writeDetail(row) }
+
     private func writeDetail(_ row: RunDetailRow) {
         lock.lock()
         defer { lock.unlock() }

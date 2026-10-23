@@ -523,6 +523,7 @@ public actor AgentCore {
                     switch update {
                     case .snapshot(let snapshot): Task { await core.progress(id, snapshot) }
                     case .line(let text): logWriter?.append(text)
+                    case .detail(let row): logWriter?.appendDetail(row)
                     case .phase(let phase): Task { await core.phaseChanged(id, phase) }
                     }
                 })

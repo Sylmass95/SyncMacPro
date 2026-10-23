@@ -52,15 +52,19 @@ extension TaskRunner {
 
         // Fichiers vides à la source qui écraseraient une version non vide : exclus de l'exécution.
         var protectedEmpty: [String] = []
+        // Chemin → taille de la version pleine de l'autre côté.
+        var emptyAtSource: [String: Int64] = [:], emptyAtDestination: [String: Int64] = [:]
         if !dryRun, [.copy, .mirror, .versioned, .move, .bidirectional].contains(task.mode) {
-            protectedEmpty = await protectedEmptyFiles(task, options: options, onUpdate: onUpdate)
+            emptyAtSource = await protectedEmptyFiles(task, options: options, onUpdate: onUpdate)
             // 1.8.2 : la synchronisation bidirectionnelle copie dans les deux sens ; un fichier protégé est exclu des deux
-            // côtés et reste tel quel (essai réel BTS : un .MP4 de 700 Mo remplacé par sa copie vide du Drive).
+            // côtés pendant la synchronisation (essai réel BTS : un .MP4 de 700 Mo remplacé par sa copie vide du Drive),
+            // puis réparé après (1.8.3).
             if task.mode == .bidirectional {
                 var reverse = task
                 (reverse.source, reverse.destination) = (task.destination, task.source)
-                protectedEmpty = Array(Set(protectedEmpty + (await protectedEmptyFiles(reverse, options: options, onUpdate: onUpdate)))).sorted()
+                emptyAtDestination = await protectedEmptyFiles(reverse, options: options, onUpdate: onUpdate)
             }
+            protectedEmpty = Array(Set(emptyAtSource.keys).union(emptyAtDestination.keys)).sorted()
             options.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rcloneEscape)
             protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
         }
@@ -137,6 +141,7 @@ extension TaskRunner {
         // Copie finie (réussie ou arrêtée) : le comptage des dossiers n'a plus d'intérêt, il ne retarde pas la fin.
         control.stopAuxiliary()
         await counting?.value
+        control.allowAuxiliary()   // 1.8.3 : vérification, réparation et liste de l'archive viennent après
         // Comptage interrompu (copie plus rapide que lui) : une copie réussie a fait tous les dossiers qu'elle a touchés.
         if countsDirectories, code == 0, !control.stopRequested {
             directories.update { current in
@@ -198,7 +203,15 @@ extension TaskRunner {
             }
         }
 
-        if status == .succeeded, message == nil, !protectedEmpty.isEmpty {
+        var repaired = 0
+        if task.mode == .bidirectional, !dryRun, status == .succeeded, !control.stopRequested {
+            repaired += await repairEmpty(emptyAtSource, from: task.destination, to: task.source, options: options, onUpdate: onUpdate)
+            repaired += await repairEmpty(emptyAtDestination, from: task.source, to: task.destination, options: options, onUpdate: onUpdate)
+        }
+        if !dryRun, status == .succeeded { await reportArchiveSizes(task, stamp: options.archiveStamp, options: options, onUpdate: onUpdate) }
+        if status == .succeeded, message == nil, repaired > 0 {
+            message = EmptySourceGuard.repairedMessage(count: repaired)
+        } else if status == .succeeded, message == nil, !protectedEmpty.isEmpty {
             message = EmptySourceGuard.message(count: protectedEmpty.count)
         }
         let snapshot = tracker.perform { tracker -> TransferSnapshot in
@@ -216,28 +229,80 @@ extension TaskRunner {
                       deletions: stats?.deletes ?? 0, errors: log.errors > 0 ? log.errors : (stats?.errors ?? 0), message: message)
     }
 
+    /// 1.8.3 : la version pleine (`from`) remplace la copie vide (`to`), fichier par fichier ; renvoie le nombre réparé.
+    private func repairEmpty(
+        _ files: [String: Int64], from: Endpoint, to: Endpoint, options: RunOptions,
+        onUpdate: @escaping @Sendable (RunUpdate) -> Void
+    ) async -> Int {
+        var repaired = 0
+        for (path, size) in files.sorted(by: { $0.key < $1.key }) {
+            guard !control.stopRequested else { break }
+            let command = RcloneCommandBuilder.copyToCommand(from: from.appending(path), to: to.appending(path), run: options)
+            let outcome = try? await collect(command)
+            guard let outcome, outcome.code == 0 else {
+                let reason = outcome.map { $0.errors.split(separator: "\n").last.map(String.init) ?? "code \($0.code)" } ?? "rclone introuvable"
+                onUpdate(.line("Réparation impossible de la copie vide : \(path) (\(reason))"))
+                continue
+            }
+            repaired += 1
+            onUpdate(.line("Réparé : la version pleine a remplacé la copie vide : \(path)"))
+            onUpdate(.detail(RunDetailRow(action: .updated, size: size, path: path, origin: from.isCloud ? .cloud : .local)))
+        }
+        return repaired
+    }
+
+    /// 1.8.3 : taille des fichiers mis de côté par cette exécution, lue dans le dossier d'archive de chaque côté.
+    private func reportArchiveSizes(
+        _ task: SyncTask, stamp: String, options: RunOptions, onUpdate: @escaping @Sendable (RunUpdate) -> Void
+    ) async {
+        let sides: [Endpoint]
+        switch task.mode {
+        case .mirror, .versioned: sides = [task.destination]
+        case .bidirectional: sides = [task.source, task.destination]
+        default: return
+        }
+        for side in sides {
+            var sizes: [String: Int64] = [:]
+            if let path = side.filesystemPath {
+                sizes = Self.localArchiveSizes(root: Endpoint.join(path, task.options.archiveFolder), stamp: stamp)
+            } else {
+                let archive = side.appending(task.options.archiveFolder).appending(stamp)
+                guard let outcome = try? await collect(RcloneCommandBuilder.listSizesCommand(for: archive, run: options)), outcome.code == 0,
+                      let entries = try? JSONSerialization.jsonObject(with: Data(outcome.output.utf8)) as? [[String: Any]] else { continue }
+                for entry in entries {
+                    if let path = entry["Path"] as? String, let size = (entry["Size"] as? NSNumber)?.int64Value { sizes[path] = size }
+                }
+            }
+            for (path, size) in sizes {
+                onUpdate(.detail(RunDetailRow(action: .archived, size: size, path: path, origin: side.isCloud ? .cloud : .local)))
+            }
+        }
+    }
+
     /// Fichiers vides de la source dont la destination a une version non vide (listes de rclone, sans rien copier).
+    /// Renvoie chemin → taille de la version pleine.
     private func protectedEmptyFiles(
         _ task: SyncTask, options: RunOptions, onUpdate: @escaping @Sendable (RunUpdate) -> Void
-    ) async -> [String] {
+    ) async -> [String: Int64] {
         let empty = Locked<[String]>([])
         let code = try? await stream(RcloneCommandBuilder.emptyFilesCommand(for: task, run: options)) { line in
             empty.update { $0.append(line) }
         }
         // Liste partielle (un sous-dossier illisible, une erreur passagère) : on protège quand même ce qui a été lu.
         if code != 0 { onUpdate(.line("Liste des fichiers vides incomplète (code \(code.map(String.init) ?? "?")) : protection partielle.")) }
-        guard !empty.get().isEmpty else { return [] }
+        guard !empty.get().isEmpty else { return [:] }
         let list = FileManager.default.temporaryDirectory.appendingPathComponent("smp-liste-\(UUID().uuidString).txt")
         defer { try? FileManager.default.removeItem(at: list) }
         guard (try? empty.get().joined(separator: "\n").write(to: list, atomically: true, encoding: .utf8)) != nil,
               let outcome = try? await collect(RcloneCommandBuilder.destinationSizesCommand(for: task, file: list.path, run: options)),
               let entries = try? JSONSerialization.jsonObject(with: Data(outcome.output.utf8)) as? [[String: Any]]
-        else { return [] }
+        else { return [:] }
         var sizes: [String: Int64] = [:]
         for entry in entries {
             if let path = entry["Path"] as? String, let size = (entry["Size"] as? NSNumber)?.int64Value { sizes[path] = size }
         }
-        return EmptySourceGuard.protectedPaths(sourceEmpty: empty.get(), destinationSizes: sizes)
+        let protected = EmptySourceGuard.protectedPaths(sourceEmpty: empty.get(), destinationSizes: sizes)
+        return Dictionary(uniqueKeysWithValues: protected.map { ($0, sizes[$0] ?? 0) })
     }
 
     /// Marque d'un dossier d'état créé avec les liens courts (1.2.0) : les listes d'avant portent le nom des chemins

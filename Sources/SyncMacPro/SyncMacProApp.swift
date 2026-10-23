@@ -93,6 +93,15 @@ struct SyncMacProApp: App {
             }
         }
 
+        // 1.8.3 : détails d'une exécution, une fenêtre par exécution, redimensionnable.
+        WindowGroup(localizer.text("details.button"), id: "details", for: RunDetailsTarget.self) { $target in
+            if let target {
+                RunDetailsView(model: model, target: target, localizer: localizer)
+                    .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
+            }
+        }
+        .defaultSize(width: 1100, height: 680)
+
         MenuBarExtra {
             MenuBarContent(model: model, localizer: localizer)
                 .glassThemed()
