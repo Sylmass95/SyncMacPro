@@ -1,7 +1,7 @@
 import SwiftUI
 
 public enum SidebarItem: String, CaseIterable, Identifiable, Sendable {
-    case dashboard, tasks, copy, connections, settings
+    case dashboard, copy, connections, settings
     public var id: String { rawValue }
 }
 
@@ -11,7 +11,7 @@ struct EditorSession: Identifiable {
     let isNew: Bool
 }
 
-/// Fenêtre principale : barre latérale (tableau de bord, tâches, copie, historique, connexions, réglages) et accueil au premier lancement.
+/// Fenêtre principale : barre latérale (tableau de bord avec les tâches, copie, connexions, réglages) et accueil au premier lancement.
 @MainActor
 public struct RootView: View {
     let model: AgentModel
@@ -100,8 +100,6 @@ public struct RootView: View {
             case .dashboard:
                 DashboardView(model: model, installer: installer, localizer: localizer, updates: updates,
                               onCreate: { open($0, isNew: true) }, onEdit: { open(TaskDraft(task: $0), isNew: false) })
-            case .tasks:
-                TasksView(model: model, localizer: localizer) { open($0, isNew: $1) }
             case .copy:
                 CopyView(model: model, localizer: localizer) { open($0, isNew: true) }
             case .connections: ConnectionsView(model: model, localizer: localizer)
@@ -117,7 +115,6 @@ public struct RootView: View {
     private func title(_ item: SidebarItem) -> String {
         switch item {
         case .dashboard: return localizer.text("sidebar.dashboard")
-        case .tasks: return localizer.text("sidebar.tasks")
         case .copy: return localizer.text("sidebar.copy")
         case .connections: return localizer.text("sidebar.connections")
         case .settings: return localizer.text("sidebar.settings")
@@ -127,7 +124,6 @@ public struct RootView: View {
     private func icon(_ item: SidebarItem) -> String {
         switch item {
         case .dashboard: return "square.grid.2x2"
-        case .tasks: return "list.bullet.rectangle"
         case .copy: return "doc.on.doc"
         case .connections: return "link"
         case .settings: return "gearshape"

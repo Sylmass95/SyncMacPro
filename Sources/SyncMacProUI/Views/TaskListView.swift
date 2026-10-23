@@ -177,6 +177,18 @@ struct TaskListView: View {
     /// Ouvre la fiche d'une tâche (Configuration · Réglages · Journal).
     var onOpen: (UUID) -> Void = { _ in }
 
+    /// 1.8.0 : gérer une tâche depuis le clic droit (l'écran Tâches a rejoint le tableau de bord).
+    enum ManageAction: Hashable { case edit, duplicate, delete }
+
+    /// Modifier, Dupliquer et Supprimer : pour une seule tâche enregistrée (pas une copie ponctuelle).
+    static func manageActions<S: Sequence>(_ ids: S, tasks: [UUID]) -> [ManageAction] where S.Element == UUID {
+        let chosen = Set(ids).subtracting([otherRunsID])
+        guard chosen.count == 1, let id = chosen.first, tasks.contains(id) else { return [] }
+        return [.edit, .duplicate, .delete]
+    }
+
+    var onManage: (ManageAction, UUID) -> Void = { _, _ in }
+
     /// Largeurs des colonnes, retenues d'une ouverture à l'autre (1.7.5).
     @State private var columns = ListColumns(from: .standard)
     @State private var headerColumns = ListColumns(from: .standard)
@@ -204,7 +216,16 @@ struct TaskListView: View {
                 Label(l.text("list.otherRuns"), systemImage: "clock.arrow.circlepath")
                     .foregroundStyle(.secondary).tag(Self.otherRunsID).moveDisabled(true)
             }
-            .contextMenu(forSelectionType: UUID.self) { ids in groupActions(ids) } primaryAction: { ids in
+            .contextMenu(forSelectionType: UUID.self) { ids in
+                groupActions(ids)
+                let manage = Self.manageActions(ids, tasks: Array(model.tasks.keys))
+                if let id = ids.first, !manage.isEmpty {
+                    Divider()
+                    Button { onManage(.edit, id) } label: { Label(l.text("list.edit"), systemImage: "pencil") }
+                    Button { onManage(.duplicate, id) } label: { Label(l.text("list.duplicate"), systemImage: "plus.square.on.square") }
+                    Button(role: .destructive) { onManage(.delete, id) } label: { Label(l.text("tasks.delete"), systemImage: "trash") }
+                }
+            } primaryAction: { ids in
                 if let id = Self.taskToOpen(ids, order: model.orderedTasks.map(\.id)) { onOpen(id) }
             }
         }

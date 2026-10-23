@@ -568,3 +568,5 @@
 "sheet.close" = "Fermer";
 "menubar.next.queued" = "en file";
 "detail.history.title" = "Historique — %@";
+"list.edit" = "Modifier…";
+"list.duplicate" = "Dupliquer";
