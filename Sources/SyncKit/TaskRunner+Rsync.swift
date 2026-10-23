@@ -50,7 +50,8 @@ extension TaskRunner {
                     return result(status: .stopped, engine: .rsync, snapshot: TransferSnapshot(), started: started)
                 }
                 return result(status: .failed, engine: .rsync, snapshot: TransferSnapshot(), started: started,
-                              message: "Le calcul préalable a échoué : impossible de vérifier les suppressions.")
+                              message: "Le calcul préalable a échoué : impossible de vérifier les suppressions."
+                                + (RsyncCommandBuilder.ssh(task).map { " Vérifiez la connexion SSH (« ssh \($0.target) » dans le Terminal)." } ?? ""))
             }
             let threshold = task.options.deleteThresholdPercent
             if case .blocked(let percent, let deletions, let existing) = DeleteGuard.verdict(for: plan, thresholdPercent: threshold) {
@@ -79,7 +80,8 @@ extension TaskRunner {
             protectedEmpty = EmptySourceGuard.protectedPaths(
                 sourceEmpty: empty, destinationSizes: EmptySourceGuard.sizes(of: empty, in: destination)
             )
-            runOptions.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rsyncEscape)
+            runOptions.excludeFrom = EmptySourceGuard.excludeFile(protectedEmpty, escape: EmptySourceGuard.rsyncEscape,
+                                                                  bothForms: RsyncCommandBuilder.ssh(task) != nil)
             protectedEmpty.forEach { onUpdate(.line("Fichier vide à la source, non copié (la destination a une version non vide) : \($0)")) }
         }
         defer { if let file = runOptions.excludeFrom { try? FileManager.default.removeItem(atPath: file) } }
@@ -189,8 +191,9 @@ extension TaskRunner {
             status = .succeeded
         } else {
             status = .failed
-            message = task.sshAccess.flatMap { SSHAccess.failureMessage(code: code, access: $0) }
-                ?? log.mainError ?? "rsync a échoué (code \(code))."
+            let detail = log.mainError ?? "rsync a échoué (code \(code))."
+            message = RsyncCommandBuilder.ssh(task).flatMap { SSHAccess.failureMessage(code: code, access: $0) }
+                .map { "\($0) Détail : \(detail)" } ?? detail
         }
 
         if status == .succeeded, task.options.verifyAfterCopy, task.mode == .copy || task.mode == .mirror {

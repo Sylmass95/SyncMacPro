@@ -257,7 +257,8 @@ public struct TaskDraft: Equatable, Sendable {
             conditions: conditions, isEnabled: isEnabled
         )
         task.removableDrive = destination.kind == .folder ? removable?.drive : nil
-        task.sshAccess = networkSide(resolver: resolver) == nil ? nil : ssh
+        // Un accès prévu pour un autre partage (tâche redirigée ou dupliquée) n'est pas gardé.
+        task.sshAccess = networkSide(resolver: resolver).flatMap { side in ssh.flatMap { $0.trimmed.remotePath(for: side) != nil ? $0.trimmed : nil } }
         return task
     }
 

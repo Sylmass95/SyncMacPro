@@ -576,10 +576,11 @@
 "editor.ssh.help" = "rsync also runs on the NAS, which walks its own files: preparation drops from minutes to seconds. Your SSH key is used (no password stored); the share stays mounted for small checks.";
 "editor.ssh.user" = "User";
 "editor.ssh.host" = "Server";
-"editor.ssh.path" = "Folder on the NAS";
+"editor.ssh.path" = "Share root on the NAS";
 "editor.ssh.test" = "Test the connection";
 "editor.ssh.ok" = "Connected: rsync is installed and the folder exists.";
 "editor.ssh.norsync" = "Connected, but rsync was not found on the NAS.";
 "editor.ssh.nofolder" = "Connected, but this folder does not exist on the NAS.";
 "editor.ssh.refused" = "Connection refused: server unreachable or SSH key not installed (ssh-copy-id).";
 "editor.ssh.other" = "The test failed (code %d).";
+"editor.ssh.folder" = "Folder used on the NAS: %@";

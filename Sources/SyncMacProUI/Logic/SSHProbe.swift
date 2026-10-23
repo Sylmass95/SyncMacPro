@@ -18,17 +18,17 @@ enum SSHProbe {
         }
     }
 
-    static func arguments(for access: SSHAccess) -> [String] {
-        let quoted = "'" + access.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    static func arguments(for access: SSHAccess, folder: String) -> [String] {
+        let quoted = "'" + folder.replacingOccurrences(of: "'", with: "'\\''") + "'"
         return ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", access.target,
                 "command -v rsync >/dev/null || exit 3; test -d \(quoted) || exit 4; exit 0"]
     }
 
-    static func run(_ access: SSHAccess) async -> Outcome {
+    static func run(_ access: SSHAccess, folder: String) async -> Outcome {
         await withCheckedContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
-            process.arguments = arguments(for: access)
+            process.arguments = arguments(for: access, folder: folder)
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
             process.terminationHandler = { continuation.resume(returning: Outcome(code: $0.terminationStatus)) }

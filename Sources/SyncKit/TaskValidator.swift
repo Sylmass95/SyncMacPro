@@ -70,7 +70,10 @@ public enum TaskValidator {
             found.append(.invalidArchiveFolder)
         }
         if !isValid(task.schedule) { found.append(.invalidSchedule) }
-        if let access = task.sshAccess, !access.isComplete || RsyncCommandBuilder.ssh(task) == nil { found.append(.invalidSSH) }
+        // SSH ne sert qu'à rsync : un mode fait par rclone l'ignorerait sans le dire.
+        if task.sshAccess != nil, RsyncCommandBuilder.ssh(task) == nil || (try? EngineSelector.engine(for: task)) != .rsync {
+            found.append(.invalidSSH)
+        }
         return found
     }
 

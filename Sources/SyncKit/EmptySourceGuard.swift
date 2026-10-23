@@ -13,10 +13,12 @@ public enum EmptySourceGuard {
     }
 
     /// Fichier d'exclusions (un chemin ancré par ligne) dans le dossier temporaire ; `nil` s'il n'y a rien à exclure.
-    static func excludeFile(_ paths: [String], escape: (String) -> String) -> String? {
+    /// `bothForms` (rsync par SSH, 1.8.1) : chaque chemin sous ses deux formes Unicode, rsync ne convertissant pas les
+    /// motifs avec --iconv.
+    static func excludeFile(_ paths: [String], escape: (String) -> String, bothForms: Bool = false) -> String? {
         guard !paths.isEmpty else { return nil }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("smp-vides-\(UUID().uuidString).txt")
-        let lines = paths.map { "/" + escape($0) }
+        let lines = (bothForms ? SSHAccess.bothForms(paths) : paths).map { "/" + escape($0) }
         do { try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8) } catch { return nil }
         return url.path
     }

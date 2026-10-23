@@ -379,11 +379,14 @@ struct SSHSection: View {
                 field(l.text("editor.ssh.user"), \.user)
                 field(l.text("editor.ssh.host"), \.host)
                 field(l.text("editor.ssh.path"), \.path)
+                if let folder = remoteFolder {
+                    Text(l.format("editor.ssh.folder", folder)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
                 HStack {
                     Button(l.text("editor.ssh.test")) {
-                        guard let access = draft.ssh else { return }
+                        guard let access = draft.ssh?.trimmed, let folder = remoteFolder else { return }
                         probing = true
-                        Task { probe = await SSHProbe.run(access); probing = false }
+                        Task { probe = await SSHProbe.run(access, folder: folder); probing = false }
                     }
                     .disabled(probing)
                     if probing { ProgressView().controlSize(.small) }
@@ -394,6 +397,11 @@ struct SSHSection: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard(cornerRadius: 12)
+    }
+
+    /// Dossier utilisé sur le NAS : la racine du partage, plus le dossier de la tâche dans le partage.
+    private var remoteFolder: String? {
+        draft.networkSide(resolver: resolver).flatMap { draft.ssh?.trimmed.remotePath(for: $0) }
     }
 
     private func field(_ label: String, _ key: WritableKeyPath<SSHAccess, String>) -> some View {

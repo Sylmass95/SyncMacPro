@@ -29,7 +29,8 @@ final class SSH181UITests: XCTestCase {
     func testTurningSSHOnSuggestsTheQNAPPath() {
         var d = draft()
         d.setSSH(true, resolver: share)
-        XCTAssertEqual(d.ssh, SSHAccess(user: "admin", host: "QNAPTS332X.local", path: "/share/Documents/PERSO-FILES"))
+        XCTAssertEqual(d.ssh, SSHAccess(user: "admin", host: "QNAPTS332X.local", path: "/share/Documents",
+                                        shareURL: "smb://admin@QNAPTS332X._smb._tcp.local/Documents"))
         XCTAssertEqual(d.task(resolver: share).sshAccess, d.ssh)
         d.setSSH(false, resolver: share)
         XCTAssertNil(d.task(resolver: share).sshAccess)
@@ -44,13 +45,13 @@ final class SSH181UITests: XCTestCase {
 
     func testEditingATaskKeepsItsSSHAccess() {
         var task = draft().task(resolver: share)
-        task.sshAccess = SSHAccess(user: "admin", host: "QNAP", path: "/share/x")
+        task.sshAccess = SSHAccess(user: "admin", host: "QNAP", path: "/share/x", shareURL: "smb://admin@QNAPTS332X._smb._tcp.local/Documents")
         XCTAssertEqual(TaskDraft(task: task).ssh, task.sshAccess)
     }
 
     func testTheConnectionTestCommand() {
-        let access = SSHAccess(user: "admin", host: "QNAP.local", path: "/share/Documents/L'été")
-        let args = SSHProbe.arguments(for: access)
+        let access = SSHAccess(user: "admin", host: "QNAP.local", path: "/share/Documents", shareURL: "smb://x/Documents")
+        let args = SSHProbe.arguments(for: access, folder: "/share/Documents/L'été")
         XCTAssertEqual(Array(args.prefix(4)), ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10"])
         XCTAssertEqual(args[4], "admin@QNAP.local")
         XCTAssertTrue(args[5].contains("'/share/Documents/L'\\''été'"), "le chemin est protégé : \(args[5])")
@@ -61,5 +62,15 @@ final class SSH181UITests: XCTestCase {
         XCTAssertEqual(SSHProbe.Outcome(code: 3), .noRsync)
         XCTAssertEqual(SSHProbe.Outcome(code: 4), .noFolder)
         XCTAssertEqual(SSHProbe.Outcome(code: 255), .refused)
+    }
+
+    func testFieldsAreTrimmedAndAnotherShareDropsSSH() {
+        var d = draft()
+        d.setSSH(true, resolver: share)
+        d.ssh?.user = " admin "; d.ssh?.path = "/share/Documents "
+        XCTAssertEqual(d.task(resolver: share).sshAccess?.user, "admin")
+        XCTAssertEqual(d.task(resolver: share).sshAccess?.path, "/share/Documents")
+        let other = EndpointResolver { _ in .init(isLocal: false, remountURL: URL(string: "smb://admin@QNAPTS332X._smb._tcp.local/Multimedia")) }
+        XCTAssertNil(d.task(resolver: other).sshAccess, "un autre partage n'hérite pas de cet accès")
     }
 }
