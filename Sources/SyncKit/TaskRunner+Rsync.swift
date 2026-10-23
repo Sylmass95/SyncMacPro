@@ -189,7 +189,8 @@ extension TaskRunner {
             status = .succeeded
         } else {
             status = .failed
-            message = log.mainError ?? "rsync a échoué (code \(code))."
+            message = task.sshAccess.flatMap { SSHAccess.failureMessage(code: code, access: $0) }
+                ?? log.mainError ?? "rsync a échoué (code \(code))."
         }
 
         if status == .succeeded, task.options.verifyAfterCopy, task.mode == .copy || task.mode == .mirror {

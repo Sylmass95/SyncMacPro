@@ -41,6 +41,7 @@ public enum RsyncCommandBuilder {
         }
         if let file = run.excludeFrom { args.append("--exclude-from=\(file)") }
         if task.mode != .verify { args += timeTolerance(task) }
+        args += ssh(task)?.rsyncArguments ?? []
         args += task.options.excludes.map { "--exclude=\($0)" }
         args += task.options.extraArguments
         if run.dryRun, task.mode != .verify { args.append("-n") }
@@ -68,7 +69,7 @@ public enum RsyncCommandBuilder {
         if task.mode.requiresRclone || task.mode == .verify {
             throw CommandError.unsupportedMode(mode: task.mode, engine: .rsync)
         }
-        var args = ["-rtn", "--stats", "--out-format=%l|%n"] + timeTolerance(task)
+        var args = ["-rtn", "--stats", "--out-format=%l|%n"] + timeTolerance(task) + (ssh(task)?.rsyncArguments ?? [])
         if task.mode == .mirror {
             args += ["--delete", "--exclude=/\(task.options.archiveFolder)/"]
         }
@@ -77,11 +78,29 @@ public enum RsyncCommandBuilder {
         return EngineCommand(engine: .rsync, arguments: args)
     }
 
-    /// Sources (le contenu du dossier, ou chaque élément choisi), destination et dossier de destination.
+    /// Accès SSH utilisable : un seul côté est un partage réseau (rsync ne relie pas deux machines distantes).
+    static func ssh(_ task: SyncTask) -> SSHAccess? {
+        guard let access = task.sshAccess, access.isComplete else { return nil }
+        let networkSides = [task.source, task.destination].filter { if case .network = $0 { return true }; return false }
+        return networkSides.count == 1 ? access : nil
+    }
+
+    /// Sources (le contenu du dossier, ou chaque élément choisi), destination et dossier de destination. Avec SSH
+    /// (1.8.1), le côté réseau devient `utilisateur@serveur:/chemin` et le dossier de destination est celui du NAS.
     private static func paths(for task: SyncTask) throws -> (sources: [String], destination: String, folder: String) {
-        guard let source = task.source.filesystemPath, let destination = task.destination.filesystemPath else {
+        guard var source = task.source.filesystemPath, var destination = task.destination.filesystemPath else {
             throw CommandError.missingFilesystemPath
         }
+        var sourcePrefix = "", destinationPrefix = ""
+        if let access = ssh(task) {
+            if case .network = task.source { source = access.path; sourcePrefix = "\(access.target):" }
+            if case .network = task.destination { destination = access.path; destinationPrefix = "\(access.target):" }
+        }
+        let (sources, target, folder) = try localPaths(task, source: source, destination: destination)
+        return (sources.map { sourcePrefix + $0 }, destinationPrefix + target, folder)
+    }
+
+    private static func localPaths(_ task: SyncTask, source: String, destination: String) throws -> (sources: [String], destination: String, folder: String) {
         let sources: [String]
         if task.sourceItems.isEmpty {
             sources = [PathText.withTrailingSlash(source)]

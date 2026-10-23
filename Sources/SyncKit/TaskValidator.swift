@@ -18,6 +18,8 @@ public enum TaskProblem: String, Codable, CaseIterable, Equatable, Sendable {
     case invalidArchiveFolder
     /// Un élément choisi doit être un nom (ou un chemin) dans la source : ni vide, ni « . », ni « .. », ni absolu.
     case invalidItem
+    /// Accès SSH (1.8.1) : utilisateur, serveur et chemin complet, pour une tâche avec un seul partage réseau.
+    case invalidSSH
 
     public var message: String {
         switch self {
@@ -32,6 +34,7 @@ public enum TaskProblem: String, Codable, CaseIterable, Equatable, Sendable {
         case .relativePath: return "Les chemins doivent être complets (commencer par /)."
         case .invalidArchiveFolder: return "Le dossier d'archive doit être un simple nom, sans « / » ni « .. »."
         case .invalidItem: return "Les éléments choisis doivent être des noms dans la source (ni vide, ni « . », ni « .. »)."
+        case .invalidSSH: return "L'accès SSH demande un utilisateur, un serveur et un chemin complet, et un seul côté sur un partage réseau."
         }
     }
 }
@@ -67,6 +70,7 @@ public enum TaskValidator {
             found.append(.invalidArchiveFolder)
         }
         if !isValid(task.schedule) { found.append(.invalidSchedule) }
+        if let access = task.sshAccess, !access.isComplete || RsyncCommandBuilder.ssh(task) == nil { found.append(.invalidSSH) }
         return found
     }
 
