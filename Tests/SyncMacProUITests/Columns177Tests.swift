@@ -1,37 +1,38 @@
 import XCTest
 @testable import SyncMacProUI
 
-/// 1.7.7 : les colonnes à droite de Tâche sont collées au bord droit ; un séparateur agit donc sur la colonne à sa
-/// droite, et le glisser vers la droite la rétrécit (le séparateur suit la souris). Tâche garde sa largeur minimale.
+/// 1.7.9 : comme dans le Finder, un séparateur tire le bord droit de la colonne à sa gauche ; les colonnes suivantes
+/// se décalent sans changer de largeur, la place libre reste à droite (avant Actions).
 final class Columns177Tests: XCTestCase {
-    func testEachSeparatorResizesTheColumnOnItsRight() {
+    func testEachSeparatorResizesTheColumnOnItsLeft() {
         XCTAssertNil(ListColumns.separatorTarget(after: .rank))
-        XCTAssertEqual(ListColumns.separatorTarget(after: .task), .state)
-        XCTAssertEqual(ListColumns.separatorTarget(after: .state), .last)
-        XCTAssertNil(ListColumns.separatorTarget(after: .last), "Actions ne se redimensionne pas")
+        XCTAssertEqual(ListColumns.separatorTarget(after: .task), .task)
+        XCTAssertEqual(ListColumns.separatorTarget(after: .state), .state)
+        XCTAssertEqual(ListColumns.separatorTarget(after: .last), .last)
     }
 
-    func testDraggingRightMovesTheSeparatorRight() {
+    func testDraggingRightWidensTheColumnOnTheLeft() {
         var columns = ListColumns()
         let start = columns.width(.last)
-        columns.drag(.last, from: start, translation: 30, available: 2000)
-        XCTAssertEqual(columns.width(.last), start - 30, "glisser vers la droite rétrécit la colonne de droite")
-        columns.drag(.last, from: start, translation: -30, available: 2000)
+        columns.drag(.last, from: start, translation: 30, available: 3000)
         XCTAssertEqual(columns.width(.last), start + 30)
+        columns.drag(.last, from: start, translation: -30, available: 3000)
+        XCTAssertEqual(columns.width(.last), start - 30, "réduire Dernière exécution ne touche pas à État")
+        XCTAssertEqual(columns.width(.state), ListColumn.state.standard)
     }
 
-    func testTheTaskColumnKeepsItsMinimumWidth() {
+    func testColumnsNeverOverflowTheList() {
         var columns = ListColumns()
-        let available: CGFloat = 900
-        columns.drag(.state, from: columns.width(.state), translation: -5000, available: available)
-        let used = ListColumn.allCases.filter { $0 != .task }.reduce(0) { $0 + columns.width($1) }
-            + CGFloat(ListColumn.allCases.count - 1) * ListColumns.spacing
-        XCTAssertEqual(available - used, ListColumn.task.minimum, accuracy: 0.5)
+        let available: CGFloat = 1100
+        columns.drag(.state, from: columns.width(.state), translation: 5000, available: available)
+        let used = ListColumn.allCases.reduce(0) { $0 + columns.width($1) } + CGFloat(ListColumn.allCases.count - 1) * ListColumns.spacing
+        XCTAssertEqual(used, available, accuracy: 0.5)
     }
 
-    func testWideWindowsAllowWiderColumns() {
+    func testTheTaskColumnCanBeResized() {
         var columns = ListColumns()
-        columns.drag(.state, from: columns.width(.state), translation: -500, available: 3000)
-        XCTAssertEqual(columns.width(.state), ListColumn.state.standard + 500)
+        columns.drag(.task, from: columns.width(.task), translation: 80, available: 3000)
+        XCTAssertEqual(columns.width(.task), ListColumn.task.standard + 80)
+        XCTAssertTrue(ListColumn.task.resizable)
     }
 }

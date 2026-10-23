@@ -1,3 +1,9 @@
+SyncMacPro 1.7.9 — colonnes qui se redimensionnent comme dans le Finder.
+
+**Correction (1.7.9)**
+- Un séparateur de l'en-tête tire maintenant le bord droit de la colonne à sa gauche, comme dans le Finder : réduire « Dernière exécution » la rétrécit par la droite sans pousser « État ». Les colonnes suivantes se décalent sans changer de largeur ; la place libre reste devant « Actions ». « Tâche » se redimensionne aussi.
+- Le trait suit la souris sans retard : pendant le glissement seul l'en-tête bouge, la liste prend la nouvelle largeur au lâcher.
+
 SyncMacPro 1.7.8 — préparation des copies plus courte.
 
 **Améliorations (1.7.8)**

@@ -35,8 +35,9 @@ final class Columns175Tests: XCTestCase {
         XCTAssertEqual(ListColumns(from: defaults).width(.state), ListColumn.state.standard)
     }
 
-    func testTheTaskColumnIsNotResizable() {
-        XCTAssertFalse(ListColumn.allCases.contains(.task) && ListColumn.task.resizable)
+    func testRankAndActionsAreNotResizable() {
+        XCTAssertFalse(ListColumn.rank.resizable)
+        XCTAssertFalse(ListColumn.actions.resizable)
     }
 
     func testLongRemainingTimesUseDays() {

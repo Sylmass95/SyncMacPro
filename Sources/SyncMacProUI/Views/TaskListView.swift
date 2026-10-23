@@ -48,7 +48,8 @@ struct TaskRow: View {
                     Text(row.route(task)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .frame(minWidth: ListColumn.task.minimum, maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: ListColumn.task.minimum, maxWidth: columns.width(.task), alignment: .leading)
+            .layoutPriority(1)
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.state(info, text: text)).font(.callout).fixedSize(horizontal: false, vertical: true)
                 if let progress, info.state == .running || info.state == .paused {
@@ -62,8 +63,9 @@ struct TaskRow: View {
             }
             .frame(width: columns.width(.state), alignment: .leading)
             lastRunView.frame(width: columns.width(.last), alignment: .leading)
+            // La place libre reste devant les boutons (1.7.9).
             HStack(spacing: 4) { buttons }.controlSize(.small)
-                .frame(width: columns.width(.actions), alignment: .trailing)
+                .frame(minWidth: columns.width(.actions), maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.vertical, 4)
         .opacity(Self.opacity(for: info))
@@ -177,12 +179,18 @@ struct TaskListView: View {
 
     /// Largeurs des colonnes, retenues d'une ouverture à l'autre (1.7.5).
     @State private var columns = ListColumns(from: .standard)
+    @State private var headerColumns = ListColumns(from: .standard)
 
     private var l: Localizer { text.localizer }
 
     var body: some View {
         VStack(spacing: 0) {
-            TaskListHeader(columns: $columns, localizer: l) { columns.save(to: .standard) }
+            // Pendant un glissement, seul l'en-tête suit la souris ; la liste suit au lâcher (1.7.9 : sinon chaque
+            // déplacement redessine toutes les lignes et le trait traîne).
+            TaskListHeader(columns: $headerColumns, localizer: l) {
+                columns = headerColumns
+                columns.save(to: .standard)
+            }
             List(selection: $selection) {
                 ForEach(model.orderedTasks) { info in
                     TaskRow(info: info, task: model.tasks[info.id], progress: model.progress[info.id],
@@ -260,20 +268,22 @@ struct TaskListHeader: View {
     @ViewBuilder private func title(_ column: ListColumn) -> some View {
         let label = Text(localizer.text(column.titleKey)).lineLimit(1)
         if column == .task {
-            label.frame(minWidth: column.minimum, maxWidth: .infinity, alignment: .leading)
+            label.frame(minWidth: column.minimum, maxWidth: columns.width(.task), alignment: .leading).layoutPriority(1)
+        } else if column == .actions {
+            label.frame(minWidth: columns.width(.actions), maxWidth: .infinity, alignment: .trailing)
         } else {
             label.frame(width: columns.width(column), alignment: column == .rank || column == .actions ? .trailing : .leading)
         }
     }
 
-    /// Séparateur entre `column` et la suivante : il agit sur la colonne à sa droite (1.7.7).
+    /// Séparateur après `column` : il tire son bord droit (1.7.9).
     @ViewBuilder private func separator(after column: ListColumn) -> some View {
         let target = ListColumns.separatorTarget(after: column)
         Rectangle().fill(Color.secondary.opacity(target == nil ? 0 : 0.35)).frame(width: 1, height: 14)
             .padding(.horizontal, (ListColumns.spacing - 1) / 2)
             .contentShape(Rectangle().inset(by: -4))
             .onHover { inside in if target != nil { inside ? NSCursor.resizeLeftRight.push() : NSCursor.pop() } }
-            .gesture(DragGesture(minimumDistance: 1)
+            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
                 .onChanged { value in
                     guard let target else { return }
                     let start = dragStart ?? columns.width(target)

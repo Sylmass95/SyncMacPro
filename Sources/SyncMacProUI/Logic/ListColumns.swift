@@ -1,15 +1,16 @@
 import CoreGraphics
 import Foundation
 
-/// Colonnes de la liste (1.7.5) : la colonne Tâche prend la place restante, les autres se redimensionnent.
+/// Colonnes de la liste (1.7.5). 1.7.9 : comme dans le Finder, chaque colonne (sauf N° et Actions) se redimensionne par
+/// son bord droit ; la place libre reste devant Actions.
 enum ListColumn: String, CaseIterable, Sendable {
     case rank, task, state, last, actions
 
-    var resizable: Bool { self == .state || self == .last }
+    var resizable: Bool { self == .task || self == .state || self == .last }
     var standard: CGFloat {
         switch self {
         case .rank: return 28
-        case .task: return 180
+        case .task: return 260
         case .state: return 300
         case .last: return 190
         case .actions: return 128
@@ -17,6 +18,7 @@ enum ListColumn: String, CaseIterable, Sendable {
     }
     var minimum: CGFloat {
         switch self {
+        case .task: return 180
         case .last: return 130
         case .state: return 180
         default: return standard
@@ -24,6 +26,7 @@ enum ListColumn: String, CaseIterable, Sendable {
     }
     var maximum: CGFloat {
         switch self {
+        case .task: return 900
         case .state: return 1200
         case .last: return 500
         default: return standard
@@ -55,24 +58,17 @@ struct ListColumns: Equatable {
 
     mutating func reset(_ column: ListColumn) { widths[column] = nil }
 
-    /// 1.7.7 : les colonnes à droite de Tâche sont collées au bord droit de la liste ; un séparateur agit donc sur la
-    /// colonne à sa droite (sinon le trait ne suit pas la souris).
-    static func separatorTarget(after column: ListColumn) -> ListColumn? {
-        let all = ListColumn.allCases
-        guard let index = all.firstIndex(of: column), index + 1 < all.count else { return nil }
-        let next = all[index + 1]
-        return next.resizable ? next : nil
-    }
+    /// 1.7.9 : le séparateur placé après une colonne tire son bord droit (comme dans le Finder).
+    static func separatorTarget(after column: ListColumn) -> ListColumn? { column.resizable ? column : nil }
 
-    /// Glisser le séparateur à gauche de `column` : vers la droite il la rétrécit, vers la gauche il l'élargit, sans
-    /// jamais rendre Tâche plus étroite que son minimum dans la largeur `available`.
+    /// Glisser le bord droit de `column` : vers la droite il l'élargit, vers la gauche il la rétrécit ; les colonnes
+    /// suivantes se décalent. Jamais plus large que la place libre de la liste (largeur `available`).
     mutating func drag(_ column: ListColumn, from start: CGFloat, translation: CGFloat, available: CGFloat) {
         guard column.resizable else { return }
-        let others = ListColumn.allCases.filter { $0 != .task && $0 != column }.reduce(0) { $0 + width($1) }
+        let others = ListColumn.allCases.filter { $0 != column }.reduce(0) { $0 + width($1) }
             + CGFloat(ListColumn.allCases.count - 1) * Self.spacing
-        let room = available - others - ListColumn.task.minimum
-        let upper = max(column.minimum, min(column.maximum, room))
-        widths[column] = min(upper, max(column.minimum, start - translation))
+        let upper = max(column.minimum, min(column.maximum, available - others))
+        widths[column] = min(upper, max(column.minimum, start + translation))
     }
 
     func save(to defaults: UserDefaults) {
