@@ -27,45 +27,68 @@ struct TaskRow: View {
 
     var body: some View {
         // 1.7.5 : rien n'est coupé — les textes passent à la ligne au lieu d'être tronqués.
+        // 1.7.6 : horaire en étiquette au-dessus du nom, dernière exécution en couleur, seuls les boutons utiles.
         HStack(alignment: .top, spacing: ListColumns.spacing) {
             Text(row.rank(info)).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
                 .frame(width: columns.width(.rank), alignment: .trailing)
             VStack(alignment: .leading, spacing: 2) {
+                if let tag = row.scheduleTag(task, text: text) {
+                    Text(tag).font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.18)))
+                }
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(info.name).font(.body.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                    Text(info.name).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                     ForEach(row.badges(info), id: \.self) { badge in
                         Text(badge).font(.caption2.bold()).padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Capsule().fill(Color.secondary.opacity(0.2)))
                     }
                 }
                 if let task {
-                    Text(row.route(task)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(row.route(task)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(minWidth: ListColumn.task.minimum, maxWidth: .infinity, alignment: .leading)
-            Text(task.map { $0.removableDrive != nil ? l.text("card.schedule.drive") : text.schedule($0.schedule) } ?? "")
-                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                .frame(width: columns.width(.schedule), alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.state(info, text: text)).font(.callout).fixedSize(horizontal: false, vertical: true)
                 if let progress, info.state == .running || info.state == .paused {
-                    GlowProgressBar(value: Self.fraction(progress)).frame(height: 6)
-                    ForEach(Array(Self.progressLines(progress, text: text).enumerated()), id: \.offset) { _, line in
-                        Text(line).font(.callout.monospacedDigit()).foregroundStyle(.primary.opacity(0.75))
+                    GlowProgressBar(value: Self.fraction(progress)).frame(height: 5)
+                    ForEach(Array(Self.progressLines(progress, text: text).enumerated()), id: \.offset) { index, line in
+                        Text(line).font(index == 2 ? .caption : .caption.monospacedDigit())
+                            .foregroundStyle(index == 2 ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary.opacity(0.8)))
                             .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                     }
                 }
             }
             .frame(width: columns.width(.state), alignment: .leading)
-            Text(text.lastRun(info.lastRun)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                .frame(width: columns.width(.last), alignment: .leading)
-            HStack(spacing: 2) { buttons }.buttonStyle(.borderless).controlSize(.small)
+            lastRunView.frame(width: columns.width(.last), alignment: .leading)
+            HStack(spacing: 4) { buttons }.controlSize(.small)
                 .frame(width: columns.width(.actions), alignment: .trailing)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 4)
         .opacity(Self.opacity(for: info))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(row.rank(info)). \(info.name), \(row.state(info, text: text))")
+    }
+
+    private var lastRunView: some View {
+        let last = row.lastRun(info, text: text)
+        return VStack(alignment: .leading, spacing: 1) {
+            Label(last.label, systemImage: last.symbol).font(.callout).foregroundStyle(Self.color(last.tone))
+                .fixedSize(horizontal: false, vertical: true)
+            if let detail = last.detail, !detail.isEmpty {
+                Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    static func color(_ tone: RowText.LastRun.Tone) -> Color {
+        switch tone {
+        case .success: return .green
+        case .failure: return .red
+        case .warning: return .orange
+        case .neutral: return .secondary
+        }
     }
 
     /// Trois lignes complètes (1.7.5) : « 33 % · 1,00 Go sur 3,00 Go », « 45,0 Mo/s · reste 0:12 », puis le fichier
@@ -93,23 +116,40 @@ struct TaskRow: View {
         return min(1, Double(info.doneBytes) / Double(total))
     }
 
+    /// Boutons en icônes (1.7.6) : seuls ceux qui servent, leur nom au survol.
     @ViewBuilder private var buttons: some View {
-        ForEach(TaskCard.availableActions(info: info, task: task, driveMounted: info.driveMounted), id: \.self) { action in
-            switch action {
-            case .run: icon("card.run", "play.fill", actions.run)
-            case .force: icon("card.force", "forward.fill", actions.force)
-            case .pause: icon("card.pause", "pause.fill", actions.pause)
-            case .resume: icon("card.resume", "play.fill", actions.resume)
-            case .stop: icon("card.stop", "stop.fill", actions.stop)
-            case .approve: icon("card.approve", "checkmark.shield", actions.approve)
-            case .abandon: icon("card.abandon", "xmark.circle", actions.abandon)
-            case .eject: icon("card.eject", "eject.fill", actions.eject)
+        ForEach(Self.rowActions(info, task: task), id: \.self) { action in
+            Button { perform(action) } label: {
+                Image(systemName: action.symbol).frame(width: 14, height: 14)
+                    .foregroundStyle(Self.tint(action))
             }
+            .buttonStyle(.bordered)
+            .help(l.text(action.tipKey)).accessibilityLabel(l.text(action.tipKey)).disabled(busy)
         }
     }
 
-    private func icon(_ key: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: symbol) }.help(l.text(key)).accessibilityLabel(l.text(key)).disabled(busy)
+    /// Allumer/éteindre : vert quand la tâche est activée, gris sinon.
+    static func tint(_ action: RowAction) -> Color {
+        switch action {
+        case .disable: return .green
+        case .enable: return .gray
+        default: return .primary
+        }
+    }
+
+    private func perform(_ action: RowAction) {
+        switch action {
+        case .run: actions.run()
+        case .resume: actions.resume()
+        case .pause: actions.pause()
+        case .force: actions.force()
+        case .stop: actions.stop()
+        case .abandon: actions.abandon()
+        case .approve: actions.approve()
+        case .eject: actions.eject()
+        case .enable: actions.setEnabled(true)
+        case .disable: actions.setEnabled(false)
+        }
     }
 }
 
@@ -126,6 +166,15 @@ struct TaskListView: View {
 
     static func rowIDs(_ infos: [AgentTaskInfo]) -> [UUID] { infos.map(\.id) + [otherRunsID] }
 
+    /// Double-clic (1.7.6) : la fiche de la première tâche sélectionnée, dans l'ordre de la liste.
+    static func taskToOpen<S: Sequence>(_ ids: S, order: [UUID]) -> UUID? where S.Element == UUID {
+        let chosen = Set(ids).subtracting([otherRunsID])
+        return order.first { chosen.contains($0) }
+    }
+
+    /// Ouvre la fiche d'une tâche (Configuration · Réglages · Journal).
+    var onOpen: (UUID) -> Void = { _ in }
+
     /// Largeurs des colonnes, retenues d'une ouverture à l'autre (1.7.5).
     @State private var columns = ListColumns(from: .standard)
 
@@ -133,7 +182,6 @@ struct TaskListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            selectionBar
             TaskListHeader(columns: $columns, localizer: l) { columns.save(to: .standard) }
             List(selection: $selection) {
                 ForEach(model.orderedTasks) { info in
@@ -148,19 +196,10 @@ struct TaskListView: View {
                 Label(l.text("list.otherRuns"), systemImage: "clock.arrow.circlepath")
                     .foregroundStyle(.secondary).tag(Self.otherRunsID).moveDisabled(true)
             }
-            .contextMenu(forSelectionType: UUID.self) { ids in groupActions(ids) }
+            .contextMenu(forSelectionType: UUID.self) { ids in groupActions(ids) } primaryAction: { ids in
+                if let id = Self.taskToOpen(ids, order: model.orderedTasks.map(\.id)) { onOpen(id) }
+            }
         }
-    }
-
-    @ViewBuilder private var selectionBar: some View {
-        let ids = selection.subtracting([Self.otherRunsID])
-        HStack(spacing: 8) {
-            Text(ids.count > 1 ? l.format("list.selection.count", ids.count) : " ").font(.caption).foregroundStyle(.secondary)
-            Spacer()
-            groupActions(ids)
-        }
-        .buttonStyle(.borderless).controlSize(.small).padding(.horizontal, 12).padding(.vertical, 6)
-        .disabled(ids.isEmpty || model.connection != .connected)
     }
 
     @ViewBuilder private func groupActions(_ chosen: Set<UUID>) -> some View {
@@ -186,7 +225,8 @@ struct TaskListView: View {
             stop: { Task { await model.stop(id) } },
             approve: { Task { await model.approve(id) } },
             abandon: { Task { await model.abandonSuspended(id) } },
-            eject: { Task { await model.ejectDrive(id) } }
+            eject: { Task { await model.ejectDrive(id) } },
+            setEnabled: { on in Task { await model.setEnabled(id, on) } }
         )
     }
 }
@@ -222,8 +262,8 @@ struct TaskListHeader: View {
 
     /// Séparateur entre `column` et la suivante : il agit sur la colonne redimensionnable la plus proche.
     @ViewBuilder private func separator(after column: ListColumn) -> some View {
-        // Après Tâche (qui prend la place restante), le séparateur agit sur Horaire ; après N°, il ne fait rien.
-        let target: ListColumn? = column.resizable ? column : (column == .task ? .schedule : nil)
+        // Après Tâche (qui prend la place restante), le séparateur agit sur État ; après N°, il ne fait rien.
+        let target: ListColumn? = column.resizable ? column : (column == .task ? .state : nil)
         Rectangle().fill(Color.secondary.opacity(target == nil ? 0 : 0.35)).frame(width: 1, height: 14)
             .padding(.horizontal, (ListColumns.spacing - 1) / 2)
             .contentShape(Rectangle().inset(by: -4))

@@ -3,30 +3,28 @@ import Foundation
 
 /// Colonnes de la liste (1.7.5) : la colonne Tâche prend la place restante, les autres se redimensionnent.
 enum ListColumn: String, CaseIterable, Sendable {
-    case rank, task, schedule, state, last, actions
+    case rank, task, state, last, actions
 
-    var resizable: Bool { self == .schedule || self == .state || self == .last }
+    var resizable: Bool { self == .state || self == .last }
     var standard: CGFloat {
         switch self {
         case .rank: return 28
-        case .task: return 170
-        case .schedule: return 140
-        case .state: return 260
-        case .last: return 140
-        case .actions: return 96
+        case .task: return 180
+        case .state: return 300
+        case .last: return 190
+        case .actions: return 128
         }
     }
     var minimum: CGFloat {
         switch self {
-        case .schedule, .last: return 90
-        case .state: return 160
+        case .last: return 130
+        case .state: return 180
         default: return standard
         }
     }
     var maximum: CGFloat {
         switch self {
-        case .schedule: return 320
-        case .state: return 560
+        case .state: return 600
         case .last: return 280
         default: return standard
         }

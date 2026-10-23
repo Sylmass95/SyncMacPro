@@ -55,6 +55,36 @@ public struct RowText: Sendable {
         return text.state(info.state)
     }
 
+    /// Dernière exécution en couleur (1.7.6) : réussie en vert, échec en rouge, interrompue ou arrêtée en orange.
+    struct LastRun: Equatable {
+        enum Tone: Equatable { case success, failure, warning, neutral }
+        let symbol: String
+        let label: String
+        let detail: String?
+        let tone: Tone
+    }
+
+    func lastRun(_ info: AgentTaskInfo, text: CardText) -> LastRun {
+        guard let record = info.lastRun else {
+            return LastRun(symbol: "circle.dashed", label: localizer.text("last.never"), detail: nil, tone: .neutral)
+        }
+        let label = localizer.format("last.format", text.status(record.status), text.relative(record.startedAt))
+        let detail = record.status == .running ? nil : record.summary.map { text.summaryLine($0) }
+        switch record.status {
+        case .succeeded: return LastRun(symbol: "checkmark.circle.fill", label: label, detail: detail, tone: .success)
+        case .failed, .blocked, .quotaReached: return LastRun(symbol: "xmark.circle.fill", label: label, detail: detail, tone: .failure)
+        case .interrupted, .stopped: return LastRun(symbol: "exclamationmark.circle.fill", label: label, detail: detail, tone: .warning)
+        case .running: return LastRun(symbol: "circle.dotted", label: label, detail: nil, tone: .neutral)
+        }
+    }
+
+    /// Libellé court de l'horaire (1.7.6), affiché en étiquette au-dessus du nom.
+    func scheduleTag(_ task: SyncTask?, text: CardText) -> String? {
+        guard let task else { return nil }
+        if task.removableDrive != nil { return localizer.text("list.schedule.drive") }
+        return text.schedule(task.schedule)
+    }
+
     /// Mentions à côté du nom.
     public func badges(_ info: AgentTaskInfo) -> [String] {
         info.isOneOff ? [localizer.text("list.oneoff")] : []

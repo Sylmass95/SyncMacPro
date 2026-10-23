@@ -51,97 +51,124 @@ public struct MenuBarPanel: View {
         return Array(next.prefix(3))
     }
 
+    /// Vrai état (1.7.6) : « Préparation… » plutôt que « En cours » pendant la comparaison préalable.
+    static func stateLine(_ info: AgentTaskInfo, text: CardText) -> String { RowText(localizer: text.localizer).state(info, text: text) }
+
+    // 1.7.6 : une carte par rubrique, chaque tâche sur ses lignes (nom, puis état dessous), séparées d'un trait gris.
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             if model.connection != .connected {
                 ConnectionBanner(
                     connection: model.connection, installState: .unknown, localizer: l,
                     onRetry: { model.restart() }, onInstall: {}
                 )
             }
-            section(l.text("menubar.active")) {
+            card(l.text("menubar.active")) {
                 if active.isEmpty {
-                    Text(l.text("menubar.none")).foregroundStyle(.secondary)
+                    Text(l.text("menubar.none")).foregroundStyle(.secondary).font(.callout)
                 } else {
-                    ForEach(active) { activeRow($0) }
+                    separated(active) { activeRow($0) }
                 }
             }
             let drives = DrivePresentation.attentionIDs(status: model.status, tasks: model.tasks)
             if !drives.isEmpty {
-                section(l.text("menubar.drives")) {
-                    ForEach(tasks.filter { drives.contains($0.id) }) { driveRow($0) }
+                card(l.text("menubar.drives")) {
+                    separated(tasks.filter { drives.contains($0.id) }) { driveRow($0) }
                 }
             }
-            section(l.text("menubar.upcoming")) {
+            card(l.text("menubar.upcoming")) {
                 if upcoming.isEmpty {
-                    Text(l.text("menubar.nonext")).foregroundStyle(.secondary)
+                    Text(l.text("menubar.nonext")).foregroundStyle(.secondary).font(.callout)
                 } else {
-                    ForEach(upcoming) { info in
-                        HStack {
-                            Text(info.name).lineLimit(1)
-                            Spacer(minLength: 8)
-                            Text(text.nextRun(info.nextDue)).foregroundStyle(.secondary).lineLimit(1)
+                    separated(upcoming) { info in
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(info.name).font(.callout).fixedSize(horizontal: false, vertical: true)
+                            Text(info.state == .queued ? l.text("menubar.next.queued") : text.nextRun(info.nextDue))
+                                .font(.caption).foregroundStyle(.secondary)
                         }
-                        .font(.callout)
                     }
                 }
             }
-            Divider()
-            pauseButton
             HStack {
-                Button(l.text("menubar.open"), action: onOpen)
+                pauseButton
                 Spacer()
                 Button(l.text("menubar.quit"), action: onQuit)
+                Button(l.text("menubar.open"), action: onOpen).buttonStyle(.borderedProminent)
             }
         }
-        .padding(14)
-        .frame(width: 320)
+        .controlSize(.small)
+        .padding(12)
+        .frame(width: 340)
     }
 
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func card<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+            Text(title).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
             content()
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 9).fill(Color.secondary.opacity(0.12)))
+    }
+
+    private func separated<Content: View>(_ infos: [AgentTaskInfo], @ViewBuilder row: @escaping (AgentTaskInfo) -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(infos.enumerated()), id: \.element.id) { index, info in
+                if index > 0 { Divider().overlay(Color.gray.opacity(0.35)) }
+                row(info)
+            }
         }
     }
 
     private func activeRow(_ info: AgentTaskInfo) -> some View {
         let progress = model.progress[info.id]
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text(info.name).lineLimit(1)
-                Spacer(minLength: 8)
-                Text(text.state(info.state)).font(.caption).foregroundStyle(.secondary)
+        let busy = model.busyTasks.contains(info.id)
+        return HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.name).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                Text(Self.stateLine(info, text: text)).font(.caption)
+                    .foregroundStyle(info.state == .paused ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let progress {
+                    GlowProgressBar(value: TaskRow.fraction(progress), height: 4).accessibilityLabel(info.name)
+                    Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            if let progress {
-                GlowProgressBar(value: Double(progress.overallPercent ?? 0) / 100, height: 5)
-                    .accessibilityLabel(info.name)
-                Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+            if info.state == .running {
+                iconButton("list.tip.pause", "pause.fill") { Task { await model.pause(info.id) } }.disabled(busy)
+            } else if info.resumePending != true {
+                iconButton("list.tip.resume", "play.fill") { Task { await model.resume(info.id) } }.disabled(busy)
             }
+            iconButton("list.tip.stop", "stop.fill") { Task { await model.stop(info.id) } }.disabled(busy)
         }
-        .font(.callout)
+    }
+
+    private func iconButton(_ key: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: symbol).frame(width: 12, height: 12) }
+            .buttonStyle(.bordered).help(l.text(key)).accessibilityLabel(l.text(key))
     }
 
     private func driveRow(_ info: AgentTaskInfo) -> some View {
         let task = model.tasks[info.id]
         let actions = TaskCard.availableActions(info: info, task: task, driveMounted: info.driveMounted)
-        return VStack(alignment: .leading, spacing: 3) {
-            Text(info.name).lineLimit(1)
-            if let line = DrivePresentation(localizer: l, now: text.now).line(info: info, task: task) {
-                Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-            }
-            HStack {
-                if actions.contains(.abandon) {
-                    Button(l.text("card.abandon")) { Task { await model.abandonSuspended(info.id) } }
-                }
-                if actions.contains(.eject) {
-                    Button { Task { await model.ejectDrive(info.id) } } label: { Label(l.text("card.eject"), systemImage: "eject.fill") }
+        return HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.name).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                if let line = DrivePresentation(localizer: l, now: text.now).line(info: info, task: task) {
+                    Text(line).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .controlSize(.small)
-            .disabled(model.busyTasks.contains(info.id))
+            Spacer(minLength: 4)
+            if actions.contains(.abandon) {
+                iconButton("list.tip.abandon", "xmark.circle.fill") { Task { await model.abandonSuspended(info.id) } }
+            }
+            if actions.contains(.eject) {
+                iconButton("list.tip.eject", "eject.fill") { Task { await model.ejectDrive(info.id) } }
+            }
         }
-        .font(.callout)
+        .disabled(model.busyTasks.contains(info.id))
     }
 
     @ViewBuilder private var pauseButton: some View {

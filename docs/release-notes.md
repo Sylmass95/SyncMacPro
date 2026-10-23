@@ -1,3 +1,15 @@
+SyncMacPro 1.7.6 — une interface plus compacte.
+
+**Améliorations (1.7.6)**
+- Liste plus compacte : noms plus petits, horaire en étiquette au-dessus du nom (la colonne Horaire disparaît), place donnée à l'état, à la dernière exécution et aux actions.
+- Sur chaque ligne, seuls les boutons utiles, en icônes (leur nom au survol) : Lecture et Pause partagent le même bouton, « Forcer », « Arrêter » (ou « Abandonner » pour une sauvegarde de disque en pause), « Éjecter », et un bouton marche/arrêt (vert : activée, gris : désactivée). La barre d'actions groupées au-dessus de la liste disparaît (le clic droit les garde) ; seule reste « Pause globale ».
+- Dernière exécution en couleur : réussie en vert, échec en rouge, interrompue ou arrêtée en orange.
+- Double-clic sur une tâche : sa fiche avec Configuration (l'éditeur complet), Réglages et Journal. En bas de la fenêtre ne reste que l'historique de la tâche, sur environ quatre lignes.
+- Barre de menus en cartes : chaque tâche sur ses lignes (nom, puis état dessous), séparées d'un trait gris, avec Pause/Reprendre et Arrêter en icônes.
+
+**Correction (1.7.6)**
+- La mini-fenêtre et la barre de menus affichaient « En cours » pendant la préparation d'une copie : elles disent maintenant « Préparation : comparaison avec la destination… », comme la liste.
+
 SyncMacPro 1.7.5 — une liste plus lisible, colonnes redimensionnables.
 
 **Améliorations (1.7.5)**

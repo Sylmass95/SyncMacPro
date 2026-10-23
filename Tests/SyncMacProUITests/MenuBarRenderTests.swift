@@ -8,7 +8,7 @@ final class MenuBarRenderTests: XCTestCase {
     func testPanelRendersWithActiveCopiesAndUpcomingRuns() throws {
         for scheme in [ColorScheme.light, .dark] {
             let panel = MenuBarPanel(model: UIFixtures.model(), text: UIFixtures.french, onOpen: {}, onQuit: {})
-            let image = try render(panel, name: "menubar-panel", size: CGSize(width: 320, height: 420), scheme: scheme)
+            let image = try render(panel, name: "menubar-panel", size: CGSize(width: 340, height: 460), scheme: scheme)
             assertNotBlank(image)
         }
     }
