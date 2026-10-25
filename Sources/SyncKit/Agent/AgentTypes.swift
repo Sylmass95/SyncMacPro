@@ -211,8 +211,13 @@ public struct ProgressInfo: Codable, Equatable, Sendable {
     public var dirsDone: Int?
     public var totalDirs: Int?
     public var averageSpeed: Double?
+    /// 1.8.4 : fichier déjà à la destination en cours de comparaison ; absent d'un agent plus ancien.
+    public var checkingName: String?
+    public var checkingSize: Int64?
 
     public init(_ snapshot: TransferSnapshot) {
+        checkingName = snapshot.checkingName
+        checkingSize = snapshot.checkingSize
         dirsDone = snapshot.totalDirs == nil ? nil : snapshot.dirsDone
         totalDirs = snapshot.totalDirs
         averageSpeed = snapshot.averageSpeed > 0 ? snapshot.averageSpeed : nil

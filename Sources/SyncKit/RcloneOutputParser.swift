@@ -21,6 +21,8 @@ public struct RcloneStats: Equatable, Sendable {
     public var elapsedTime: Double
     public var fatalError: Bool
     public var transferring: [RcloneTransferring]
+    /// 1.8.4 : fichiers en cours de comparaison (déjà à la destination : rclone peut les relire en entier).
+    public var checking: [String] = []
 }
 
 public enum RcloneEvent: Equatable, Sendable {
@@ -52,6 +54,17 @@ public enum RcloneOutputParser {
         var elapsedTime: Double?
         var fatalError: Bool?
         var transferring: [Transferring]?
+        var checking: [Checking]?
+    }
+
+    /// Un nom seul, ou un objet `{ "name": … }` selon la version de rclone.
+    private struct Checking: Decodable {
+        var name: String?
+        init(from decoder: Decoder) throws {
+            if let text = try? decoder.singleValueContainer().decode(String.self) { name = text; return }
+            struct Named: Decodable { var name: String? }
+            name = try? Named(from: decoder).name
+        }
     }
 
     private struct Transferring: Decodable {
@@ -78,7 +91,8 @@ public enum RcloneOutputParser {
                         name: $0.name ?? "", size: $0.size ?? 0, bytes: $0.bytes ?? 0,
                         percentage: $0.percentage ?? 0, speed: $0.speed ?? 0
                     )
-                }
+                },
+                checking: (stats.checking ?? []).compactMap(\.name)
             ))
         }
         let message = decoded.msg ?? ""

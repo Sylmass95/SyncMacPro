@@ -79,7 +79,7 @@ extension TaskRunner {
             var simulated = options
             simulated.dryRun = true
             simulated.rcSocketPath = nil
-            let planCommand = try RcloneCommandBuilder.command(for: task, run: simulated)
+            let planCommand = try RcloneCommandBuilder.countingCommand(for: task, run: simulated)
             let pending = Locked<Set<String>>([])
             let control = self.control
             counting = Task.detached { [self] in
@@ -100,7 +100,14 @@ extension TaskRunner {
         options.rcSocketPath = socket
         defer { if let socket { try? FileManager.default.removeItem(atPath: socket) } }
         let command = try RcloneCommandBuilder.command(for: task, run: options)
-        let tracker = SafeTracker(now: configuration.now, fileInfo: { _ in (0, false) })
+        // 1.8.4 : la taille d'un fichier comparé se lit à la destination (ou à la source) sur le disque.
+        let localRoot = task.destination.filesystemPath ?? task.source.filesystemPath
+        let tracker = SafeTracker(now: configuration.now, fileInfo: { name in
+            guard let root = localRoot,
+                  let size = (try? FileManager.default.attributesOfItem(atPath: Endpoint.join(root, name))[.size] as? NSNumber)?.int64Value
+            else { return (0, false) }
+            return (size, false)
+        })
         tracker.perform { $0.start() }
         control.setHooks(pause: { tracker.perform { $0.pause() } }, resume: { tracker.perform { $0.resume() } })
 

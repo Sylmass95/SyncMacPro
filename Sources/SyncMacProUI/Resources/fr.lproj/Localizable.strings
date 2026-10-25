@@ -612,3 +612,5 @@
 "details.where.on" = "sur %@";
 "details.finder" = "Afficher dans le Finder";
 "details.select" = "Sélectionnez une ligne pour voir le chemin complet.";
+"progress.checking" = "Vérification de « %@ », déjà à la destination";
+"progress.checking.size" = "Vérification de « %@ » (%@), déjà à la destination";

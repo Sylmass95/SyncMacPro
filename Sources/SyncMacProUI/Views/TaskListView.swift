@@ -108,7 +108,12 @@ struct TaskRow: View {
         var pace = l.speed(progress.currentSpeed)
         if let eta = progress.totalETA, progress.totalBytes != nil { pace += " · " + l.format("progress.remaining", l.duration(eta)) }
         if progress.currentSpeed > 0 || progress.totalETA != nil { lines.append(pace) }
-        if let name = progress.currentName, !name.isEmpty { lines.append(name) }
+        if let name = progress.currentName, !name.isEmpty {
+            lines.append(name)
+        } else if let name = progress.checkingName, !name.isEmpty {
+            // 1.8.4 : un fichier déjà à la destination que le moteur relit pour le comparer (il peut être très gros).
+            lines.append(progress.checkingSize.map { l.format("progress.checking.size", name, l.bytes($0)) } ?? l.format("progress.checking", name))
+        }
         return lines
     }
 
