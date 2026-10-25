@@ -1,3 +1,9 @@
+SyncMacPro 1.8.4 — on voit ce que vérifie une copie, et elle relit deux fois moins.
+
+**Améliorations (1.8.4)**
+- Quand rclone compare un fichier déjà présent à la destination (même taille, autre date), il peut le relire en entier : lors d'un essai réel, une vidéo de 80 Go sur le NAS, relue pendant 9 h depuis la maison, sans rien afficher. La ligne de la tâche le dit maintenant : « Vérification de « C2263.MP4 » (79,86 Go), déjà à la destination ».
+- Le comptage qui tourne en même temps que la copie ne compare plus que les tailles : il ne relit plus ces fichiers en même temps qu'elle (deux fois moins de lecture sur le NAS).
+
 SyncMacPro 1.8.3 — des détails lisibles, et la réparation des copies vides.
 
 **Améliorations (1.8.3)**

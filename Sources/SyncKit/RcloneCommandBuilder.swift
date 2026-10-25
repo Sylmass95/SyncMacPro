@@ -132,6 +132,16 @@ public enum RcloneCommandBuilder {
         return EngineCommand(engine: .rclone, arguments: args)
     }
 
+    /// Comptage en arrière-plan (simulation) : tailles seulement (1.8.4). Sans cela, il relisait en même temps que la
+    /// copie chaque fichier de même taille mais d'une autre date (essai réel : une vidéo de 80 Go sur un NAS par VPN).
+    public static func countingCommand(for task: SyncTask, run: RunOptions) throws -> EngineCommand {
+        var simulated = run
+        simulated.dryRun = true
+        simulated.rcSocketPath = nil
+        let command = try self.command(for: task, run: simulated)
+        return EngineCommand(engine: .rclone, arguments: command.arguments + ["--size-only"])
+    }
+
     /// Crée un dossier distant (bisync refuse un côté absent).
     public static func mkdirCommand(for endpoint: Endpoint, run: RunOptions) -> EngineCommand {
         var args = ["mkdir", endpoint.rcloneSpec]

@@ -22,6 +22,9 @@ public struct TransferSnapshot: Equatable, Sendable {
     public var totalETA: TimeInterval?
     /// Temps passé à copier, pauses exclues.
     public var activeTime: TimeInterval = 0
+    /// 1.8.4 : fichier déjà à la destination que le moteur compare (et sa taille), quand rien ne se copie.
+    public var checkingName: String?
+    public var checkingSize: Int64?
 
     public init() {}
 }
@@ -38,6 +41,9 @@ public struct TransferSnapshot: Equatable, Sendable {
 public final class ProgressTracker {
     private let now: () -> Date
     private let fileInfo: (String) -> (size: Int64, live: Bool)
+    /// Dernier fichier comparé et sa taille (lue une fois par fichier).
+    private var checkedName: String?
+    private var checkedSize: Int64 = 0
 
     private var doneFiles: [String: Int64] = [:]
     private var doneDirs: Set<String> = []
@@ -279,6 +285,11 @@ public final class ProgressTracker {
             }
         }
         snap.totalETA = stats.eta
+        if stats.transferring.isEmpty, let name = stats.checking.first {
+            snap.checkingName = name
+            if checkedName != name { checkedName = name; checkedSize = fileInfo(name).size }
+            snap.checkingSize = checkedSize > 0 ? checkedSize : nil
+        }
         if let dirs = rcloneDirs {
             snap.dirsDone = dirs.done
             snap.totalDirs = dirs.total

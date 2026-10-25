@@ -612,3 +612,5 @@
 "details.where.on" = "on %@";
 "details.finder" = "Show in Finder";
 "details.select" = "Select a row to see the full path.";
+"progress.checking" = "Checking “%@”, already at the destination";
+"progress.checking.size" = "Checking “%@” (%@), already at the destination";
