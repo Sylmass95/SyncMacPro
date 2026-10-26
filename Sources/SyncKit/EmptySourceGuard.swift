@@ -4,6 +4,13 @@ import Foundation
 /// un fichier que Drive pour ordinateur n'a pas fini d'envoyer (essai réel du 15/10 : un .psb de 6,5 Go à 0 octet,
 /// copié vide sur le NAS). Un fichier vide nouveau, lui, est copié.
 public enum EmptySourceGuard {
+    /// Fichier « Icon » d'un dossier du Mac (icône personnalisée) : vide par nature, inutile à protéger (1.8.5). rclone
+    /// écrit le retour chariot de son nom « ␍ ».
+    public static func isFolderIcon(_ path: String) -> Bool {
+        let name = path.split(separator: "/").last.map(String.init) ?? path
+        return name == "Icon\r" || name == "Icon\u{240D}"
+    }
+
     public static func protectedPaths(sourceEmpty: [String], destinationSizes: [String: Int64]) -> [String] {
         sourceEmpty.filter { (destinationSizes[$0] ?? 0) > 0 }.sorted()
     }

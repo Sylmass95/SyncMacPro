@@ -297,11 +297,14 @@ extension TaskRunner {
         }
         // Liste partielle (un sous-dossier illisible, une erreur passagère) : on protège quand même ce qui a été lu.
         if code != 0 { onUpdate(.line("Liste des fichiers vides incomplète (code \(code.map(String.init) ?? "?")) : protection partielle.")) }
+        // 1.8.5 : les icônes de dossier du Mac sont vides par nature.
+        empty.update { $0.removeAll(where: EmptySourceGuard.isFolderIcon) }
         guard !empty.get().isEmpty else { return [:] }
+        onUpdate(.line("Protection des fichiers vides : \(empty.get().count) fichier(s) vide(s) à vérifier à la destination."))
         let list = FileManager.default.temporaryDirectory.appendingPathComponent("smp-liste-\(UUID().uuidString).txt")
         defer { try? FileManager.default.removeItem(at: list) }
         guard (try? empty.get().joined(separator: "\n").write(to: list, atomically: true, encoding: .utf8)) != nil,
-              let outcome = try? await collect(RcloneCommandBuilder.destinationSizesCommand(for: task, file: list.path, run: options)),
+              let outcome = try? await collect(RcloneCommandBuilder.destinationSizesCommand(for: task, file: list.path, run: options, count: empty.get().count)),
               let entries = try? JSONSerialization.jsonObject(with: Data(outcome.output.utf8)) as? [[String: Any]]
         else { return [:] }
         var sizes: [String: Int64] = [:]
