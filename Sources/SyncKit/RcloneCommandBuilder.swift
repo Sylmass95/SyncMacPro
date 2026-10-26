@@ -112,8 +112,13 @@ public enum RcloneCommandBuilder {
     }
 
     /// Tailles à la destination des chemins listés dans `file` (`lsjson --files-from`).
-    public static func destinationSizesCommand(for task: SyncTask, file: String, run: RunOptions) -> EngineCommand {
-        var args = ["lsjson", "-R", task.destination.rcloneSpec, "--files-from", file, "--no-traverse", "--files-only"]
+    /// 1.8.5 : au-delà de `onePassThreshold` fichiers, la destination est lue en une fois (`--fast-list`) au lieu d'être
+    /// interrogée fichier par fichier (4 151 fichiers sur un Drive : 25 min).
+    public static let onePassThreshold = 200
+
+    public static func destinationSizesCommand(for task: SyncTask, file: String, run: RunOptions, count: Int = 0) -> EngineCommand {
+        var args = ["lsjson", "-R", task.destination.rcloneSpec, "--files-from", file, "--files-only"]
+        args += count > onePassThreshold ? fastList(task.destination) : ["--no-traverse"]
         if let config = run.rcloneConfigPath { args += ["--config", config] }
         return EngineCommand(engine: .rclone, arguments: args)
     }

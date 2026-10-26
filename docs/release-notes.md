@@ -1,3 +1,8 @@
+SyncMacPro 1.8.5 — la protection des fichiers vides ne fait plus attendre.
+
+**Amélioration (1.8.5)**
+- Avant de copier vers un service en ligne, SyncMacPro vérifie qu'aucun fichier vide n'écrasera une version pleine. Lors d'un essai réel (NAS → Drive), il interrogeait le Drive fichier par fichier pour 4 151 fichiers vides : 25 minutes avant chaque reprise de la copie. Les fichiers « Icon » des dossiers du Mac (icônes personnalisées, vides par nature) ne sont plus vérifiés, et au-delà de 200 fichiers la destination est lue en une seule fois. Le journal indique combien de fichiers sont vérifiés.
+
 SyncMacPro 1.8.4 — on voit ce que vérifie une copie, et elle relit deux fois moins.
 
 **Améliorations (1.8.4)**
