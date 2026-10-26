@@ -99,6 +99,13 @@ public struct MenuBarPanel: View {
         .controlSize(.small)
         .padding(12)
         .frame(width: 340)
+        // 1.8.7 : fond opaque ; transparent, on lisait mal à travers le panneau.
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    /// Orange seulement pour un vrai problème : disque débranché pendant une sauvegarde (1.8.7).
+    static func driveNeedsAttention(_ info: AgentTaskInfo) -> Bool {
+        info.driveSuspendedSince != nil || info.driveMounted == false
     }
 
     private func card<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -108,7 +115,8 @@ public struct MenuBarPanel: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 9).fill(Color.secondary.opacity(0.12)))
+        .background(RoundedRectangle(cornerRadius: 9).fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color(nsColor: .separatorColor)))
     }
 
     private func separated<Content: View>(_ infos: [AgentTaskInfo], @ViewBuilder row: @escaping (AgentTaskInfo) -> Content) -> some View {
@@ -133,6 +141,11 @@ public struct MenuBarPanel: View {
                     GlowProgressBar(value: TaskRow.fraction(progress), height: 4).accessibilityLabel(info.name)
                     Text(text.progressLine(progress)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    // 1.8.7 : le fichier en cours, en une ligne (nom et pourcentage).
+                    if let file = TaskRow.currentFile(progress, text: text) {
+                        Text("\((file.name as NSString).lastPathComponent) · \(Int((file.fraction * 100 + 1e-9).rounded(.down))) %")
+                            .font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).help(file.name)
+                    }
                 }
             }
             Spacer(minLength: 4)
@@ -157,7 +170,9 @@ public struct MenuBarPanel: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(info.name).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                 if let line = DrivePresentation(localizer: l, now: text.now).line(info: info, task: task) {
-                    Text(line).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                    Text(line).font(.caption)
+                        .foregroundStyle(Self.driveNeedsAttention(info) ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 4)
