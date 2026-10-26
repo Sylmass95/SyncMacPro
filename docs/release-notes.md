@@ -1,3 +1,10 @@
+SyncMacPro 1.8.7 — barre de menus lisible.
+
+**Corrections (1.8.7)**
+- Le panneau de la barre de menus était transparent : on lisait mal à travers. Il a maintenant un fond opaque et des cartes nettes, en clair comme en sombre.
+- « Disque « … » branché » n'est plus écrit en orange : l'orange est réservé à un vrai problème (disque débranché pendant une sauvegarde).
+- Le panneau montre aussi le fichier en cours d'une copie et son pourcentage.
+
 SyncMacPro 1.8.6 — l'avancement du fichier en cours.
 
 **Amélioration (1.8.6)**
