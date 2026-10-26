@@ -59,6 +59,17 @@ struct TaskRow: View {
                             .foregroundStyle(index == 2 ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary.opacity(0.8)))
                             .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                     }
+                    if let file = Self.currentFile(progress, text: text) {
+                        // 1.8.6 : le fichier en cours, avec sa propre barre (plus fine que celle de l'ensemble).
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label(file.name, systemImage: "doc").font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                            GlowProgressBar(value: file.fraction).frame(height: 3).opacity(0.8)
+                            Text(file.line).font(.caption.monospacedDigit()).foregroundStyle(.primary.opacity(0.7))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.top, 2)
+                    }
                 }
             }
             .frame(width: columns.width(.state), alignment: .leading)
@@ -109,12 +120,34 @@ struct TaskRow: View {
         if let eta = progress.totalETA, progress.totalBytes != nil { pace += " · " + l.format("progress.remaining", l.duration(eta)) }
         if progress.currentSpeed > 0 || progress.totalETA != nil { lines.append(pace) }
         if let name = progress.currentName, !name.isEmpty {
-            lines.append(name)
+            // 1.8.6 : taille connue → le fichier a son propre bloc (barre et chiffres) sous ces lignes.
+            if currentFile(progress, text: text) == nil { lines.append(name) }
         } else if let name = progress.checkingName, !name.isEmpty {
             // 1.8.4 : un fichier déjà à la destination que le moteur relit pour le comparer (il peut être très gros).
             lines.append(progress.checkingSize.map { l.format("progress.checking.size", name, l.bytes($0)) } ?? l.format("progress.checking", name))
         }
         return lines
+    }
+
+    /// Avancement du fichier en cours (1.8.6) : « 11,06 Go sur 55,28 Go · 20 % · 11,0 Mo/s · reste 1:04:00 ».
+    struct CurrentFile: Equatable {
+        let name: String
+        let fraction: Double
+        let line: String
+    }
+
+    static func currentFile(_ progress: ProgressInfo, text: CardText) -> CurrentFile? {
+        guard let name = progress.currentName, !name.isEmpty, progress.currentSize > 0 else { return nil }
+        let l = text.localizer
+        let done = min(progress.currentBytes, progress.currentSize)
+        let fraction = Double(done) / Double(progress.currentSize)
+        var parts = [l.format("progress.volume", l.bytes(done), l.bytes(progress.currentSize)), "\(Int((fraction * 100 + 1e-9).rounded(.down))) %"]
+        if progress.currentSpeed > 0 {
+            parts.append(l.speed(progress.currentSpeed))
+            let left = Double(progress.currentSize - done) / progress.currentSpeed
+            if left >= 1 { parts.append(l.format("progress.remaining", l.duration(left))) }
+        }
+        return CurrentFile(name: name, fraction: fraction, line: parts.joined(separator: " · "))
     }
 
     static func fraction(_ info: ProgressInfo) -> Double {

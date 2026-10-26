@@ -1,3 +1,8 @@
+SyncMacPro 1.8.6 — l'avancement du fichier en cours.
+
+**Amélioration (1.8.6)**
+- Sous l'avancement de l'ensemble, la colonne État montre maintenant le fichier en cours avec sa propre barre : « 10,30 Go sur 51,49 Go · 20 % · 11,0 Mo/s · reste 1:03:54 ». Utile pour les gros fichiers (vidéos, images disque), qui peuvent prendre des heures.
+
 SyncMacPro 1.8.5 — la protection des fichiers vides ne fait plus attendre.
 
 **Amélioration (1.8.5)**
