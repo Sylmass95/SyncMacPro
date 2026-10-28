@@ -5,6 +5,14 @@ import SyncMacProUI
 
 /// Fermer la dernière fenêtre ne quitte pas l'app : elle reste dans la barre de menus. Quitter n'arrête pas l'agent.
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// 1.8.9 : lancée à l'ouverture de session, l'app démarre dans la barre de menus, sans fenêtre ni icône dans le Dock.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        let atLogin = LaunchContext.isLoginLaunch(event: NSAppleEventManager.shared().currentAppleEvent)
+        LaunchContext.shared = LaunchContext(atLogin: atLogin)
+        if atLogin { NSApp.setActivationPolicy(.accessory) }
+        DockPresence.shared.start()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     /// Dock, Finder, `open` : sans fenêtre visible, on rouvre la fenêtre principale.
@@ -84,6 +92,15 @@ struct SyncMacProApp: App {
         Window(localizer.text("app.name"), id: "main") {
             RootView(model: model, installer: installer, loginItem: loginItem, localizer: localizer, updates: updates)
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
+                .onAppear {
+                    guard LaunchContext.shared.shouldHideFirstWindow() else { return }
+                    // La fenêtre n'est pas encore à l'écran : masquée juste après que SwiftUI l'a montrée.
+                    DispatchQueue.main.async {
+                        if let window = NSApp.windows.first(where: MiniPanelController.isMainWindow) {
+                            DockPresence.shared.hide(window)
+                        }
+                    }
+                }
         }
         .defaultSize(width: 1180, height: 720)
         .commands {
@@ -137,8 +154,7 @@ private struct MenuBarIcon: View {
         .onAppear {
             let open = openWindow
             WindowReopener.shared.register {
-                open(id: "main")
-                NSApp.activate(ignoringOtherApps: true)
+                DockPresence.shared.reveal { open(id: "main") }
             }
         }
     }
@@ -154,8 +170,8 @@ private struct MenuBarContent: View {
         MenuBarPanel(
             model: model, text: CardText(localizer: localizer),
             onOpen: {
-                openWindow(id: "main")
-                NSApp.activate(ignoringOtherApps: true)
+                let open = openWindow
+                DockPresence.shared.reveal { open(id: "main") }
             },
             onQuit: { NSApp.terminate(nil) }
         )

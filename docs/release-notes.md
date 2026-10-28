@@ -1,3 +1,9 @@
+SyncMacPro 1.8.9 — discret dans le Dock.
+
+**Amélioration (1.8.9)**
+- SyncMacPro n'apparaît plus dans le Dock quand sa fenêtre est fermée ou réduite : il ne reste que dans la barre de menus, où il continue d'afficher l'état des copies. « Ouvrir SyncMacPro » dans la barre de menus (ou un clic sur l'app dans le Finder) rouvre la fenêtre et remet l'icône dans le Dock.
+- À l'ouverture de session, SyncMacPro démarre directement dans la barre de menus, sans ouvrir sa fenêtre.
+
 SyncMacPro 1.8.8 — quota d'envoi de Google Drive.
 
 **Corrections (1.8.8)**

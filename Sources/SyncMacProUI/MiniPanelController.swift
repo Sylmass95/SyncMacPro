@@ -42,7 +42,7 @@ public final class MiniPanelController: NSObject, NSWindowDelegate {
     }
 
     /// La fenêtre de la scène `Window(id: "main")` (SwiftUI lui donne un identifiant qui commence par « main »).
-    static func isMainWindow(_ window: NSWindow) -> Bool {
+    public static func isMainWindow(_ window: NSWindow) -> Bool {
         window.identifier?.rawValue.hasPrefix("main") == true
     }
 
