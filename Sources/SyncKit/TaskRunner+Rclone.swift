@@ -114,10 +114,17 @@ extension TaskRunner {
         onUpdate(.phase(.running))
         let log = RunLog()
         let lastStats = Locked<RcloneStats?>(nil)
+        // 1.8.8 : refus répétés du service (quota du jour) que rclone n'a pas reconnus : il réessaierait pendant des heures.
+        let running = Locked<RunningProcess?>(nil)
+        let refusals = Locked(0)
         let process = try ProcessRunner.spawn(
             executable: rclone, arguments: command.arguments) { output in
             onUpdate(.line(output.text))
             log.noteSignal(in: output.text)
+            if OutputSignal.detect(in: output.text) == .uploadLimit {
+                refusals.update { $0 += 1 }
+                if refusals.get() == Self.uploadRefusalLimit { running.get()?.terminate() }
+            }
             guard let event = RcloneOutputParser.parse(line: output.text) else { return }
             switch event {
             case .stats(let stats):
@@ -137,6 +144,8 @@ extension TaskRunner {
             }
         }
         control.registerMain(process)
+        running.set(process)
+        if refusals.get() >= Self.uploadRefusalLimit { process.terminate() }   // refus arrivés avant `running`
         if let socket {
             let sender = LatestRateSender { rate in await RcloneRemoteControl.setRate(rclone: rclone, socket: socket, rate: rate) }
             control.setBandwidthHook { sender.submit($0) }
@@ -166,6 +175,10 @@ extension TaskRunner {
         } else if log.signal == .safetyAbort {
             status = .blocked
             message = (log.signalText.flatMap(Self.messageText(fromJSONLine:)) ?? "Trop de suppressions.") + " Rien n'a été modifié."
+        } else if refusals.get() >= Self.uploadRefusalLimit || (code != 0 && refusals.get() > 0) {
+            // Un refus isolé (trop de requêtes à la seconde) dans une copie réussie n'est pas le quota du jour.
+            status = .quotaReached
+            message = Self.uploadLimitMessage
         } else if log.signal == .quotaReached || code == 8 {
             status = .quotaReached
             message = "Quota de transfert atteint : la copie reprendra à la prochaine exécution."
@@ -232,9 +245,16 @@ extension TaskRunner {
         if task.mode == .bidirectional, !dryRun, status == .succeeded, let workdir = options.bisyncWorkdir {
             try? Data().write(to: URL(fileURLWithPath: workdir).appendingPathComponent(Self.bisyncLinksMarker))
         }
-        return result(status: status, engine: .rclone, snapshot: snapshot, started: started,
-                      deletions: stats?.deletes ?? 0, errors: log.errors > 0 ? log.errors : (stats?.errors ?? 0), message: message)
+        var outcome = result(status: status, engine: .rclone, snapshot: snapshot, started: started,
+                             deletions: stats?.deletes ?? 0, errors: log.errors > 0 ? log.errors : (stats?.errors ?? 0), message: message)
+        outcome.uploadLimitReached = message == Self.uploadLimitMessage
+        return outcome
     }
+
+    /// Refus du service à partir desquels la copie est arrêtée (rclone ne les a pas reconnus comme le quota du jour).
+    static let uploadRefusalLimit = 5
+    static let uploadLimitMessage = "Quota d'envoi du service en ligne atteint (Google Drive : environ 750 Go par 24 h) : "
+        + "la copie s'est arrêtée et reprendra automatiquement quand le service accepte de nouveau les envois."
 
     /// 1.8.3 : la version pleine (`from`) remplace la copie vide (`to`), fichier par fichier ; renvoie le nombre réparé.
     private func repairEmpty(

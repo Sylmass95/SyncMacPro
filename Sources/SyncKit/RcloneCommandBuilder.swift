@@ -58,6 +58,10 @@ public enum RcloneCommandBuilder {
         if let quota = task.options.maxTransferGB, task.mode != .verify {
             args += ["--max-transfer", "\(quota)G", "--cutoff-mode", "soft"]
         }
+        // 1.8.8 : quota du jour de Google Drive atteint, rclone s'arrête au lieu de réessayer pendant des heures.
+        if task.mode != .verify, task.destination.isCloud || (task.mode == .bidirectional && task.source.isCloud) {
+            args.append("--drive-stop-on-upload-limit")
+        }
         if let file = run.excludeFrom, task.mode != .verify { args += ["--exclude-from", file] }
         args += filterArguments(for: task)
         if task.mode != .bidirectional { args += fastList(task.source, task.destination) }

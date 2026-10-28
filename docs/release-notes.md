@@ -1,3 +1,9 @@
+SyncMacPro 1.8.8 — quota d'envoi de Google Drive.
+
+**Corrections (1.8.8)**
+- Google Drive n'accepte qu'environ 750 Go envoyés par 24 h et par compte. Une fois ce quota atteint, rclone réessayait dans le vide pendant des heures (889 refus en 4 h 30 la nuit du 28/10). La copie s'arrête maintenant au premier refus et la tâche attend : « quota d'envoi de « … » atteint, reprise vers HH:MM ». Nouvel essai toutes les 3 h, sans compter comme un échec et sans notification répétée.
+- Le quota d'une tâche (« Quota par exécution ») vaut désormais pour 24 h glissantes et pour toutes les tâches qui envoient vers le même compte : une copie qui part n'a droit qu'au reste du compte, et une tâche dont le compte est épuisé attend qu'il se libère.
+
 SyncMacPro 1.8.7 — barre de menus lisible.
 
 **Corrections (1.8.7)**

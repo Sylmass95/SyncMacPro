@@ -102,6 +102,9 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
     let copiedBeforeLoss = Locked(0)
     /// Étape annoncée au départ (1.7.1).
     let phase = Locked<RunPhase>(.running)
+    /// Octets envoyés et refus « quota d'envoi » du service en ligne (1.8.8).
+    let bytes = Locked<Int64>(0)
+    let uploadLimit = Locked(false)
     private let gate: Gate?
     private let stopped = Locked(false)
 
@@ -131,8 +134,8 @@ final class FakeRunner: TaskRunning, @unchecked Sendable {
         let final = stopped.get() ? RunStatus.stopped : status.get()
         return RunResult(
             status: final, engine: .rsync,
-            summary: RunSummary(filesTransferred: 1, message: message.get()), snapshot: TransferSnapshot(),
-            retryable: retryable.get()
+            summary: RunSummary(filesTransferred: 1, bytesTransferred: bytes.get(), message: message.get()), snapshot: TransferSnapshot(),
+            retryable: retryable.get(), uploadLimitReached: uploadLimit.get()
         )
     }
 
@@ -158,6 +161,8 @@ final class RunnerFactory: @unchecked Sendable {
     let unavailableNames = Locked<Set<String>>([])
     let copiedBeforeLoss = Locked(0)
     let phase = Locked<RunPhase>(.running)
+    let bytes = Locked<Int64>(0)
+    let uploadLimit = Locked(false)
     let gated: Bool
 
     init(gated: Bool = false) { self.gated = gated }
@@ -171,6 +176,8 @@ final class RunnerFactory: @unchecked Sendable {
         runner.unavailableNames.set(unavailableNames.get())
         runner.copiedBeforeLoss.set(copiedBeforeLoss.get())
         runner.phase.set(phase.get())
+        runner.bytes.set(bytes.get())
+        runner.uploadLimit.set(uploadLimit.get())
         runners.set(runners.get() + [runner])
         return runner
     }
