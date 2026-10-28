@@ -22,6 +22,8 @@ public struct AgentConfiguration: Sendable {
     /// Partage réseau injoignable (1.6.5) : nouvel essai après ce délai, sans échec, pendant `shareWaitLimit` au plus.
     public var shareRetryDelay: TimeInterval = 300
     public var shareWaitLimit: TimeInterval = 12 * 3600
+    /// Service en ligne qui refuse les envois (quota du jour, 1.8.8) : nouvel essai après ce délai, sans échec.
+    public var uploadLimitRetryDelay: TimeInterval = 3 * 3600
     /// Identité du programme de l'agent sur le disque (1.6.7) : si elle change, une mise à jour l'a remplacé.
     public var executableIdentity: @Sendable () -> String? = AgentConfiguration.runningExecutableIdentity
     /// Ouvre l'app en arrière-plan : c'est elle qui redémarre l'agent remplacé (launchd ne le relance pas seul).

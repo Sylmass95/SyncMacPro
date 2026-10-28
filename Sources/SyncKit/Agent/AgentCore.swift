@@ -217,7 +217,7 @@ public actor AgentCore {
                 waiting[task.id] = Self.restartReason
                 continue
             }
-            if let reason = unmetCondition(task, now: now) {
+            if let reason = uploadWait(task, now: now) ?? unmetCondition(task, now: now) {
                 waiting[task.id] = reason
                 continue
             }
@@ -452,9 +452,9 @@ public actor AgentCore {
         }
         // Disque amovible : la destination suit le point de montage actuel du volume.
         let task = resolvedForDrive(original)
-        var runTask = task
-        if overrideGuard { runTask.options.deleteThresholdPercent = 100 }
         let now = clock.now()
+        var runTask = cappedForUploads(task, now: now)
+        if overrideGuard { runTask.options.deleteThresholdPercent = 100 }
         let key = task.id.uuidString
         // Lancée à la main (ou par la file) pendant une suspension : c'est une reprise, dans le délai ; au-delà,
         // l'exécution suspendue est close.
@@ -590,6 +590,7 @@ public actor AgentCore {
         }
         if shuttingDown && status == .stopped { status = .interrupted }
         if let previous = job.resumed { summary = Self.combine(previous.summary, summary) }
+        let repeatedRefusal = recordUploads(job.task, outcome, now: now)
         if let drive = job.task.removableDrive, status != .succeeded, !shuttingDown,
            job.driveLost || (status == .failed && currentMountPath(drive) == nil) {
             suspendForDrive(job, drive: drive, summary: summary, now: now)
@@ -630,6 +631,10 @@ public actor AgentCore {
             // Une vérification qui n'a pas pu se faire (NAS absent, réseau coupé), elle, est retentée.
             entry.attempts = 0
             entry.retryAt = nil
+        case .quotaReached where CloudUploadBudget.account(for: job.task) != nil:
+            // Quota du compte (24 h) : la tâche repart quand il se libère ; ce n'est pas un échec qui s'épuise.
+            entry.attempts = 0
+            entry.retryAt = uploadFreeAt(job.task, now: now) ?? now.addingTimeInterval(configuration.retryDelay)
         case .failed, .quotaReached:
             entry.attempts += 1
             if entry.attempts < configuration.maxAttempts {
@@ -663,7 +668,7 @@ public actor AgentCore {
 
         if status == .succeeded, let drive = job.task.removableDrive, !shuttingDown {
             finishedOnDrive(job.task, drive: drive, summary: summary)
-        } else {
+        } else if !repeatedRefusal {
             notify(job.task, status, summary, oneOff: wasOneOff)
         }
         refreshActivity()

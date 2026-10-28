@@ -117,12 +117,16 @@ public enum OutputSignal: Equatable, Sendable {
     case needsResync
     /// Le quota de transfert (`--max-transfer`) est atteint.
     case quotaReached
+    /// Le service en ligne refuse les envois : quota du jour atteint (Google Drive : environ 750 Go par 24 h, 1.8.8).
+    case uploadLimit
 
     public static func detect(in text: String) -> OutputSignal? {
         let lower = text.lowercased()
         if lower.contains("safety abort") || lower.contains("too many deletes") { return .safetyAbort }
         if lower.contains("must run --resync") { return .needsResync }
         if lower.contains("max transfer limit reached") { return .quotaReached }
+        if lower.contains("received upload limit error") { return .uploadLimit }
+        if lower.contains("userratelimitexceeded"), lower.contains("failed to copy") { return .uploadLimit }
         return nil
     }
 }

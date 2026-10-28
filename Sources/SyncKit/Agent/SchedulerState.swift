@@ -40,10 +40,14 @@ public struct SchedulerState: Codable, Equatable, Sendable {
     /// Ordre de la liste (1.7.0) : l'ordre de départ des tâches. Les anciens champs de file ne servent plus qu'à la
     /// migration.
     public var order: [UUID] = []
+    /// Envois récents par compte en ligne (1.8.8) : le quota vaut pour 24 h et pour toutes les tâches du compte.
+    public var cloudAccounts: [String: CloudAccountState] = [:]
 
     public init() {}
 
-    private enum CodingKeys: String, CodingKey { case paused, lastPurge, tasks, userQueue, userQueueRunning, userQueueCurrent, order }
+    private enum CodingKeys: String, CodingKey {
+        case paused, lastPurge, tasks, userQueue, userQueueRunning, userQueueCurrent, order, cloudAccounts
+    }
 
     /// Un état d'avant 1.3.0 (sans file) se lit tel quel.
     public init(from decoder: Decoder) throws {
@@ -55,6 +59,7 @@ public struct SchedulerState: Codable, Equatable, Sendable {
         userQueueRunning = try c.decodeIfPresent(Bool.self, forKey: .userQueueRunning) ?? false
         userQueueCurrent = try c.decodeIfPresent(UUID.self, forKey: .userQueueCurrent)
         order = try c.decodeIfPresent([UUID].self, forKey: .order) ?? []
+        cloudAccounts = try c.decodeIfPresent([String: CloudAccountState].self, forKey: .cloudAccounts) ?? [:]
     }
 }
 

@@ -78,6 +78,8 @@ public struct RunResult: Equatable, Sendable {
     public var shareUnavailable: String? = nil
     /// Le partage était là au départ et a disparu pendant la copie (1.6.8) : l'attente part de maintenant.
     public var shareLostDuringRun: Bool = false
+    /// Le service en ligne refuse les envois (quota du jour atteint, 1.8.8) : l'agent fait attendre le compte.
+    public var uploadLimitReached: Bool = false
 }
 
 public enum RunnerError: Error, Equatable, LocalizedError {
