@@ -2,7 +2,8 @@ import Foundation
 
 /// Les services proposés par l'assistant.
 public enum CloudService: String, CaseIterable, Identifiable, Sendable {
-    case drive, dropbox, onedrive, s3
+    /// 1.8.10 : `smb` : le NAS lu directement, pour les noms que le partage monté sur le Mac ne sait pas ouvrir.
+    case drive, dropbox, onedrive, s3, smb
     public var id: String { rawValue }
 
     public var rcloneType: String { rawValue }
@@ -13,11 +14,12 @@ public enum CloudService: String, CaseIterable, Identifiable, Sendable {
         case .dropbox: return "shippingbox"
         case .onedrive: return "cloud"
         case .s3: return "server.rack"
+        case .smb: return "network"
         }
     }
 
-    /// Connexion par le navigateur (OAuth) ; S3 se contente de clés.
-    public var usesBrowser: Bool { self != .s3 }
+    /// Connexion par le navigateur (OAuth) ; S3 se contente de clés, le NAS d'un compte et d'un mot de passe.
+    public var usesBrowser: Bool { self != .s3 && self != .smb }
 
     /// Clé du nom affiché (et du nom proposé pour la connexion).
     public var nameKey: String { "service.\(rawValue)" }

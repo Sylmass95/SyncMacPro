@@ -117,10 +117,15 @@ extension TaskRunner {
         // 1.8.8 : refus répétés du service (quota du jour) que rclone n'a pas reconnus : il réessaierait pendant des heures.
         let running = Locked<RunningProcess?>(nil)
         let refusals = Locked(0)
+        // 1.8.10 : noms du NAS que le partage monté liste sans savoir les ouvrir, et noms en double.
+        let names = SourceNameLog()
+        let readsShare: Bool
+        if case .network = task.source { readsShare = !dryRun } else { readsShare = false }
         let process = try ProcessRunner.spawn(
             executable: rclone, arguments: command.arguments) { output in
             onUpdate(.line(output.text))
             log.noteSignal(in: output.text)
+            if readsShare { names.note(SourceNameIssue.parse(rcloneLine: output.text)) }
             if OutputSignal.detect(in: output.text) == .uploadLimit {
                 refusals.update { $0 += 1 }
                 if refusals.get() == Self.uploadRefusalLimit { running.get()?.terminate() }
@@ -206,6 +211,15 @@ extension TaskRunner {
             message = log.mainError ?? "rclone a échoué (code \(code))."
         }
 
+        var errorCount = log.errors > 0 ? log.errors : (lastStats.get()?.errors ?? 0)
+        var retryable = true
+        if readsShare {
+            let settled = await settleSourceNames(
+                names, task: task, options: options,
+                outcome: SourceNameOutcome(status: status, message: message, errors: errorCount), onUpdate: onUpdate)
+            (status, message, errorCount, retryable) = (settled.status, settled.message, settled.errors, settled.retryable)
+        }
+
         if status == .succeeded, !dryRun {
             if let cleanup = RcloneCommandBuilder.retentionCleanupCommand(for: task, run: options) {
                 _ = try await collect(cleanup)
@@ -246,7 +260,7 @@ extension TaskRunner {
             try? Data().write(to: URL(fileURLWithPath: workdir).appendingPathComponent(Self.bisyncLinksMarker))
         }
         var outcome = result(status: status, engine: .rclone, snapshot: snapshot, started: started,
-                             deletions: stats?.deletes ?? 0, errors: log.errors > 0 ? log.errors : (stats?.errors ?? 0), message: message)
+                             deletions: stats?.deletes ?? 0, errors: errorCount, message: message, retryable: retryable)
         outcome.uploadLimitReached = message == Self.uploadLimitMessage
         return outcome
     }

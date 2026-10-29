@@ -33,7 +33,8 @@ final class ConnectionsRenderTests: XCTestCase {
 
     func testServiceLabels() {
         XCTAssertEqual(ConnectionsListBody.serviceName("drive", localizer: fr), "Google Drive")
-        XCTAssertEqual(ConnectionsListBody.serviceName("smb", localizer: fr), "smb")
+        XCTAssertEqual(ConnectionsListBody.serviceName("sftp", localizer: fr), "sftp", "type inconnu : son nom rclone")
+        XCTAssertEqual(ConnectionsListBody.serviceName("smb", localizer: fr), "NAS (SMB direct)", "1.8.10")
         XCTAssertTrue(ConnectionsListBody.canReconnect("drive"))
         XCTAssertFalse(ConnectionsListBody.canReconnect("s3"))
         XCTAssertFalse(ConnectionsListBody.canReconnect("smb"))

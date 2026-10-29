@@ -373,6 +373,12 @@
 "wizard.s3.secretKey" = "Secret key";
 "wizard.s3.region" = "Region (e.g. eu-west-3), optional";
 "wizard.s3.endpoint" = "Service address (e.g. https://…)";
+"service.smb" = "NAS (direct SMB)";
+"wizard.service.smb.help" = "Your NAS read directly, for names the Mac cannot open";
+"wizard.smb.help" = "SyncMacPro connects to the NAS without going through the share mounted on the Mac. It uses it to recover files whose name is badly stored (accents): the Mac lists them but cannot open them.";
+"wizard.smb.host" = "NAS address (e.g. 10.92.7.3)";
+"wizard.smb.user" = "Account";
+"wizard.smb.password" = "Password";
 "wizard.browser.help" = "%@ will open in your browser to authorize SyncMacPro: sign in and accept.";
 "wizard.name.title" = "Connection name";
 "wizard.name.placeholder" = "Name";
@@ -612,5 +618,12 @@
 "details.where.on" = "on %@";
 "details.finder" = "Show in Finder";
 "details.select" = "Select a row to see the full path.";
+"details.filter.problems" = "Problems";
+"details.action.recovered" = "Recovered (direct connection)";
+"details.action.unreadable" = "Unreadable (badly stored name)";
+"details.action.duplicate" = "Duplicate on the NAS";
+"details.total.recovered" = "%d recovered through the direct connection (%@)";
+"details.total.unreadable" = "%d unreadable";
+"details.total.duplicate" = "%d duplicate(s) on the NAS";
 "progress.checking" = "Checking “%@”, already at the destination";
 "progress.checking.size" = "Checking “%@” (%@), already at the destination";

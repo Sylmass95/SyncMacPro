@@ -4,6 +4,8 @@ import Foundation
 public struct RunDetailRow: Codable, Equatable, Hashable, Sendable {
     public enum Action: String, Codable, CaseIterable, Sendable {
         case added, updated, touched, deleted, archived
+        /// 1.8.10 : nom mal enregistré sur le NAS, lu par la connexion directe ; illisible ; présent en double.
+        case recovered, unreadable, duplicate
 
         /// Lettre du fichier de détails.
         var code: Character {
@@ -13,6 +15,9 @@ public struct RunDetailRow: Codable, Equatable, Hashable, Sendable {
             case .touched: return "T"
             case .deleted: return "D"
             case .archived: return "R"
+            case .recovered: return "K"
+            case .unreadable: return "I"
+            case .duplicate: return "W"
             }
         }
 
@@ -126,9 +131,15 @@ public struct RunDetails: Codable, Equatable, Sendable {
             }
         }
         let archived = Set(order.filter { $0.action == .archived }.map(\.path))
+        // 1.8.10 : un fichier rattrapé par la connexion directe n'a qu'une ligne, avec la taille de sa copie.
+        let recovered = Set(order.filter { $0.action == .recovered }.map(\.path))
         var result: [RunDetailRow] = [], seen = Set<Key>()
         for key in order {
             guard var row = merged[key] else { continue }
+            if recovered.contains(row.path), [.added, .updated, .unreadable].contains(row.action) { continue }
+            if row.action == .recovered, row.size == nil {
+                row.size = merged[Key(action: .added, path: row.path)]?.size ?? merged[Key(action: .updated, path: row.path)]?.size
+            }
             if row.action == .deleted, archived.contains(row.path) { continue }
             if row.action == .added, archived.contains(row.path) {
                 row.action = .updated
@@ -190,8 +201,9 @@ public enum RunDetailParser {
         } else {
             return nil
         }
-        // « *local.Object » : un fichier sur le disque (Mac, NAS, disque) ; tout autre type : le service en ligne.
-        let origin: RunDetailRow.Origin? = (object["objectType"] as? String).map { $0.contains("local") ? .local : .cloud }
+        // « *local.Object » : un fichier sur le disque (Mac, NAS, disque), « *smb.Object » : le NAS par connexion directe
+        // (1.8.10) ; tout autre type : le service en ligne.
+        let origin: RunDetailRow.Origin? = (object["objectType"] as? String).map { $0.contains("local") || $0.contains("smb") ? .local : .cloud }
         return RunDetailRow(action: action, size: size, path: path, origin: origin)
     }
 }
