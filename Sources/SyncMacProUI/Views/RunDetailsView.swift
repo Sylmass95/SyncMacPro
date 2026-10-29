@@ -38,7 +38,8 @@ public struct RunDetailsView: View {
         self.localizer = localizer
     }
 
-    enum Filter: Hashable, CaseIterable { case all, copied, deleted, touched }
+    /// 1.8.10 : « Problèmes » : noms illisibles et doublons du NAS.
+    enum Filter: Hashable, CaseIterable { case all, copied, deleted, touched, problems }
 
     private var l: Localizer { localizer }
     private var task: SyncTask? { model.tasks[target.taskID] }
@@ -116,10 +117,10 @@ public struct RunDetailsView: View {
         let text = RowText(localizer: l)
         func place(_ endpoint: Endpoint) -> String { text.place(endpoint, drive: endpoint == task.destination ? task.removableDrive : nil) }
         switch row.action {
-        case .added, .updated:
+        case .added, .updated, .recovered:
             let other = side == task.source ? task.destination : task.source
             return "\(place(side)) → \(place(other))"
-        case .deleted, .archived, .touched:
+        case .deleted, .archived, .touched, .unreadable, .duplicate:
             return l.format("details.where.on", place(side))
         }
     }
@@ -136,6 +137,7 @@ public struct RunDetailsView: View {
         case .copied: return "details.filter.copied"
         case .deleted: return "details.filter.deleted"
         case .touched: return "details.filter.touched"
+        case .problems: return "details.filter.problems"
         }
     }
 
@@ -144,9 +146,10 @@ public struct RunDetailsView: View {
         let wanted: Set<RunDetailRow.Action>
         switch filter {
         case .all: wanted = Set(RunDetailRow.Action.allCases)
-        case .copied: wanted = [.added, .updated]
+        case .copied: wanted = [.added, .updated, .recovered]
         case .deleted: wanted = [.deleted, .archived]
         case .touched: wanted = [.touched]
+        case .problems: wanted = [.unreadable, .duplicate]
         }
         let needle = query.trimmingCharacters(in: .whitespaces)
         return rows.filter { row in
@@ -162,8 +165,8 @@ public struct RunDetailsView: View {
         RunDetailRow.Action.allCases.compactMap { action -> String? in
             guard let total = details.totals[action], total.count > 0 else { return nil }
             switch action {
-            case .added, .updated: return l.format("details.total.\(action.rawValue)", total.count, l.bytes(total.bytes))
-            case .deleted, .archived, .touched: return l.format("details.total.\(action.rawValue)", total.count)
+            case .added, .updated, .recovered: return l.format("details.total.\(action.rawValue)", total.count, l.bytes(total.bytes))
+            case .deleted, .archived, .touched, .unreadable, .duplicate: return l.format("details.total.\(action.rawValue)", total.count)
             }
         }.joined(separator: " · ")
     }
@@ -236,6 +239,9 @@ struct RunDetailsContent: View {
         case .deleted: return .red
         case .archived: return .orange
         case .touched: return .secondary
+        case .recovered: return .teal
+        case .unreadable: return .red
+        case .duplicate: return .orange
         }
     }
 }

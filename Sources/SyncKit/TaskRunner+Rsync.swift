@@ -143,6 +143,10 @@ extension TaskRunner {
                 control.requestRestart()
             }
         }
+        // 1.8.10 : noms du NAS que le partage monté liste sans savoir les ouvrir (rattrapés ensuite par rclone).
+        let names = SourceNameLog()
+        let readsShare: Bool
+        if case .network = task.source { readsShare = task.sourceItems.isEmpty } else { readsShare = false }
         var code: Int32 = 0   // toujours donné par la boucle ; Swift 5.10 ne le voit pas à travers `while true`
         var attemptNumber = 0
         while true {
@@ -159,6 +163,7 @@ extension TaskRunner {
             let process = try ProcessRunner.spawn(executable: rsync, arguments: attempt.arguments) { output in
                 watch.note()
                 onUpdate(.line(output.text))
+                if readsShare { names.note(SourceNameIssue.parse(rsyncLine: output.text, sourceRoot: source)) }
                 guard let event = RsyncOutputParser.parse(line: output.text) else { return }
                 switch event {
                 case .fileStarted(let name, _): lastStarted.set(name)
@@ -197,6 +202,15 @@ extension TaskRunner {
                 .map { "\($0) Détail : \(detail)" } ?? detail
         }
 
+        var errorCount = log.errors
+        var retryable = true
+        if readsShare {
+            let settled = await settleSourceNames(
+                names, task: task, options: RunOptions(archiveStamp: stamp, rcloneConfigPath: configuration.rcloneConfigPath),
+                outcome: SourceNameOutcome(status: status, message: message, errors: errorCount), onUpdate: onUpdate)
+            (status, message, errorCount, retryable) = (settled.status, settled.message, settled.errors, settled.retryable)
+        }
+
         if status == .succeeded, task.options.verifyAfterCopy, task.mode == .copy || task.mode == .mirror {
             onUpdate(.phase(.verifying))
             var checked = task
@@ -225,7 +239,7 @@ extension TaskRunner {
             }
         }
         return result(status: status, engine: .rsync, snapshot: snapshot, started: started,
-                      deletions: log.deletions, errors: log.errors, message: message)
+                      deletions: log.deletions, errors: errorCount, message: message, retryable: retryable)
     }
 
     /// Simulation (`-n --stats`) ; `nil` si rsync a échoué ou a été arrêté.

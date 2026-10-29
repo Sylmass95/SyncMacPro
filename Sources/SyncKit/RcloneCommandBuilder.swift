@@ -134,6 +134,20 @@ public enum RcloneCommandBuilder {
         return EngineCommand(engine: .rclone, arguments: args)
     }
 
+    /// 1.8.10 : copie, par la connexion SMB directe (`spec`), des fichiers listés dans `list` (chemins tels qu'enregistrés
+    /// sur le NAS, un par ligne) vers la destination de la tâche.
+    public static func directCopyCommand(from spec: String, task: SyncTask, list: String, run: RunOptions) -> EngineCommand {
+        var args = ["copy", spec, task.destination.rcloneSpec, "--files-from-raw", list, "--no-traverse"] + verbosity(task) + loggingFlags
+        if let rate = run.bandwidth, let value = bwlimitValue(rate) {
+            args += ["--bwlimit", value]
+        } else if let limit = task.options.bandwidthLimitKBps {
+            args += ["--bwlimit", "\(limit)K"]
+        }
+        if task.destination.isCloud { args.append("--drive-stop-on-upload-limit") }
+        if let config = run.rcloneConfigPath { args += ["--config", config] }
+        return EngineCommand(engine: .rclone, arguments: args)
+    }
+
     /// 1.8.3 : tailles des fichiers d'un dossier (archive d'une exécution), `lsjson -R --files-only`.
     public static func listSizesCommand(for endpoint: Endpoint, run: RunOptions) -> EngineCommand {
         var args = ["lsjson", "-R", "--files-only", endpoint.rcloneSpec] + fastList(endpoint)

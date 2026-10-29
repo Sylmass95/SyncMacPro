@@ -118,6 +118,11 @@ struct WizardStepContent: View {
             if wizard.s3Provider.needsEndpoint {
                 TextField(localizer.text("wizard.s3.endpoint"), text: $wizard.endpoint).textFieldStyle(.roundedBorder)
             }
+        case .smb:
+            Text(localizer.text("wizard.smb.help")).font(.callout).fixedSize(horizontal: false, vertical: true)
+            TextField(localizer.text("wizard.smb.host"), text: $wizard.smbHost).textFieldStyle(.roundedBorder)
+            TextField(localizer.text("wizard.smb.user"), text: $wizard.smbUser).textFieldStyle(.roundedBorder)
+            SecureField(localizer.text("wizard.smb.password"), text: $wizard.smbPassword).textFieldStyle(.roundedBorder)
         case .dropbox, .onedrive:
             Text(localizer.format("wizard.browser.help", serviceName)).fixedSize(horizontal: false, vertical: true)
         }

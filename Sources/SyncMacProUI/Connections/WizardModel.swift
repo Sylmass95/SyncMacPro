@@ -20,6 +20,10 @@ public final class WizardModel {
     public var secretKey = ""
     public var region = ""
     public var endpoint = ""
+    /// 1.8.10 : NAS par connexion SMB directe.
+    public var smbHost = ""
+    public var smbUser = ""
+    public var smbPassword = ""
     public var name = ""
     public private(set) var question: RemoteQuestion?
     public var answer = ""
@@ -60,6 +64,7 @@ public final class WizardModel {
             case .s3:
                 return !accessKey.trimmed.isEmpty && !secretKey.trimmed.isEmpty
                     && (!s3Provider.needsEndpoint || !endpoint.trimmed.isEmpty)
+            case .smb: return !smbHost.trimmed.isEmpty && !smbUser.trimmed.isEmpty && !smbPassword.isEmpty
             case .dropbox, .onedrive: return true
             }
         case .name: return nameProblem == nil
@@ -88,6 +93,7 @@ public final class WizardModel {
             if !region.trimmed.isEmpty { values["region"] = region.trimmed }
             if s3Provider.needsEndpoint { values["endpoint"] = endpoint.trimmed }
             return values
+        case .smb: return ["host": smbHost.trimmed, "user": smbUser.trimmed, "pass": smbPassword]
         case .dropbox, .onedrive: return [:]
         }
     }
@@ -95,6 +101,12 @@ public final class WizardModel {
     public func choose(_ chosen: CloudService) {
         service = chosen
         name = RemoteNameRule.suggestion(localizer.text(chosen.nameKey), existing: model.remotes.map(\.name))
+        // Le NAS des tâches : son adresse et le compte du partage sont déjà connus.
+        if chosen == .smb, let share = model.tasks.values.sorted(by: { $0.name < $1.name })
+            .lazy.compactMap({ SMBShare.of($0.source) ?? SMBShare.of($0.destination) }).first {
+            if smbHost.isEmpty { smbHost = share.host }
+            if smbUser.isEmpty { smbUser = share.user ?? "" }
+        }
         step = .prepare
     }
 

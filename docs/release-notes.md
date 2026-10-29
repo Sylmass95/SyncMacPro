@@ -1,3 +1,11 @@
+SyncMacPro 1.8.10 — les fichiers au nom mal enregistré sur le NAS.
+
+**Corrections (1.8.10)**
+- Sur un NAS, certains fichiers ont un nom enregistré avec l'accent « à part » (comme sur un Mac) au lieu de la forme habituelle. Le partage monté sur le Mac les liste mais ne sait pas les ouvrir : la copie « NAS 03_ARCHIVES → Drive » échouait sur 45 fichiers avec « Dossier introuvable ». Ces fichiers sont maintenant reconnus et, si une connexion « NAS (SMB direct) » existe pour ce NAS, récupérés par elle à la fin de la copie. Le résumé l'explique (« 45 fichiers au nom mal enregistré sur le NAS (accents) ont été récupérés par la connexion directe »).
+- Nouveau type de connexion « NAS (SMB direct) » dans Connexions : adresse du NAS, compte et mot de passe (proposés d'après vos tâches). Elle lit le NAS sans passer par le partage monté.
+- Les noms présents en double sur le NAS (le même nom sous les deux formes d'accents) sont signalés : une seule version est copiée.
+- Dans le journal et dans Détails (nouveau filtre « Problèmes ») : chaque fichier récupéré, illisible ou en double, avec son chemin.
+
 SyncMacPro 1.8.9 — discret dans le Dock.
 
 **Amélioration (1.8.9)**
