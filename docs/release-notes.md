@@ -1,3 +1,8 @@
+SyncMacPro 1.8.14 — tous les noms mal enregistrés rattrapés.
+
+**Correction (1.8.14)**
+- Un fichier au nom mal enregistré sur le NAS déjà présent à la destination échouait à la comparaison (rclone relit la source pour calculer son empreinte) et n'était pas rattrapé : la copie « NAS 03_ARCHIVES → Drive » restait en échec pour 2 vidéos après avoir récupéré les 47 autres. Ces fichiers sont maintenant reconnus et relus par la connexion directe eux aussi.
+
 SyncMacPro 1.8.13 — la question du trousseau au bon moment.
 
 **Amélioration (1.8.13)**

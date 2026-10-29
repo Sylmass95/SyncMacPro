@@ -16,8 +16,11 @@ public enum SourceNameIssue: Equatable, Sendable {
               let message = object["msg"] as? String, let path = object["object"] as? String, !path.isEmpty else { return nil }
         let lower = message.lowercased()
         if lower.hasPrefix("duplicate object found in source") { return .duplicate(path) }
-        if object["level"] as? String == "error", lower.contains("failed to open source object"),
-           lower.contains("no such file or directory") { return .unreadable(path) }
+        // À la copie, ou (1.8.14) à la comparaison d'un fichier déjà à la destination (empreinte de la source).
+        if object["level"] as? String == "error", lower.contains("no such file or directory"),
+           lower.contains("failed to open source object") || lower.contains("failed to calculate src hash") {
+            return .unreadable(path)
+        }
         return nil
     }
 
