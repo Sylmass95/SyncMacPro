@@ -10,7 +10,7 @@ final class Keychain1812Tests: IntegrationTestCase {
         for secret in ["mot de passe", "é,:'\"=%", String(repeating: "x", count: 70)] {
             let obscured = RcloneObscure.obscure(secret)
             XCTAssertNotEqual(obscured, RcloneObscure.obscure(secret), "nouveau vecteur à chaque fois")
-            XCTAssertEqual(try shell(rclone, ["reveal", obscured]).trimmingCharacters(in: .newlines), secret)
+            XCTAssertEqual(try shell(rclone, ["reveal", "--", obscured]).trimmingCharacters(in: .newlines), secret)
         }
     }
 
