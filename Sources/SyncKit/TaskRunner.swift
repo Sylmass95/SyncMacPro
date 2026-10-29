@@ -123,8 +123,10 @@ public final class TaskRunner: @unchecked Sendable {
         onOutput: @escaping @Sendable (String) -> Void
     ) async throws -> Int32 {
         let watch = makeWatch(for: command.engine)
+        let environment = command.environment.isEmpty ? nil
+            : ProcessInfo.processInfo.environment.merging(command.environment) { $1 }
         let process = try ProcessRunner.spawn(
-            executable: try executable(for: command.engine), arguments: command.arguments
+            executable: try executable(for: command.engine), arguments: command.arguments, environment: environment
         ) { line in
             watch.note()
             if line.stream == .stderr { errors?(line.text) } else { onOutput(line.text) }

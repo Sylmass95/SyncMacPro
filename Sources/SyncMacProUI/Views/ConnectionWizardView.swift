@@ -62,7 +62,7 @@ struct WizardStepContent: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(localizer.text("wizard.service.title")).font(.title3.bold())
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 10)], spacing: 10) {
-                ForEach(CloudService.allCases) { service in
+                ForEach(CloudService.wizardChoices) { service in
                     Button { wizard.choose(service) } label: {
                         HStack(spacing: 10) {
                             Image(systemName: service.symbol).font(.title2).frame(width: 30)

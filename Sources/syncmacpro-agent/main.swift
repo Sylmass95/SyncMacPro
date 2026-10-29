@@ -33,10 +33,13 @@ let rcloneConfig = option("--rclone-config")
 let rclonePath = BinaryLocator.locateForProcess(.rclone)
 // Délai au bout duquel un rsync figé (NAS qui ne répond plus) est arrêté ; option pour les essais.
 let stallTimeout = option("--stall-timeout").flatMap(Double.init) ?? RunnerConfiguration.defaultStallTimeout
-let runnerConfiguration = RunnerConfiguration(
+var runnerConfiguration = RunnerConfiguration(
     rsyncPath: BinaryLocator.locateForProcess(.rsync), rclonePath: rclonePath, rcloneConfigPath: rcloneConfig,
     workDirectory: paths.work, stallTimeout: stallTimeout
 )
+// 1.8.12 : connexion directe au NAS avec le mot de passe que macOS garde pour monter le partage.
+let smbPasswords = CachedSMBPassword()
+runnerConfiguration.smbPassword = { smbPasswords.password(for: $0) }
 var agentConfiguration = AgentConfiguration()
 agentConfiguration.workDirectory = paths.work
 if let hold = option("--startup-hold").flatMap(Double.init) { agentConfiguration.startupHold = hold }

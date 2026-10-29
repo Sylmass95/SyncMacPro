@@ -77,7 +77,7 @@ final class SourceNames1810Tests: XCTestCase {
     func testTheMessagesExplainWhatHappened() {
         XCTAssertEqual(SourceNameText.recovered(45),
                        "45 fichiers au nom mal enregistré sur le NAS (accents) ont été récupérés par la connexion directe.")
-        XCTAssertTrue(SourceNameText.unreadable(45, hasDirectConnection: false).contains("Connexions"))
+        XCTAssertTrue(SourceNameText.unreadable(45, hasDirectConnection: false).contains("trousseau"), "1.8.12")
         XCTAssertTrue(SourceNameText.duplicates(33).contains("33"))
     }
 

@@ -108,8 +108,8 @@ public enum SourceNameText {
         let base = "\(files(count)) au nom mal enregistré sur le NAS (accents) : le partage monté sur le Mac ne sait pas "
             + "\(count > 1 ? "les " : "l'")ouvrir (liste dans les détails)."
         guard hasDirectConnection else {
-            return base + " Ajoutez une connexion « NAS (SMB direct) » vers ce NAS dans Connexions : SyncMacPro les "
-                + "récupérera par elle. Ou renommez-les sur le NAS (File Station) en retapant les accents."
+            return base + " Pour que SyncMacPro les récupère, autorisez-le à utiliser le mot de passe du NAS enregistré dans le "
+                + "trousseau (macOS le demande une fois), ou renommez-les sur le NAS (File Station) en retapant les accents."
         }
         return base + " La connexion directe n'a pas pu \(count > 1 ? "les" : "le") lire" + (reason.map { " : \($0)" } ?? ".")
     }

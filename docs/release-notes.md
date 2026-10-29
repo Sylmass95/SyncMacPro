@@ -1,3 +1,10 @@
+SyncMacPro 1.8.12 — la connexion directe au NAS sans rien configurer.
+
+**Amélioration (1.8.12)**
+- Plus besoin de créer une connexion « NAS (SMB direct) » : pour récupérer les fichiers au nom mal enregistré sur le NAS, SyncMacPro se connecte directement au NAS avec l'adresse et le compte du partage, et le mot de passe que macOS garde dans le trousseau pour le monter. La première fois, macOS demande l'autorisation : répondez « Toujours autoriser ». Rien n'est enregistré et rien n'apparaît dans Connexions.
+- Une connexion SMB créée à la main reste utilisée en priorité ; l'assistant ne propose plus ce type de connexion.
+- Si la question de macOS reste sans réponse (copie de nuit), la copie n'attend pas plus de 2 minutes ; un refus est retenu quelques heures.
+
 SyncMacPro 1.8.11 — nom de connexion accepté.
 
 **Correction (1.8.11)**

@@ -51,6 +51,8 @@ public struct RunOptions: Equatable, Sendable {
 public struct EngineCommand: Equatable, Sendable {
     public let engine: EngineKind
     public let arguments: [String]
+    /// Variables ajoutées à l'environnement du moteur (1.8.12 : mot de passe de la connexion directe au NAS).
+    public var environment: [String: String] = [:]
 
     public init(engine: EngineKind, arguments: [String]) {
         self.engine = engine

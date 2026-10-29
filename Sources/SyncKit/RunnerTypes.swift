@@ -23,6 +23,9 @@ public struct RunnerConfiguration: Sendable {
     public var shareMountTimeout: TimeInterval = 60
     /// Pendant la copie, le partage est revérifié à cet intervalle : démonté, la copie s'arrête (1.6.8).
     public var shareWatchInterval: TimeInterval = 30
+    /// 1.8.12 : mot de passe d'un partage SMB (trousseau, pour l'agent) : la connexion directe au NAS sans rien configurer.
+    /// `nil` : seules les connexions créées à la main servent.
+    public var smbPassword: (@Sendable (SMBShare) -> String?)?
 
     public static let defaultStallTimeout: TimeInterval = 20 * 60
     /// Lister un dossier : un instant d'ordinaire, et macOS y demande l'autorisation d'un dossier protégé.
