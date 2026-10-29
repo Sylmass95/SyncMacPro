@@ -26,11 +26,11 @@ extension TaskRunner {
             unreadable.forEach { onUpdate(.line(SourceNameText.unreadableLine($0))) }
             var remaining = unreadable, reason: String?
             let share = [.copy, .mirror, .versioned].contains(task.mode) ? SMBShare.of(task.source) : nil
-            let remote = share.flatMap { SMBShare.remote(for: $0, config: rcloneConfigText(options)) }
-            if let share, let remote {
-                onUpdate(.line("Connexion directe « \(remote) » : lecture de \(SourceNameText.files(unreadable.count)) au nom mal enregistré."))
-                let copied = await copyThroughDirectConnection(unreadable, from: share.spec(remote: remote), task: task,
-                                                               options: options, onUpdate: onUpdate)
+            let direct = share.flatMap { directConnection(to: $0, options: options) }
+            if let direct {
+                onUpdate(.line("Connexion directe \(direct.label) : lecture de \(SourceNameText.files(unreadable.count)) au nom mal enregistré."))
+                let copied = await copyThroughDirectConnection(unreadable, from: direct.spec, environment: direct.environment,
+                                                               task: task, options: options, onUpdate: onUpdate)
                 reason = copied.reason
                 remaining = unreadable.filter { copied.sizes[$0] == nil }
                 for path in unreadable where copied.sizes[path] != nil {
@@ -44,10 +44,10 @@ extension TaskRunner {
                 outcome.errors = others
                 if others == 0 { outcome.status = .succeeded }
             } else {
-                outcome.message = SourceNameText.unreadable(remaining.count, hasDirectConnection: remote != nil, reason: reason) + othersText
+                outcome.message = SourceNameText.unreadable(remaining.count, hasDirectConnection: direct != nil, reason: reason) + othersText
                 outcome.errors = remaining.count + others
                 // Sans connexion directe, relancer buterait sur les mêmes fichiers.
-                if remote == nil, others == 0 { outcome.retryable = false }
+                if direct == nil, others == 0 { outcome.retryable = false }
             }
             if !duplicates.isEmpty { outcome.message = (outcome.message ?? "") + " " + SourceNameText.duplicates(duplicates.count) }
         } else if !duplicates.isEmpty, outcome.status == .succeeded {
@@ -56,9 +56,19 @@ extension TaskRunner {
         return outcome
     }
 
+    /// La connexion directe au NAS : celle créée à la main dans Connexions d'abord, sinon (1.8.12) celle déduite du partage
+    /// avec le mot de passe du trousseau.
+    private func directConnection(to share: SMBShare, options: RunOptions) -> (spec: String, label: String, environment: [String: String])? {
+        if let remote = SMBShare.remote(for: share, config: rcloneConfigText(options)) {
+            return (share.spec(remote: remote), "« \(remote) »", [:])
+        }
+        guard let password = configuration.smbPassword?(share) else { return nil }
+        return (share.inlineSpec, "au NAS \(share.host) (mot de passe du trousseau)", ["RCLONE_SMB_PASS": RcloneObscure.obscure(password)])
+    }
+
     /// Copie les fichiers nommés par la connexion directe ; renvoie leur taille (chemin → taille) et la cause d'un échec.
     private func copyThroughDirectConnection(
-        _ paths: [String], from spec: String, task: SyncTask, options: RunOptions,
+        _ paths: [String], from spec: String, environment: [String: String], task: SyncTask, options: RunOptions,
         onUpdate: @escaping @Sendable (RunUpdate) -> Void
     ) async -> (sizes: [String: Int64?], reason: String?) {
         let list = FileManager.default.temporaryDirectory.appendingPathComponent("smp-direct-\(UUID().uuidString).txt")
@@ -68,7 +78,8 @@ extension TaskRunner {
         }
         var run = options
         run.bandwidth = control.bandwidth
-        let command = RcloneCommandBuilder.directCopyCommand(from: spec, task: task, list: list.path, run: run)
+        var command = RcloneCommandBuilder.directCopyCommand(from: spec, task: task, list: list.path, run: run)
+        command.environment = environment
         let sizes = Locked<[String: Int64?]>([:]), lastError = Locked<String?>(nil)
         let handle: @Sendable (String) -> Void = { line in
             onUpdate(.line(line))

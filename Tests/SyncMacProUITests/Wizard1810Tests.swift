@@ -23,6 +23,7 @@ final class Wizard1810Tests: XCTestCase {
         XCTAssertTrue(wizard.canContinue)
         XCTAssertEqual(wizard.parameters, ["host": "10.92.7.3", "user": "sylvain.masson", "pass": "secret"])
         XCTAssertEqual(CloudService.forType("smb"), .smb)
+        XCTAssertFalse(CloudService.wizardChoices.contains(.smb), "1.8.12 : connexion directe automatique")
     }
 
     func testThePasswordIsAlwaysObscuredByRclone() {

@@ -8,6 +8,10 @@ public enum CloudService: String, CaseIterable, Identifiable, Sendable {
 
     public var rcloneType: String { rawValue }
 
+    /// Services proposés par l'assistant. 1.8.12 : plus le NAS, dont la connexion directe est déduite du partage et du
+    /// trousseau (une connexion créée avant reste reconnue).
+    public static var wizardChoices: [CloudService] { allCases.filter { $0 != .smb } }
+
     public var symbol: String {
         switch self {
         case .drive: return "externaldrive.connected.to.line.below"
