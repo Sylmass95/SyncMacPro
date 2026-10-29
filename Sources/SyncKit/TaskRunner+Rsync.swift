@@ -145,8 +145,8 @@ extension TaskRunner {
         }
         // 1.8.10 : noms du NAS que le partage monté liste sans savoir les ouvrir (rattrapés ensuite par rclone).
         let names = SourceNameLog()
-        var readsShare = false
-        if case .network = task.source, task.sourceItems.isEmpty { readsShare = true }
+        let readsShare: Bool
+        if case .network = task.source { readsShare = task.sourceItems.isEmpty } else { readsShare = false }
         var code: Int32 = 0   // toujours donné par la boucle ; Swift 5.10 ne le voit pas à travers `while true`
         var attemptNumber = 0
         while true {
