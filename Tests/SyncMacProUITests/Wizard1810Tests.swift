@@ -43,6 +43,6 @@ final class Wizard1810Tests: XCTestCase {
                                                       .duplicate: .init(count: 1, bytes: 0)], truncated: false)
         let line = RunDetailsView.totalsLine(details, localizer: Localizer(language: "fr"))
         XCTAssertTrue(line.contains("1 récupéré(s) par la connexion directe"), line)
-        XCTAssertTrue(line.contains("1 doublon(s) sur le NAS"), line)
+        XCTAssertTrue(line.contains("1 doublon(s) à la source"), line)
     }
 }

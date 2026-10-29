@@ -621,9 +621,9 @@
 "details.filter.problems" = "Problems";
 "details.action.recovered" = "Recovered (direct connection)";
 "details.action.unreadable" = "Unreadable (badly stored name)";
-"details.action.duplicate" = "Duplicate on the NAS";
+"details.action.duplicate" = "Duplicate at the source";
 "details.total.recovered" = "%d recovered through the direct connection (%@)";
 "details.total.unreadable" = "%d unreadable";
-"details.total.duplicate" = "%d duplicate(s) on the NAS";
+"details.total.duplicate" = "%d duplicate(s) at the source";
 "progress.checking" = "Checking “%@”, already at the destination";
 "progress.checking.size" = "Checking “%@” (%@), already at the destination";
