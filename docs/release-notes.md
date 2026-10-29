@@ -1,3 +1,10 @@
+SyncMacPro 1.8.13 — la question du trousseau au bon moment.
+
+**Amélioration (1.8.13)**
+- SyncMacPro demande le mot de passe du NAS au trousseau dès son démarrage (ouverture de session, mise à jour) et quand une tâche qui lit un NAS est ajoutée ou modifiée : la question de macOS arrive quand vous êtes devant le Mac, plus au milieu d'une copie de nuit. Répondez « Toujours autoriser ».
+- Une question restée affichée n'est pas reposée et n'est pas prise pour un refus : la réponse sert dès qu'elle est donnée.
+- Un seul mot de passe par NAS et par compte, même pour plusieurs partages ou tâches.
+
 SyncMacPro 1.8.12 — la connexion directe au NAS sans rien configurer.
 
 **Amélioration (1.8.12)**

@@ -66,7 +66,8 @@ extension SMBShare {
 }
 
 /// Mot de passe du trousseau pour l'agent : la réponse est retenue (macOS ne redemande pas à chaque copie), un refus
-/// quelques heures ; une question restée sans réponse (la nuit) ne bloque pas la copie au-delà de `timeout`.
+/// quelques heures. 1.8.13 : la question est posée d'avance (`prefetch`, au démarrage) ; tant qu'elle reste affichée, elle
+/// n'est ni reposée ni prise pour un refus, et une copie ne l'attend pas plus de `timeout`.
 public final class CachedSMBPassword: @unchecked Sendable {
     public static let refusalMemory: TimeInterval = 6 * 3600
     private let lookup: @Sendable (SMBShare) -> String?
@@ -75,6 +76,8 @@ public final class CachedSMBPassword: @unchecked Sendable {
     private let lock = NSLock()
     private var found: [String: String] = [:]
     private var refusedAt: [String: Date] = [:]
+    /// Questions en cours : signalées à leur réponse.
+    private var asking: [String: DispatchSemaphore] = [:]
 
     public init(timeout: TimeInterval = 120, lookup: @escaping @Sendable (SMBShare) -> String? = KeychainSMBPassword.lookup,
                 now: @escaping () -> Date = { Date() }) {
@@ -83,22 +86,43 @@ public final class CachedSMBPassword: @unchecked Sendable {
         self.now = now
     }
 
+    private static func key(_ share: SMBShare) -> String { "\(share.user ?? "")@\(share.host.lowercased())" }
+
+    /// Pose la question sans l'attendre (démarrage de l'agent, tâche ajoutée).
+    public func prefetch(_ share: SMBShare) {
+        _ = ask(share)
+    }
+
     public func password(for share: SMBShare) -> String? {
-        let key = "\(share.user ?? "")@\(share.host.lowercased())"
-        lock.lock()
-        if let password = found[key] { lock.unlock(); return password }
-        if let refused = refusedAt[key], now().timeIntervalSince(refused) < Self.refusalMemory { lock.unlock(); return nil }
-        lock.unlock()
-        let answer = Locked<String??>(nil)
-        let done = DispatchSemaphore(value: 0)
-        let lookup = self.lookup
-        DispatchQueue.global().async {
-            answer.set(.some(lookup(share)))
-            done.signal()
+        guard let pending = ask(share) else {
+            lock.lock(); defer { lock.unlock() }
+            return found[Self.key(share)]
         }
-        let password = done.wait(timeout: .now() + timeout) == .success ? (answer.get() ?? nil) : nil
+        // Sans réponse dans le délai : pas un refus, la réponse servira à la copie suivante.
+        guard pending.wait(timeout: .now() + timeout) == .success else { return nil }
+        pending.signal()   // d'autres attendent peut-être la même réponse
         lock.lock(); defer { lock.unlock() }
-        if let password { found[key] = password } else { refusedAt[key] = now() }
-        return password
+        return found[Self.key(share)]
+    }
+
+    /// La question en cours pour ce NAS, posée si besoin ; `nil` si la réponse est déjà connue (mot de passe ou refus récent).
+    private func ask(_ share: SMBShare) -> DispatchSemaphore? {
+        let key = Self.key(share)
+        lock.lock(); defer { lock.unlock() }
+        if found[key] != nil { return nil }
+        if let refused = refusedAt[key], now().timeIntervalSince(refused) < Self.refusalMemory { return nil }
+        if let pending = asking[key] { return pending }
+        let pending = DispatchSemaphore(value: 0)
+        asking[key] = pending
+        let lookup = self.lookup
+        DispatchQueue.global().async { [self] in
+            let password = lookup(share)
+            lock.lock()
+            if let password { found[key] = password } else { refusedAt[key] = now() }
+            asking[key] = nil
+            lock.unlock()
+            pending.signal()
+        }
+        return pending
     }
 }
