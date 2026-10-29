@@ -181,7 +181,15 @@ public enum RemoteNameRule {
         return nil
     }
 
-    public static func suggestion(_ base: String, existing: [String]) -> String {
+    /// Un nom que rclone accepte (1.8.11 : « NAS (SMB direct) » était refusé) : caractères refusés retirés, espaces
+    /// resserrés, ni « - » ni espace au début, numéroté s'il est déjà pris.
+    public static func suggestion(_ name: String, existing: [String]) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-.+@ "))
+        let kept = String(String.UnicodeScalarView(name.unicodeScalars.filter { allowed.contains($0) }))
+        var base = kept.split(separator: " ").joined(separator: " ")
+        while base.hasPrefix("-") { base.removeFirst() }
+        base = base.trimmingCharacters(in: .whitespaces)
+        if base.isEmpty { base = "Connexion" }
         guard problem(base, existing: existing) == .taken else { return base }
         var index = 2
         while problem("\(base) \(index)", existing: existing) == .taken { index += 1 }
