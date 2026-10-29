@@ -1,3 +1,8 @@
+SyncMacPro 1.8.15 — les doublons du Drive signalés.
+
+**Amélioration (1.8.15)**
+- Google Drive accepte deux fichiers du même nom dans un même dossier (un import refait, par exemple) ; rclone n'en copie qu'un. Ces doublons sont maintenant signalés, comme ceux d'un NAS : dans le résumé (« 102 noms en double sur le service en ligne »), dans le journal et dans Détails (filtre « Problèmes », « Doublon à la source »).
+
 SyncMacPro 1.8.14 — tous les noms mal enregistrés rattrapés.
 
 **Correction (1.8.14)**

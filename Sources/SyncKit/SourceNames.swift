@@ -117,17 +117,23 @@ public enum SourceNameText {
         return base + " La connexion directe n'a pas pu \(count > 1 ? "les" : "le") lire" + (reason.map { " : \($0)" } ?? ".")
     }
 
-    public static func duplicates(_ count: Int) -> String {
-        "\(count > 1 ? "\(count) noms" : "1 nom") en double sur le NAS (même nom sous deux formes d'accents) : une seule "
-            + "version copiée (liste dans les détails)."
+    /// `cloud` (1.8.15) : la source est un service en ligne, qui accepte deux fichiers du même nom dans un dossier.
+    public static func duplicates(_ count: Int, cloud: Bool = false) -> String {
+        let names = count > 1 ? "\(count) noms" : "1 nom"
+        if cloud {
+            return "\(names) en double sur le service en ligne (deux fichiers du même nom dans un dossier, souvent un import "
+                + "refait) : un seul copié (liste dans les détails)."
+        }
+        return "\(names) en double sur le NAS (même nom sous deux formes d'accents) : une seule version copiée (liste dans les détails)."
     }
 
     static func unreadableLine(_ path: String) -> String {
         "Nom mal enregistré sur le NAS (accents), illisible par le partage monté : \(path)"
     }
 
-    static func duplicateLine(_ path: String) -> String {
-        "Doublon sur le NAS (même nom sous deux formes d'accents, une seule version copiée) : \(path)"
+    static func duplicateLine(_ path: String, cloud: Bool = false) -> String {
+        cloud ? "Doublon sur le service en ligne (deux fichiers du même nom, un seul copié) : \(path)"
+            : "Doublon sur le NAS (même nom sous deux formes d'accents, une seule version copiée) : \(path)"
     }
 }
 
@@ -137,8 +143,10 @@ final class SourceNameLog: @unchecked Sendable {
     private var unreadableSet: [String] = []
     private var duplicateSet: [String] = []
 
-    func note(_ issue: SourceNameIssue?) {
+    /// `onlyDuplicates` : hors NAS, un fichier « introuvable » a vraiment disparu ; seuls les doublons comptent.
+    func note(_ issue: SourceNameIssue?, onlyDuplicates: Bool = false) {
         guard let issue else { return }
+        if onlyDuplicates, case .unreadable = issue { return }
         lock.lock(); defer { lock.unlock() }
         switch issue {
         case .unreadable(let path): if !unreadableSet.contains(path) { unreadableSet.append(path) }

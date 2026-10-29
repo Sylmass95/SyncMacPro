@@ -621,9 +621,9 @@
 "details.filter.problems" = "Problèmes";
 "details.action.recovered" = "Récupéré (connexion directe)";
 "details.action.unreadable" = "Illisible (nom mal enregistré)";
-"details.action.duplicate" = "Doublon sur le NAS";
+"details.action.duplicate" = "Doublon à la source";
 "details.total.recovered" = "%d récupéré(s) par la connexion directe (%@)";
 "details.total.unreadable" = "%d illisible(s)";
-"details.total.duplicate" = "%d doublon(s) sur le NAS";
+"details.total.duplicate" = "%d doublon(s) à la source";
 "progress.checking" = "Vérification de « %@ », déjà à la destination";
 "progress.checking.size" = "Vérification de « %@ » (%@), déjà à la destination";

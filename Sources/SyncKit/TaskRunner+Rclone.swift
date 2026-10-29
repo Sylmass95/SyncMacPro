@@ -125,7 +125,8 @@ extension TaskRunner {
             executable: rclone, arguments: command.arguments) { output in
             onUpdate(.line(output.text))
             log.noteSignal(in: output.text)
-            if readsShare { names.note(SourceNameIssue.parse(rcloneLine: output.text)) }
+            // 1.8.15 : les doublons d'un service en ligne aussi (deux fichiers du même nom dans un dossier du Drive).
+            if !dryRun { names.note(SourceNameIssue.parse(rcloneLine: output.text), onlyDuplicates: !readsShare) }
             if OutputSignal.detect(in: output.text) == .uploadLimit {
                 refusals.update { $0 += 1 }
                 if refusals.get() == Self.uploadRefusalLimit { running.get()?.terminate() }
@@ -213,7 +214,7 @@ extension TaskRunner {
 
         var errorCount = log.errors > 0 ? log.errors : (lastStats.get()?.errors ?? 0)
         var retryable = true
-        if readsShare {
+        if readsShare || !names.duplicates.isEmpty {
             let settled = await settleSourceNames(
                 names, task: task, options: options,
                 outcome: SourceNameOutcome(status: status, message: message, errors: errorCount), onUpdate: onUpdate)

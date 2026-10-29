@@ -16,9 +16,9 @@ extension TaskRunner {
         onUpdate: @escaping @Sendable (RunUpdate) -> Void
     ) async -> SourceNameOutcome {
         var outcome = outcome
-        let duplicates = names.duplicates, unreadable = names.unreadable
+        let duplicates = names.duplicates, unreadable = names.unreadable, cloud = task.source.isCloud
         for path in duplicates {
-            onUpdate(.line(SourceNameText.duplicateLine(path)))
+            onUpdate(.line(SourceNameText.duplicateLine(path, cloud: cloud)))
             onUpdate(.detail(RunDetailRow(action: .duplicate, size: nil, path: path, origin: .source)))
         }
         if !unreadable.isEmpty, outcome.status == .failed, !control.stopRequested {
@@ -49,9 +49,9 @@ extension TaskRunner {
                 // Sans connexion directe, relancer buterait sur les mêmes fichiers.
                 if direct == nil, others == 0 { outcome.retryable = false }
             }
-            if !duplicates.isEmpty { outcome.message = (outcome.message ?? "") + " " + SourceNameText.duplicates(duplicates.count) }
+            if !duplicates.isEmpty { outcome.message = (outcome.message ?? "") + " " + SourceNameText.duplicates(duplicates.count, cloud: cloud) }
         } else if !duplicates.isEmpty, outcome.status == .succeeded {
-            outcome.message = [outcome.message, SourceNameText.duplicates(duplicates.count)].compactMap { $0 }.joined(separator: " ")
+            outcome.message = [outcome.message, SourceNameText.duplicates(duplicates.count, cloud: cloud)].compactMap { $0 }.joined(separator: " ")
         }
         return outcome
     }
