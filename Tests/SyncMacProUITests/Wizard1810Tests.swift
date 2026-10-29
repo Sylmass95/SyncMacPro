@@ -12,7 +12,8 @@ final class Wizard1810Tests: XCTestCase {
         await model.reloadRemotes()
         let wizard = WizardModel(model: model, localizer: Localizer(language: "fr"))
         wizard.choose(.smb)
-        XCTAssertEqual(wizard.name, "NAS (SMB direct)")
+        XCTAssertEqual(wizard.name, "NAS SMB direct", "1.8.11 : sans parenthèses, que rclone refuse")
+        XCTAssertNil(wizard.nameProblem)
         XCTAssertFalse(CloudService.smb.usesBrowser)
         XCTAssertFalse(wizard.canContinue)
         wizard.smbHost = " 10.92.7.3 "

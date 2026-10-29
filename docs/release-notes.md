@@ -1,3 +1,8 @@
+SyncMacPro 1.8.11 — nom de connexion accepté.
+
+**Correction (1.8.11)**
+- L'assistant proposait « NAS (SMB direct) » comme nom de connexion, que rclone refuse (parenthèses) : « Suivant » restait grisé. Le nom proposé ne contient plus que des caractères acceptés (« NAS SMB direct »), pour tous les services.
+
 SyncMacPro 1.8.10 — les fichiers au nom mal enregistré sur le NAS.
 
 **Corrections (1.8.10)**
