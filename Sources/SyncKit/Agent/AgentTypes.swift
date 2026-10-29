@@ -24,6 +24,9 @@ public struct AgentConfiguration: Sendable {
     public var shareWaitLimit: TimeInterval = 12 * 3600
     /// Service en ligne qui refuse les envois (quota du jour, 1.8.8) : nouvel essai après ce délai, sans échec.
     public var uploadLimitRetryDelay: TimeInterval = 3 * 3600
+    /// 1.8.13 : NAS lus par les tâches, à chaque lecture de la liste : l'agent demande leur mot de passe au trousseau
+    /// d'avance (la question de macOS arrive au démarrage, pas pendant une copie de nuit).
+    public var prepareSMBPasswords: @Sendable ([SMBShare]) -> Void = { _ in }
     /// Identité du programme de l'agent sur le disque (1.6.7) : si elle change, une mise à jour l'a remplacé.
     public var executableIdentity: @Sendable () -> String? = AgentConfiguration.runningExecutableIdentity
     /// Ouvre l'app en arrière-plan : c'est elle qui redémarre l'agent remplacé (launchd ne le relance pas seul).

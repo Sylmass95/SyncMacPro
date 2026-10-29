@@ -172,6 +172,13 @@ public actor AgentCore {
             known.contains(key) || UUID(uuidString: key).map { jobs[$0] != nil } == true
         }
         syncOrder()
+        // Un NAS par adresse et compte, même lu par plusieurs tâches.
+        var shares: [SMBShare] = []
+        for share in tasks.compactMap({ SMBShare.of($0.source) })
+        where !shares.contains(where: { $0.host.lowercased() == share.host.lowercased() && $0.user == share.user }) {
+            shares.append(share)
+        }
+        if !shares.isEmpty { configuration.prepareSMBPasswords(shares) }
     }
 
     // MARK: évaluation
